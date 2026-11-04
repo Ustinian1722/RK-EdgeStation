@@ -1,0 +1,18 @@
+Toolkit2 conversion environment probe
+Date: 2026-11-05
+Purpose: find a local Linux x86-64 environment for the authorized RKNN-Toolkit2 v2.0.0-beta0 conversion.
+
+Host: Windows 11 x64; Python 3.12/3.13; no local CMake/C++ toolchain.
+Pinned Toolkit2 converter wheel: Linux x86-64, CPython 3.10; not installed or run.
+Board: aarch64 RK3576; board has the RKNN C runtime but no Toolkit2 converter package.
+
+WSL state:
+- WslService reports Running.
+- The only registered distro is our task-created Ubuntu-22.04 WSL2 entry at D:\WSL\RK-EdgeStation.
+- `wsl --status` stalled for more than 10 seconds; the CLI process started for the check was stopped.
+- `wsl --list --verbose` stalled for more than 10 seconds; the CLI process started for the check was stopped.
+- `wsl --unregister Ubuntu-22.04` stalled for 20 seconds; the CLI process started for the check was stopped. The registration was left untouched.
+- A byte-for-byte backup of its partial 12,582,912-byte VHDX is at D:\WSL\RK-EdgeStation-bootstrap\partial-distro-backup\ubuntu-22.04-partial-ext4.vhdx.
+- Backup SHA-256: 00CEDAA5A2D4B771EC955B81B333903D309B8DA9F5E88F3279CF8D2D2A3DE78B.
+
+No host service, WSL registry entry, board system package, driver, kernel, permission, or runtime was changed for these checks. Toolkit2 conversion remains pending a working compatible Linux x86-64 environment or a compatible preconverted RK3576 model.

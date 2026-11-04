@@ -14,6 +14,7 @@ Status: requirements-derived plan. Tests will be added with the corresponding mo
 
 1. Official RKNN C++ demo: model load, runtime/driver query, one image, repeated inference, output inspection, release. Capture success or complete failure details.
 2. CPU/OpenCV MP4 decode and pixel-format baseline.
+   - Current automated check writes and reads a generated MP4, then verifies 60 decoded frames, 320×240 dimensions, and 30 FPS. It validates OpenCV software I/O only; it does not establish MPP hardware decode.
 3. MPP GStreamer H.264 and H.265 decode, if matching sample media is available.
 4. RGA resize/color conversion with input/output checksum or pixel tolerance against the CPU reference.
 5. RKNN model output repeatability, tensor layout and output-release loop.

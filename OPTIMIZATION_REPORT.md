@@ -5,7 +5,7 @@ Status: no optimization has been attempted; no baseline or Before/After result e
 ## P0 constraints discovered
 
 - The board already exposes MPP 1.5.0, RGA 2.2.0, `/dev/mpp_service`, `/dev/rga`, and a system DMA heap. This establishes API/device presence only.
-- RKNN Runtime is 2.0.0b0 and the expected `/dev/rknpu` node is absent. NPU execution is not yet verified.
+- RKNN Runtime is 2.0.0b0 and the expected `/dev/rknpu` node is absent. The official bundled RK3576 MobileNet model successfully ran through the C API; the project YOLO worker has compiled but has not yet run a project model.
 - No physical camera was detected. A fixed local video file will be used for the first comparable pipeline run.
 - User-space MPP/RGA calls and DMA-BUF availability do not establish hardware execution or zero-copy behavior.
 

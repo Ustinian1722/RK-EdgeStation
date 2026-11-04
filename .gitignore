@@ -4,6 +4,11 @@
 build/
 cmake-build-*/
 models/
+state/
+*.sqlite
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
 *.rknn
 *.onnx
 *.pt
@@ -26,6 +31,7 @@ secrets/
 logs/
 *.log
 !evidence/p0/official-rknn-demo.log
+!evidence/p1/*.log
 
 # Local Python and editor state
 .venv/

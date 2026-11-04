@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RK-EdgeStation</title>
+  <style>
+    :root { color-scheme: dark; font: 15px/1.5 system-ui, sans-serif; background: #101820; color: #e8eef2; }
+    body { max-width: 1120px; margin: 28px auto; padding: 0 18px; }
+    h1 { margin-bottom: 4px; } .muted { color: #9fb1bd; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(170px,1fr)); gap: 12px; margin: 20px 0; }
+    .card { background: #182630; border: 1px solid #2a3b46; border-radius: 10px; padding: 14px; }
+    .value { font-size: 1.45rem; font-weight: 650; } .label { color: #9fb1bd; font-size: .9rem; }
+    table { width: 100%; border-collapse: collapse; } th,td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #2a3b46; }
+    img { max-width: 220px; max-height: 130px; border-radius: 5px; } code { color: #8fdec0; }
+    .status { color: #8fdec0; } .error { color: #ff8c8c; }
+  </style>
+</head>
+<body>
+  <h1>RK-EdgeStation</h1>
+  <div id="summary" class="muted">Connecting to the local board service…</div>
+  <section id="metrics" class="grid"></section>
+  <h2>Recent ROI events</h2>
+  <div class="card"><table><thead><tr><th>Time (UTC)</th><th>Object</th><th>Track</th><th>Confidence</th><th>Evidence</th></tr></thead>
+    <tbody id="events"><tr><td colspan="5">Waiting for events</td></tr></tbody></table></div>
+  <p class="muted">This service binds to loopback. Metrics describe this local-file run and its configured queue.</p>
+  <script>
+    const metricKeys = [
+      ["status", "Worker"], ["throughput_fps", "Processed FPS"],
+      ["last_inference_ms", "Last inference ms"], ["p95_end_to_end_ms", "P95 end-to-end ms"],
+      ["dropped_frames", "Dropped frames"], ["process_rss_kb", "Process RSS kB"]
+    ];
+    async function refresh() {
+      try {
+        const [health, metrics, eventData] = await Promise.all([
+          fetch('/api/health', {cache:'no-store'}).then(r => r.json()),
+          fetch('/api/metrics', {cache:'no-store'}).then(r => r.json()),
+          fetch('/api/events?limit=30', {cache:'no-store'}).then(r => r.json())
+        ]);
+        const summary = document.getElementById('summary');
+        summary.textContent = `Source: ${health.source || 'not configured'} · Model: ${health.model || 'not configured'} · Events: ${health.event_count} · Uptime: ${health.uptime_seconds}s`;
+        const grid = document.getElementById('metrics');
+        grid.replaceChildren(...metricKeys.map(([key, label]) => {
+          const card = document.createElement('div'); card.className = 'card';
+          const value = document.createElement('div'); value.className = 'value';
+          value.textContent = metrics[key] === undefined ? (key === 'status' ? health.status : '—') : metrics[key];
+          const caption = document.createElement('div'); caption.className = 'label'; caption.textContent = label;
+          card.append(value, caption); return card;
+        }));
+        const body = document.getElementById('events'); body.replaceChildren();
+        if (!eventData.events.length) { const row = body.insertRow(); const cell = row.insertCell(); cell.colSpan = 5; cell.textContent = 'No events yet'; }
+        for (const event of eventData.events) {
+          const row = body.insertRow();
+          for (const value of [event.timestamp_utc, `${event.label} · ${event.event_type}`, event.track_id, Number(event.confidence).toFixed(3)]) {
+            row.insertCell().textContent = value;
+          }
+          const cell = row.insertCell();
+          if (event.evidence) { const link = document.createElement('a'); link.href = `/evidence/${encodeURIComponent(event.evidence.split('/').pop())}`; link.textContent = 'open'; cell.append(link); }
+        }
+      } catch (error) { document.getElementById('summary').textContent = `Local service error: ${error}`; }
+    }
+    refresh(); setInterval(refresh, 2000);
+  </script>
+</body>
+</html>

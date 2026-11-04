@@ -65,7 +65,7 @@ Inference results retain source/frame sequence and monotonic start/end times. Tr
 3. Benchmark each stage under the same video, format, dimensions, and thread settings.
 4. Add DMA-BUF import only if allocator compatibility, cache synchronization, fd lifetime, stride, and runtime input binding are demonstrated on RK3576.
 
-The audit found `/dev/mpp_service`, `/dev/rga`, and a system DMA heap, but not `/dev/rknpu`. Device availability does not prove that the full chain runs.
+The audit found `/dev/mpp_service`, `/dev/rga`, and a system DMA heap, but not `/dev/rknpu`. The official RKNN sample passed; MPP/RGA and the full video-to-event chain still require their own board tests.
 
 ## Management and safety defaults
 

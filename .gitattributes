@@ -1,3 +1,5 @@
 * text=auto eol=lf
 evidence/p0/*.txt -text
 evidence/p0/*.log -text
+evidence/p1/*.txt text eol=lf
+evidence/p1/*.log text eol=lf
