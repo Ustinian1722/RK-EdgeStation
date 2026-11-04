@@ -1,0 +1,260 @@
+=== board identity ===
+uid=1000(kickpi) gid=1000(kickpi) groups=1000(kickpi),27(sudo),29(audio),44(video)
+kickpi
+Rockchip RK3576 KICKPI K7 Board
+rockchip,rk3576-evb1-v10 rockchip,rk3576 
+=== os and kernel ===
+Ubuntu 24.04.3 LTS
+Linux kickpi 6.1.75 #24 SMP Mon Nov 17 19:39:47 CST 2025 aarch64 aarch64 aarch64 GNU/Linux
+aarch64
+64
+arm64
+=== cpu and memory ===
+               total        used        free      shared  buff/cache   available
+Mem:           7.7Gi       628Mi       5.0Gi       5.8Mi       2.2Gi       7.1Gi
+Swap:             0B          0B          0B
+CPU(s):                             8
+Model name:                         Cortex-A53
+Thread(s) per core:                 1
+Core(s) per socket:                 4
+Socket(s):                          1
+CPU(s) scaling MHz:                 100%
+CPU max MHz:                        2016.0000
+CPU min MHz:                        408.0000
+Model name:                         Cortex-A72
+Thread(s) per core:                 1
+Core(s) per socket:                 4
+Socket(s):                          1
+CPU(s) scaling MHz:                 73%
+CPU max MHz:                        2208.0000
+CPU min MHz:                        408.0000
+=== storage ===
+Filesystem     Type  Size  Used Avail Use% Mounted on
+/dev/root      ext4   58G   11G   44G  20% /
+NAME          SIZE TYPE FSTYPE MOUNTPOINTS
+mmcblk2      58.2G disk        
+├─mmcblk2p1     4M part        
+├─mmcblk2p2     4M part        
+├─mmcblk2p3    64M part        
+├─mmcblk2p4   128M part        
+├─mmcblk2p5    32M part        
+└─mmcblk2p6    58G part ext4   /
+mmcblk2boot0    4M disk        
+mmcblk2boot1    4M disk        
+zram0           0B disk        
+=== build and media software ===
+gcc (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0
+g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0
+cmake version 3.28.3
+Python 3.12.3
+1.24.2
+4.6.0
+gstreamer1.0-rockchip1 1.14-4
+libopencv-dev 4.6.0+dfsg-13.1ubuntu1
+librga-dev 2.2.0-1
+librga2 2.2.0-1
+librockchip-mpp-dev 1.5.0-1
+librockchip-mpp1 1.5.0-1
+v4l-utils 1.26.1-4build3
+=== NPU runtime ===
+-rw-r--r-- 1 1005 1004 6863912 Mar 27  2024 /lib/librknnrt.so
+-rwxr-xr-x 1 1005 1004  442944 Mar 27  2024 /usr/bin/rknn_server
+librknnrt version: 2.0.0b0 (35a6907d79@2024-03-24T10:31:14)
+dpkg-query: no path found matching pattern /lib/librknnrt.so
+dpkg-query: no path found matching pattern /usr/bin/rknn_server
+WARNING: Package(s) not found: rknn-toolkit-lite2, rknn-toolkit2
+=== NPU driver and frequency ===
+/sys/bus/platform/drivers/RKNPU
+300000000
+300000000 400000000 500000000 600000000 700000000 800000000 900000000 950000000
+ls: cannot access '/dev/rknpu': No such file or directory
+ls: cannot access '/dev/rknpu0': No such file or directory
+ 50:          0          0          0          0          0          0          0          0     GICv2 279 Level     27702000.iommu, 27700000.npu
+ 51:          0          0          0          0          0          0          0          0     GICv2 280 Level     27702000.iommu, 27700000.npu
+=== MPP, RGA, DMA, DRM nodes ===
+crw-rw----  1 root video  251,   0 Jul 11  2025 /dev/dma_heap/system
+crw-rw----+ 1 root render 226, 128 Jul 11  2025 /dev/dri/renderD128
+crw-rw----  1 root video  241,   0 Jul 11  2025 /dev/mpp_service
+crw-rw----  1 root video   10, 124 Jul 11  2025 /dev/rga
+=== GStreamer MPP decoder ===
+Factory Details:
+  Rank                     primary + 1 (257)
+  Long-name                Rockchip's MPP video decoder
+  Name                     rockchipmpp
+      video/x-h264
+      video/x-h265
+=== libraries and package license excerpts ===
+	librockchip_mpp.so.1 (libc6,AArch64) => /lib/aarch64-linux-gnu/librockchip_mpp.so.1
+	librockchip_mpp.so (libc6,AArch64) => /lib/aarch64-linux-gnu/librockchip_mpp.so
+	librknnrt.so (libc6,AArch64) => /lib/librknnrt.so
+	librga.so.2 (libc6,AArch64) => /lib/aarch64-linux-gnu/librga.so.2
+	librga.so (libc6,AArch64) => /lib/aarch64-linux-gnu/librga.so
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: Media Process Platform (MPP) module 
+Source: https://github.com/rockchip-linux/mpp
+
+Files: *
+Copyright: 2015 Herman Chen <herman.chen@rock-chips.com>
+License: Apache-2.0
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+ .
+ http://www.apache.org/licenses/LICENSE-2.0
+ .
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+
+# If you want to use GPL v2 or later for the /debian/* files use 
+# the following clauses, or change it to suit. Delete these two lines
+Files: debian/*
+Copyright: 2016 Randy Li <randy.li@rock-chips.com>
+License: GPL-2+
+ This package is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+ .
+ This package is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ .
+ You should have received a copy of the GNU General Public License
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: linux-rga
+Source: https://github.com/rockchip-linux/linux-rga
+
+Files: *
+Copyright: 2016 Zhiqin Wei <wzq@rock-chips.com>
+           2017 Putin Lee <putin.li@rock-chips.com>
+           2020 Yu Qiaowei <cerf.yu@rock-chips.com>
+License: Apache-2.0
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+ .
+ http://www.apache.org/licenses/LICENSE-2.0
+ .
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ .
+ On Debian systems, the complete text of the Apache version 2.0 license
+ can be found in "/usr/share/common-licenses/Apache-2.0".
+
+Files: debian/*
+Copyright: 2020 Jeffy Chen <jeffy.chen@rock-chips.com>
+License: GPL-2+
+ This package is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+ .
+ This package is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+=== camera inventory ===
+Failed to open /dev/video0: No such device
+rkisp-statistics (platform: rkisp):
+	/dev/video39
+	/dev/video40
+	/dev/video48
+	/dev/video49
+	/dev/video57
+	/dev/video58
+
+rkcif-mipi-lvds (platform:rkcif-mipi-lvds):
+	/dev/media0
+
+rkcif-mipi-lvds1 (platform:rkcif-mipi-lvds1):
+	/dev/media1
+
+rkcif-mipi-lvds3 (platform:rkcif-mipi-lvds3):
+	/dev/media2
+
+rkisp_mainpath (platform:rkisp-vir0):
+	/dev/video33
+	/dev/video34
+	/dev/video35
+	/dev/video36
+	/dev/video37
+	/dev/video38
+	/dev/video41
+	/dev/media3
+
+rkisp_mainpath (platform:rkisp-vir1):
+	/dev/video42
+	/dev/video43
+	/dev/video44
+	/dev/video45
+	/dev/video46
+	/dev/video47
+	/dev/video50
+	/dev/media4
+
+rkisp_mainpath (platform:rkisp-vir2):
+	/dev/video51
+	/dev/video52
+	/dev/video53
+	/dev/video54
+	/dev/video55
+	/dev/video56
+	/dev/video59
+	/dev/media5
+
+rkvpss_scale0 (platform:rkvpss-vir0):
+	/dev/video61
+	/dev/video62
+	/dev/video63
+	/dev/video64
+	/dev/media6
+
+rkvpss_scale0 (platform:rkvpss-vir1):
+	/dev/video65
+	/dev/video66
+	/dev/video67
+	/dev/video68
+	/dev/media7
+
+rkvpss_scale0 (platform:rkvpss-vir2):
+	/dev/video69
+	/dev/video70
+	/dev/video71
+	/dev/video72
+	/dev/media8
+
+- entity 1: stream_cif_mipi_id0 (1 pad, 11 links)
+- entity 5: stream_cif_mipi_id1 (1 pad, 11 links)
+- entity 9: stream_cif_mipi_id2 (1 pad, 11 links)
+- entity 13: stream_cif_mipi_id3 (1 pad, 11 links)
+- entity 17: rkcif_scale_ch0 (1 pad, 11 links)
+- entity 21: rkcif_scale_ch1 (1 pad, 11 links)
+- entity 25: rkcif_scale_ch2 (1 pad, 11 links)
+- entity 29: rkcif_scale_ch3 (1 pad, 11 links)
+- entity 33: rkcif_tools_id0 (1 pad, 11 links)
+- entity 37: rkcif_tools_id1 (1 pad, 11 links)
+- entity 41: rkcif_tools_id2 (1 pad, 11 links)
+- entity 45: rockchip-mipi-csi2 (12 pads, 122 links, 0 routes)
+- entity 58: rockchip-csi2-dphy0 (2 pads, 1 link, 0 routes)
+=== frequencies and thermals ===
+300000000
+300000000
+702000000
+528000000
+soc-thermal
+24071
+npu-thermal
+23142
+gpu-thermal
+23142
+total 0
+lrwxrwxrwx 1 root root 0 Jul 11  2025 tcpm-source-psy-2-004e -> ../../devices/platform/2ac50000.i2c/i2c-2/2-004e/power_supply/tcpm-source-psy-2-004e
+=== groups ===
+uid=1000(kickpi) gid=1000(kickpi) groups=1000(kickpi),27(sudo),29(audio),44(video)
+video:x:44:kickpi

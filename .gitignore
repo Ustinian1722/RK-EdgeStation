@@ -1,0 +1,43 @@
+# Locally generated builds and model artifacts
+.work/
+.p0_official_demo/
+build/
+cmake-build-*/
+models/
+*.rknn
+*.onnx
+*.pt
+*.pth
+*.bin
+*.mp4
+*.mkv
+*.h264
+*.hevc
+
+# Local runtime state and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_ed25519*
+id_rsa*
+secrets/
+logs/
+*.log
+!evidence/p0/official-rknn-demo.log
+
+# Local Python and editor state
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.idea/
+.vscode/
+*.pyc
+
+# Platform build output
+CMakeFiles/
+CMakeCache.txt
+compile_commands.json
+Testing/

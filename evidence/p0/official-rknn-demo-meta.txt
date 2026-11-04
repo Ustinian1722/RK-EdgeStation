@@ -1,0 +1,43 @@
+P0 official RKNN smoke test metadata
+====================================
+
+Run time: 2026-11-04 20:39:10 UTC (2026-11-05 04:39:10 Asia/Shanghai)
+Board: Rockchip RK3576 KICKPI K7, aarch64, Ubuntu 24.04.3, Linux 6.1.75
+Board user: kickpi
+
+Official SDK source:
+  Repository: https://github.com/airockchip/rknn-toolkit2
+  Tag: v2.0.0-beta0
+  Commit: 77b71094e08391c543d9c65fea5f7cf98cc16eee
+  Source path: rknpu2/examples/rknn_api_demo/src/rknn_create_mem_demo.cpp
+  Source SHA-256: 269d0be3541b39138edf6f3e525e985ec3a618e6602f7d1a5bfa09455ce72518
+
+Board-side build:
+  Compiler: g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0
+  Command: g++ -std=c++11 -O2 -Iinclude rknn_create_mem_demo.cpp -L/lib -Wl,-rpath,/lib -lrknnrt -o rknn_create_mem_demo
+  Binary SHA-256: 7d28c28c5bfb45d5f7fc1f54a8179a0885e95e445e0b8a12a367c3cc3eefeeae
+  Dynamic dependency: /lib/librknnrt.so
+
+Inputs:
+  Model: model/RK3576/mobilenet_v1.rknn
+  Model SHA-256: bc66943ea85ec0dd8a04da22c4276bfc8a4c6fe24f5ea8be7a1e5c3c22c8259d
+  Input: model/dog_224x224.jpg
+  Input SHA-256: c350299c6283d5f62fecf1f845b6b3be9aafec8dff528ca09a129990f0a584b0
+
+Run command:
+  ./rknn_create_mem_demo model/RK3576/mobilenet_v1.rknn model/dog_224x224.jpg
+  Program exit status: 0
+
+Runtime output summary:
+  Runtime: 2.0.0b0, build 35a6907d79@2024-03-24T10:31:14
+  Driver reported by runtime: 0.9.7
+  Input tensor: NHWC INT8 [1, 224, 224, 3]
+  Output tensor: FP16 [1, 1001]
+  Single sample timing: 11.06 ms (90.39 FPS as printed by the demo)
+  Top-1: score 0.927734, class index 156
+
+Scope:
+  This verifies native board compilation, runtime model loading, and one official RK3576 inference. It is not a sustained benchmark, project detector validation, camera test, or end-to-end video measurement. No board packages, kernel, drivers, permissions, runtime libraries, or services were changed for this test.
+
+Raw stdout/stderr: official-rknn-demo.log
+Raw log SHA-256: fec32d781ed252a864da7eb1582c95e47a7e6232f2604f04b63659656e2f9926
