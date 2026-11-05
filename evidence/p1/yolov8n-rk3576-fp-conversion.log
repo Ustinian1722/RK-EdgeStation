@@ -1,0 +1,17 @@
+I rknn-toolkit2 version: 2.0.0b0+9bab5682
+I It is recommended onnx opset 19, but your onnx model opset is 12!
+I Model converted from pytorch, 'opset_version' should be set 19 in torch.onnx.export for successful convert!
+--> Config model
+done
+--> Loading model
+
+I Loading :   0%|                                                           | 0/136 [00:00<?, ?it/s]
+I Loading : 100%|██████████████████████████████████████████████| 136/136 [00:00<00:00, 44147.15it/s]
+W build: The dataset='../../../datasets/COCO/coco_subset_20.txt' is ignored because do_quantization = False!
+I rknn building ...
+I rknn buiding done.
+done
+--> Building model
+done
+--> Export rknn model
+done

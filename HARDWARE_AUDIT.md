@@ -23,6 +23,8 @@ Date: 2026-11-05. Source of truth: direct read-only SSH observations from `kickp
 - `rknn-toolkit2` and `rknn-toolkit-lite2` Python packages are absent on the board.
 - `/dev/rknpu` and `/dev/rknpu0` are absent even though the platform driver is bound. The official RK3576 C API sample nevertheless created a context and completed inference; the runtime reported driver 0.9.7. Its device access path has not been traced.
 - The RKNPU driver version was not exposed through the readable debugfs paths. The successful RKNN runtime probe reports driver version 0.9.7.
+- P1 follow-up: the project YOLOv8n model loaded and produced detections/events through the board's RKNN C Runtime. One repeated-still 150-frame run recorded the aggregate counts on the `/proc/interrupts` lines labeled `27702000.iommu, 27700000.npu` rising from 7,281 to 12,377 (+5,096), then no change during a two-second idle follow-up. During a later moving-video run, 58 samples rose from 12,377 to 19,626, but a same-boot read at 09:31:45Z showed 19,098. This unresolved counter discrepancy makes the IRQ series exploratory; it is not used as direct utilization evidence. The lines combine IOMMU/NPU and do not expose per-core utilization.
+- In a separate 90-sample probe, NPU devfreq stayed at 300 MHz and `/sys/class/devfreq/27700000.npu/load` read `100@300000000Hz`; the same value persisted during a two-second idle check, so it is not treated as a utilization percentage. `/dev/rknpu*` remains absent and the runtime access path is not traced. Raw samples are in [evidence/p1](evidence/p1/).
 - Do not replace the runtime, load a driver, or modify kernel/firmware as a workaround without a separate review; preserve the board image.
 
 ## Media, cameras, and graphics
@@ -33,7 +35,7 @@ Date: 2026-11-05. Source of truth: direct read-only SSH observations from `kickp
 | RGA | `librga2` and `-dev` 2.2.0-1; `/dev/rga` | No format/scale operation has yet been executed |
 | DMA-BUF | `/dev/dma_heap/system` exists | No shared-buffer import or zero-copy path has been tested |
 | GStreamer | framework 1.24.2; Rockchip package 1.14-4 | Pipeline negotiation and sustained decode still need a board test |
-| OpenCV | development package 4.6.0 | CPU video baseline not run yet |
+| OpenCV | development package 4.6.0 | A generated MP4 software encode/decode check and the project CPU decode path passed; MPP hardware decode remains untested |
 | V4L2 | platform CIF, ISP and VPSS nodes; media devices 0–8 | `/dev/video0` fails with “No such device”; no physical sensor or USB camera was identified |
 
 Many `/dev/video*` entries represent the board's platform pipeline, not proof of an attached camera. The first P1 source will be a local MP4; RTSP follows. USB/MIPI input stays optional until a real sensor is connected and capture succeeds.
@@ -50,9 +52,9 @@ Many `/dev/video*` entries represent the board's platform pipeline, not proof of
 - Host: Windows 11 build 26100, x64.
 - Git 2.51.2 and GitHub CLI are installed; `gh auth status` reports an active login with `repo` scope. No token value is recorded.
 - Default Python is 3.13.5; Python 3.12.10 is also present. Ninja is installed. Host CMake, MSVC `cl`, Clang, and GCC are absent.
-- WSL 2.6.2 is installed but has no registered Linux distribution. D: had about 14 GiB free at inspection; C: had about 1.2 GiB free. Do not place a large conversion environment on C:.
-- Native aarch64 builds can run on the board. Toolkit2 conversion needs a supported Linux x86-64 environment and Python version.
+- WSL 2.6.2 is installed. The isolated `RK-EdgeStation-Toolkit2` Ubuntu 22.04 x86-64 distro now resides at `D:\WSL\RK-EdgeStation-Toolkit2-Fresh`; it uses Python 3.10.12 and Toolkit2 2.0.0b0. The earlier partial VHDX is preserved under `D:\WSL\RK-EdgeStation-bootstrap\partial-distro-backup`.
+- Toolkit2 conversion is optional host tooling: no Rockchip silicon or Runtime is required on Windows/WSL. Native build and board inference use the RK3576's installed compiler/runtime. The current converter is the pinned Linux x86-64 wheel.
 
 ## Decision
 
-The official RKNN C API sample proves that the installed runtime can run an RK3576 model, despite the absence of visible `/dev/rknpu*` nodes. Its access path remains undocumented in this audit; no system change was needed. MPP/RGA still need actual decode/resize tests. Current official Model Zoo 2.5.0 requires RKNPU SDK 2.5.0 or newer, while this board reports 2.0.0b0; use compatible older artifacts and do not silently update the board runtime. Refer to [MODEL_CONVERSION.md](MODEL_CONVERSION.md) for the project model conversion gate.
+The official sample and project YOLOv8n worker both completed through the installed RKNN C Runtime despite absent `/dev/rknpu*` nodes. The platform driver and devfreq are visible, but the runtime access path and accelerator utilization are not traced; the P1 clock sample stayed at 300 MHz. No system change was needed. MPP/RGA still need actual hardware decode/resize tests. Current official Model Zoo 2.5.0 requires RKNPU SDK 2.5.0 or newer, while this board reports 2.0.0b0; use compatible older artifacts and do not silently update the board runtime. See [MODEL_CONVERSION.md](MODEL_CONVERSION.md) and [P1_ACCEPTANCE_REPORT.md](P1_ACCEPTANCE_REPORT.md).

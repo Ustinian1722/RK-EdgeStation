@@ -1,6 +1,6 @@
 # Test plan
 
-Status: requirements-derived plan. Tests will be added with the corresponding modules; no test result is implied by this document.
+Status: requirements-derived plan. Current completed checks and limits are recorded in [TEST_RESULTS.md](TEST_RESULTS.md) and [P1_ACCEPTANCE_REPORT.md](P1_ACCEPTANCE_REPORT.md); the remaining cases below are still planned.
 
 ## CI CPU/mock tests
 
@@ -12,14 +12,14 @@ Status: requirements-derived plan. Tests will be added with the corresponding mo
 
 ## RK3576 board tests
 
-1. Official RKNN C++ demo: model load, runtime/driver query, one image, repeated inference, output inspection, release. Capture success or complete failure details.
+1. Official RKNN C++ demo: **passed** for the bundled RK3576 MobileNet model. The project YOLOv8n model also completed a board-side RKNN smoke run; direct accelerator utilization remains unconfirmed.
 2. CPU/OpenCV MP4 decode and pixel-format baseline.
    - Current automated check writes and reads a generated MP4, then verifies 60 decoded frames, 320×240 dimensions, and 30 FPS. It validates OpenCV software I/O only; it does not establish MPP hardware decode.
 3. MPP GStreamer H.264 and H.265 decode, if matching sample media is available.
 4. RGA resize/color conversion with input/output checksum or pixel tolerance against the CPU reference.
-5. RKNN model output repeatability, tensor layout and output-release loop.
-6. Full detection → tracking → ROI event path with timestamps and saved evidence.
-7. FIFO and latest-frame load tests; verify finite queue/RSS and stale-result rejection.
+5. RKNN model output repeatability and longer output-release loop remain planned; the current run verifies tensor layout and successful output release on the tested frames.
+6. Detection → tracking → ROI event smoke passed on repeated still and moving sample video with timestamps, saved evidence, SQLite persistence, and API retrieval. Identity continuity is not accepted yet: the moving run emitted 42 unique track IDs for 42 enter events, including likely fragmentation. Dwell/leave and labeled detection/event accuracy remain planned.
+7. A latest-frame queue smoke passed at 15-FPS source pacing: 150 decoded, 88 processed, 62 dropped, capacity 1. Broader FIFO/latest overload, RSS bounds, stale-result, and recovery checks remain planned.
 
 ## Failure and recovery tests
 

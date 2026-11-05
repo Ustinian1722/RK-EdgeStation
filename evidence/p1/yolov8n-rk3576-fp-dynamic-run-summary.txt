@@ -1,0 +1,15 @@
+Dynamic-video RK3576 board run
+Date: 2026-11-05
+Board: KICKPI K7 / RK3576 / Ubuntu 24.04.3 aarch64
+Model: yolov8n-rk3576-fp.rknn, SHA-256 2162e0cf6a71270c092353d94abb391ac111910ce178547ef80dd89b225dab0b
+Input: first 150 frames of OpenCV sample vtest.avi, 768x576 at 10 FPS
+Source AVI SHA-256: 45CDDC9490BE69345CBDAB64CA583BE65987E864CA408038E648DB99E10516CF
+Derived MP4 SHA-256: AED460C93874B0BFF1439DF89EC6EA741F3DF1128B061A3D29B97D4445CE4D49
+
+Run result: API health status completed; worker exit code 0; 150 frames decoded, 130 processed, 20 dropped with queue capacity 1; 1,033 detections; 42 events persisted; source pacing 10 FPS; reported throughput 8.587 FPS. Last preprocessing/inference/postprocessing intervals were 27.835/71.934/1.558 ms; the inference interval includes rknn_run and output fetch. End-to-end p50/p95 were 165.068/223.086 ms; last RSS sample was 132,228 kB. /api/health, /api/metrics, and /api/events returned HTTP 200 on the loopback service.
+
+Event output: all 42 were enter events with 42 unique track IDs across event frames 1-146. Labels were person=38, car=1, truck=1, skis=2. The two skis predictions had confidence 0.2969 and 0.2817 and their boxes overlapped a pedestrian's lower body/feet in the saved frame. This is a qualitative false-positive indication, not a labeled accuracy score. Repeated enter events and changing IDs indicate track fragmentation; event count is not a people count. No tracking-accuracy claim is made.
+
+NPU telemetry qualification: 58 captured samples span 2026-11-05 09:23:19.669Z to 09:23:34.998Z. In the captured samples, the shared NPU/IOMMU interrupt aggregate rose monotonically from 12,377 to 19,626; the contemporaneous post-run probe recorded 19,657 and a two-second idle delta of 0. Devfreq stayed at 300 MHz and its load string remained 100@300000000Hz. A later same-boot read at 09:31:45Z showed 19,098 for the same labeled interrupt entries, below the captured run value. Because this counter discrepancy is unresolved, these IRQ readings are retained as exploratory observations only and are not used to claim verified NPU utilization. The counter does not expose per-core utilization in any case.
+
+The sample video, derived clip, model, and annotated event JPEGs remain in local/board .work directories and are not committed. Board event JPEGs are under /home/kickpi/projects/RK-EdgeStation/.work/p1-yolov8n-rk3576-fp/dynamic-run/state/evidence/.

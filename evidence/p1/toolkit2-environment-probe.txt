@@ -1,4 +1,4 @@
-Toolkit2 conversion environment probe
+Initial Toolkit2 conversion environment probe (captured before WSL rebuild; superseded)
 Date: 2026-11-05
 Purpose: find a local Linux x86-64 environment for the authorized RKNN-Toolkit2 v2.0.0-beta0 conversion.
 
@@ -15,4 +15,4 @@ WSL state:
 - A byte-for-byte backup of its partial 12,582,912-byte VHDX is at D:\WSL\RK-EdgeStation-bootstrap\partial-distro-backup\ubuntu-22.04-partial-ext4.vhdx.
 - Backup SHA-256: 00CEDAA5A2D4B771EC955B81B333903D309B8DA9F5E88F3279CF8D2D2A3DE78B.
 
-No host service, WSL registry entry, board system package, driver, kernel, permission, or runtime was changed for these checks. Toolkit2 conversion remains pending a working compatible Linux x86-64 environment or a compatible preconverted RK3576 model.
+At the time of this initial probe, Toolkit2 conversion was pending. On 2026-11-05 the isolated `RK-EdgeStation-Toolkit2` distro was installed on D:, Toolkit2 2.0.0b0 imports and dependency checks passed, and the YOLOv8n model was converted and run on RK3576. Current instructions and results are in `D:\WSL\RK-EdgeStation-bootstrap\README.md` and the repository's `MODEL_CONVERSION.md`.

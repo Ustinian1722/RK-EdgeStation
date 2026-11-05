@@ -75,7 +75,7 @@ static int readLines(const char *fileName, char *lines[], int max_line)
 
     if (file == NULL)
     {
-        printf("Open %s fail!\n", fileName);
+        fprintf(stderr, "Open %s fail!\n", fileName);
         return -1;
     }
 
@@ -91,7 +91,7 @@ static int readLines(const char *fileName, char *lines[], int max_line)
 
 static int loadLabelName(const char *locationFilename, char *label[])
 {
-    printf("load lable %s\n", locationFilename);
+    fprintf(stderr, "load lable %s\n", locationFilename);
     readLines(locationFilename, label, OBJ_CLASS_NUM);
     return 0;
 }
@@ -497,8 +497,8 @@ static int process_i8_rv1106(int8_t *box_tensor, int32_t box_zp, float box_scale
             }
         }
     }
-    printf("validCount=%d\n", validCount);
-    printf("grid h-%d, w-%d, stride %d\n", grid_h, grid_w, stride);
+    fprintf(stderr, "validCount=%d\n", validCount);
+    fprintf(stderr, "grid h-%d, w-%d, stride %d\n", grid_h, grid_w, stride);
     return validCount;
 }
 #endif
@@ -555,7 +555,7 @@ int post_process(rknn_app_context_t *app_ctx, void *outputs, letterbox_t *letter
         }
         else
         {
-            printf("RV1106/1103 only support quantization mode\n", LABEL_NALE_TXT_PATH);
+            fprintf(stderr, "RV1106/1103 only support quantization mode\n");
             return -1;
         }
 
@@ -661,7 +661,7 @@ int init_post_process()
     ret = loadLabelName(LABEL_NALE_TXT_PATH, labels);
     if (ret < 0)
     {
-        printf("Load %s failed!\n", LABEL_NALE_TXT_PATH);
+        fprintf(stderr, "Load %s failed!\n", LABEL_NALE_TXT_PATH);
         return -1;
     }
     return 0;

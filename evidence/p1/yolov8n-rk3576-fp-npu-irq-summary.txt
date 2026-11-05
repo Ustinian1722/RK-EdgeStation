@@ -1,0 +1,11 @@
+RK3576 RKNPU/IOMMU interrupt correlation probe
+Date: 2026-11-05
+Board: KICKPI K7 / RK3576 / Ubuntu 24.04.3 aarch64
+Model: yolov8n-rk3576-fp.rknn, SHA-256 2162e0cf6a71270c092353d94abb391ac111910ce178547ef80dd89b225dab0b
+Input: repeated-still-image MP4 at 15 FPS, SHA-256 6ff4b056e2c38f285b907f9a5d1264148a5d6fe57c2904661a11da0e12271922
+
+The worker exited 0 after decoding 150 frames, processing 91, and dropping 59 with queue capacity 1. See the paired stdout/stderr files for the JSONL metrics and runtime log.
+
+Read-only interrupt counter method: sum numeric per-CPU counts from the two /proc/interrupts entries whose device labels include 27702000.iommu and 27700000.npu. Aggregate count was 7,281 before the worker and 12,377 immediately after it (+5,096). A two-second idle follow-up remained 12,377 (delta 0). The NPU/IOMMU combined IRQ lines were active during the RKNN worker run and quiet during the idle sample.
+
+Ninety samples were collected at approximately 100 ms intervals while the worker ran. Each sample read 100@300000000Hz from /sys/class/devfreq/27700000.npu/load; cur_freq remained 300000000. The same load string persisted during the two-second idle check, so it is not interpreted here as a utilization percentage. The visible IRQ correlation supports board-side RKNPU activity, but these shared NPU/IOMMU counters do not provide a per-core utilization fraction. /dev/rknpu* nodes remain absent; no driver or permission changes were made.

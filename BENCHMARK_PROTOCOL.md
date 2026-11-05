@@ -1,6 +1,6 @@
 # Benchmark protocol
 
-Status: protocol draft frozen for P1/P2; no performance values have been measured.
+Status: protocol draft frozen for P1/P2. A short, repeated-still-image smoke baseline is recorded in [OPTIMIZATION_REPORT.md](OPTIMIZATION_REPORT.md); it is not a controlled product benchmark.
 
 ## Reproducibility record
 
@@ -8,7 +8,7 @@ Each run records board model/OS/kernel, CPU and NPU governor/frequency snapshot,
 
 ## Measurements
 
-- **NPU inference duration:** monotonic time around `rknn_run` only, excluding preprocessing/postprocessing.
+- **NPU inference duration:** the target metric is monotonic time around `rknn_run` only, excluding preprocessing/postprocessing. The current worker's `last_inference_ms` also includes `rknn_outputs_get`; report that implementation detail until a dedicated run-only metric is added.
 - **End-to-end latency:** monotonic time from decoded-frame ingest to the corresponding result/event being available.
 - **Frame age:** result-ready monotonic time minus capture time; for files, define capture time from presentation timestamp and a recorded playback clock mapping.
 - **Throughput:** completed frames divided by measured wall time, with source pacing stated.
@@ -16,6 +16,8 @@ Each run records board model/OS/kernel, CPU and NPU governor/frequency snapshot,
 - **Queue wait/depth:** time and high-water mark for each bounded queue.
 - **Accuracy/consistency:** match output tensors/detections against the source graph using documented preprocessing, confidence threshold, class match, and box IoU. Report unmatched detections and score/coordinate deltas.
 - **Resource use:** process RSS, whole-board memory, CPU utilization per core, NPU frequency/load when exposed, temperature, errors, and power only if a real measurement interface is available.
+
+The current board exposes RKNPU devfreq but no `/dev/rknpu*` node. One repeated-still 150-frame RKNN worker run recorded a +5,096 increment in shared NPU/IOMMU `/proc/interrupts` counters and no increment during a two-second idle check. A later moving-video sample rose from 12,377 to 19,626 in 58 captured samples, but a same-boot read several minutes later was 19,098. This unresolved discrepancy means IRQ values remain exploratory and do not establish utilization. Devfreq stayed at 300 MHz and its `load` string also remained unchanged during idle, so neither value is used as a utilization percentage or scaling claim. No per-core utilization is available.
 
 ## Repetition plan
 
