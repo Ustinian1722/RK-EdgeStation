@@ -1,0 +1,11 @@
+Pushed commit: 739fe95
+Local git archive SHA-256: 54d9250be8ead272a8d1b9700c3fb33bd1407bd73923dfe191c8a2542789f766
+Board transferred archive SHA-256: 54d9250be8ead272a8d1b9700c3fb33bd1407bd73923dfe191c8a2542789f766
+Archive extracted to /home/kickpi/projects/RK-EdgeStation (overlay extraction; no system configuration changed).
+Selected extracted source SHA-256 values from board:
+c771043b1e38676e5ba0e6accfa31ece8e3f514173b81b205c099fbebb8a8d8a  scripts/compare_rknn_models.cpp
+8a27b558d0bcba8e86293028c2b049c542398eabcfd8d322b189f14b0b4986c5  scripts/convert_onnx_to_rknn.py
+2e7ec08a688836139e06b15faae858f10d875912465b0ac556e70b3729da7632  P2_ACCEPTANCE_REPORT.md
+b67d0732d902348b5eb28ecd8f31058d7725d4c19f1b35cd84bf8abf22979fae  evidence/p2/int8-calibration-manifest.txt
+Board validation after extraction: native CMake build passed; CTest 2/2 passed; Python API/storage tests 2/2 passed. Full output: 739fe95-board-build-test.txt.
+Comparator compiled on RK3576 with GCC and RKNN Runtime; CLI --help passed. Warnings are from the vendored Model Zoo postprocess.cc (VLA, string-constant conversion, unused static functions); full output: 739fe95-board-comparator-build.txt.

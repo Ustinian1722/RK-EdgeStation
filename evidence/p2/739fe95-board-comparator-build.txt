@@ -1,0 +1,37 @@
+scripts/compare_rknn_models.cpp:3:1: warning: multi-line comment [-Wcomment]
+    3 | // g++ -O2 -std=c++17 -Wall -Wextra -Wpedantic \
+      | ^
+src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc: In function ‘void compute_dfl(float*, int, float*)’:
+src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc:210:15: warning: ISO C++ forbids variable length array ‘exp_t’ [-Wvla]
+  210 |         float exp_t[dfl_len];
+      |               ^~~~~
+src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc: In function ‘int process_u8(uint8_t*, int32_t, float, uint8_t*, int32_t, float, uint8_t*, int32_t, float, int, int, int, int, std::vector<float>&, std::vector<float>&, std::vector<int>&, float)’:
+src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc:271:23: warning: ISO C++ forbids variable length array ‘before_dfl’ [-Wvla]
+  271 |                 float before_dfl[dfl_len * 4];
+      |                       ^~~~~~~~~~
+src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc: In function ‘int process_i8(int8_t*, int32_t, float, int8_t*, int32_t, float, int8_t*, int32_t, float, int, int, int, int, std::vector<float>&, std::vector<float>&, std::vector<int>&, float)’:
+src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc:342:23: warning: ISO C++ forbids variable length array ‘before_dfl’ [-Wvla]
+  342 |                 float before_dfl[dfl_len*4];
+      |                       ^~~~~~~~~~
+src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc: In function ‘int process_fp32(float*, float*, float*, int, int, int, int, std::vector<float>&, std::vector<float>&, std::vector<int>&, float)’:
+src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc:407:23: warning: ISO C++ forbids variable length array ‘before_dfl’ [-Wvla]
+  407 |                 float before_dfl[dfl_len*4];
+      |                       ^~~~~~~~~~
+src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc: In function ‘char* coco_cls_to_name(int)’:
+src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc:675:16: warning: ISO C++ forbids converting a string constant to ‘char*’ [-Wwrite-strings]
+  675 |         return "null";
+      |                ^~~~~~
+src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc:683:12: warning: ISO C++ forbids converting a string constant to ‘char*’ [-Wwrite-strings]
+  683 |     return "null";
+      |            ^~~~~~
+src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc: At global scope:
+src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc:225:12: warning: ‘int process_u8(uint8_t*, int32_t, float, uint8_t*, int32_t, float, uint8_t*, int32_t, float, int, int, int, int, std::vector<float>&, std::vector<float>&, std::vector<int>&, float)’ defined but not used [-Wunused-function]
+  225 | static int process_u8(uint8_t *box_tensor, int32_t box_zp, float box_scale,
+      |            ^~~~~~~~~~
+src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc:182:14: warning: ‘float unsigmoid(float)’ defined but not used [-Wunused-function]
+  182 | static float unsigmoid(float y) { return -1.0 * logf((1.0 / y) - 1.0); }
+      |              ^~~~~~~~~
+src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc:180:14: warning: ‘float sigmoid(float)’ defined but not used [-Wunused-function]
+  180 | static float sigmoid(float x) { return 1.0 / (1.0 + expf(-x)); }
+      |              ^~~~~~~
+compare_rknn_models --reference MODEL.rknn --candidate MODEL.rknn --input RGB-U8-NHWC.bin --output-dir DIR [--source-width N] [--source-height N]
