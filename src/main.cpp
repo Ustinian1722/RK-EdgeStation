@@ -391,6 +391,7 @@ struct Options {
     Roi roi;
     std::size_t queue_capacity = 1;
     edge::QueuePolicy queue_policy = edge::QueuePolicy::Latest;
+    bool loop_video = false;
     float confidence = 0.25F;
     std::chrono::milliseconds dwell_threshold{5000};
     std::size_t roi_debounce_frames = 2;
@@ -398,22 +399,26 @@ struct Options {
 };
 
 Options parse_args(int argc, char** argv) {
+    Options options;
     std::map<std::string, std::string> args;
     for (int i = 1; i < argc; ++i) {
         const std::string key = argv[i];
         if (key == "--help" || key == "-h") {
             std::cout << "rk_edge_worker --model MODEL.rknn --video INPUT.mp4 "
                          "[--state-dir state] [--roi x,y,w,h] [--queue-capacity N] "
-                         "[--queue-policy latest|fifo] [--confidence X] "
+                         "[--queue-policy latest|fifo] [--loop-video] [--confidence X] "
                          "[--dwell-ms N] [--roi-debounce-frames N] [--dump-first-rknn-output DIR]\n";
             std::exit(0);
+        }
+        if (key == "--loop-video") {
+            options.loop_video = true;
+            continue;
         }
         if (key.rfind("--", 0) != 0 || i + 1 >= argc) {
             throw std::invalid_argument("invalid argument near " + key);
         }
         args[key] = argv[++i];
     }
-    Options options;
     if (!args.count("--model") || !args.count("--video")) {
         throw std::invalid_argument("--model and --video are required");
     }
@@ -548,11 +553,24 @@ int main(int argc, char** argv) {
                         : Clock::duration::zero();
                     auto next_frame_at = Clock::now();
                     std::cerr << "video source_fps=" << source_fps
-                              << " pacing=" << (pace_source ? "media-rate" : "disabled") << '\n';
+                              << " pacing=" << (pace_source ? "media-rate" : "disabled")
+                              << " looping=" << (options.loop_video ? "enabled" : "disabled") << '\n';
                     cv::Mat frame;
                     std::uint64_t sequence = 0;
                     double last_pts_ms = -1.0;
-                    while (capture.read(frame)) {
+                    while (true) {
+                        if (!capture.read(frame)) {
+                            if (!options.loop_video) break;
+                            capture.release();
+                            if (!capture.open(options.video)) {
+                                producer_error = "OpenCV could not reopen the looped video source";
+                                break;
+                            }
+                            if (!capture.read(frame) || frame.empty()) {
+                                producer_error = "looped video source returned no frame after reopen";
+                                break;
+                            }
+                        }
                         if (frame.empty()) continue;
                         ++sequence;
                         double pts_ms = capture.get(cv::CAP_PROP_POS_MSEC);
@@ -699,6 +717,7 @@ int main(int argc, char** argv) {
                 exit_code = 2;
             } else if (!producer_error.empty()) {
                 std::cerr << "video producer stopped after input error: " << producer_error << '\n';
+                exit_code = 3;
             }
             emit_metric(processed, detection_total, decoded.load(), queue, started,
                         last_preprocess, last_inference, last_postprocess,

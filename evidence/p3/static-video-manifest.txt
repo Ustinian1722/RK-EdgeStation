@@ -1,0 +1,23 @@
+RK-EdgeStation deterministic static stability input
+Date: 2026-11-05
+Board: KICKPI K7 / RK3576 / Ubuntu 24.04.3 aarch64
+Generator: build/bin/create_static_video, built with board G++ 13.3 and OpenCV 4.6
+
+Command:
+  build/bin/create_static_video \
+    .work/p2-mpp-test/vtest-150f-h264.mp4 75 \
+    .work/p3-static-frame75-5fps-raw.avi 5 10
+
+Input SHA-256:
+  vtest-150f-h264.mp4  1ea4d10fac31c3b07be95117b3fc6e34e6f79daf9f3cddb3d25f7c4187e3ab98
+Output SHA-256:
+  p3-static-frame75-5fps-raw.avi  57fc5d026ecbdfe380a3c55975c3de3873741b917f1d7b458deb7d986bf72b5d
+
+Selected source frame: 75
+Output: 50 frames at 5 FPS, 10 seconds, uncompressed AVI, 32 MiB
+Generation verification: all 50 frames decoded; maximum pixel difference 0 and
+maximum mean-channel difference 0 against the first decoded output frame.
+
+The generated video is kept under ignored .work and is not committed. The generation
+command and hashes are recorded in static-video-generation.txt and the soak runner's
+manifest.

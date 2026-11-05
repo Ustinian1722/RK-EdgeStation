@@ -16,6 +16,12 @@ add_executable(rk_edge_worker
     src/roi_events.cpp
     src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc
 )
+
+add_executable(create_static_video tools/create_static_video.cpp)
+target_include_directories(create_static_video PRIVATE ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(create_static_video PRIVATE ${OpenCV_LIBS})
+target_compile_options(create_static_video PRIVATE -Wall -Wextra -Wpedantic)
+
 target_include_directories(rk_edge_worker PRIVATE
     ${RKNN_INCLUDE_DIR}
     ${OpenCV_INCLUDE_DIRS}

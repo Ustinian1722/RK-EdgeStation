@@ -77,6 +77,7 @@ class ServerQueuePolicyTests(unittest.TestCase):
         with patch("sys.argv", ["edge_station.server"]):
             default_args = parse_args()
         self.assertEqual(default_args.queue_policy, "latest")
+        self.assertFalse(default_args.loop_video)
 
         with patch("sys.argv", ["edge_station.server", "--queue-policy", "fifo"]):
             fifo_args = parse_args()
@@ -88,6 +89,17 @@ class ServerQueuePolicyTests(unittest.TestCase):
             Path("state"),
         )
         self.assertEqual(command[command.index("--queue-policy") + 1], "fifo")
+
+        with patch("sys.argv", ["edge_station.server", "--loop-video"]):
+            loop_args = parse_args()
+        loop_command = build_worker_command(
+            loop_args,
+            Path("worker"),
+            Path("model.rknn"),
+            Path("video.mp4"),
+            Path("state"),
+        )
+        self.assertIn("--loop-video", loop_command)
 
 
 class StorageRecoveryTests(unittest.TestCase):

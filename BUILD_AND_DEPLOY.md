@@ -19,7 +19,27 @@ ctest --test-dir build --output-on-failure
 PYTHONPATH=python python3 -m unittest discover -s tests/python -v
 ```
 
-The same sequence is available as `bash scripts/build_and_test_board.sh`; it passed on the target board on 2026-11-05 after the ROI event and media-time changes. Launch a local MP4/model run with `bash scripts/run_demo.sh MODEL.rknn INPUT.mp4`. The UI listens on `127.0.0.1:8080` by default. Queue policy defaults to `latest` (replace the oldest pending frame); select FIFO with `bash scripts/run_demo.sh MODEL.rknn INPUT.mp4 state 8080 fifo` or pass `--queue-policy fifo` to the worker/service. FIFO keeps queued frames in order and drops newly decoded frames while full. The worker also supports `--dwell-ms N` (default 5000) and `--roi-debounce-frames N` (default 2); the Python service forwards these options. Dwell time follows monotonicized media timestamps, using nominal FPS or decode elapsed time when timestamps are invalid. Model files and run state stay outside Git. The first project model was converted in the isolated WSL Toolkit2 environment and run from the board workspace; see [MODEL_CONVERSION.md](MODEL_CONVERSION.md) and [P1_ACCEPTANCE_REPORT.md](P1_ACCEPTANCE_REPORT.md).
+The same sequence is available as `bash scripts/build_and_test_board.sh`; it passed on the target board on 2026-11-05 after the ROI event and media-time changes. Launch a local MP4/model run with `bash scripts/run_demo.sh MODEL.rknn INPUT.mp4`. The UI listens on `127.0.0.1:8080` by default. Queue policy defaults to `latest` (replace the oldest pending frame); select FIFO with `bash scripts/run_demo.sh MODEL.rknn INPUT.mp4 state 8080 fifo` or pass `--queue-policy fifo` to the worker/service. FIFO keeps queued frames in order and drops newly decoded frames while full. The worker also supports `--dwell-ms N` (default 5000) and `--roi-debounce-frames N` (default 2); the Python service forwards these options. Dwell time follows monotonicized media timestamps, using nominal FPS or decode elapsed time when source timestamps are invalid. The opt-in `--loop-video` flag reopens a local MP4 at EOF while preserving increasing frame sequence and monotonicized media time; normal runs remain one-shot. Model files and run state stay outside Git. The first project model was converted in the isolated WSL Toolkit2 environment and run from the board workspace; see [MODEL_CONVERSION.md](MODEL_CONVERSION.md) and [P1_ACCEPTANCE_REPORT.md](P1_ACCEPTANCE_REPORT.md).
+
+## P3 stability run
+
+The monitored runner below defaults to 24 hours and writes its manifest, one-minute JSONL samples, service log, and final database checks under a fresh state directory. It refuses a non-empty output directory. It stops on service/worker failure, any SQLite operation/write error, free space below 8 GiB, output growth above 4 GiB, `MemAvailable` below 512 MiB, worker RSS above 2 GiB, or a thermal zone at 80 °C. The runner records system CPU deltas, worker CPU/RSS, thermal readings, raw available NPU-load telemetry when exposed, throughput/latency, frame counters, SQLite/event counts, and free disk. At completion it checks SQLite integrity and verifies every event's evidence path. These checks are guardrails; the bounded file-size simulation is not a substitute for actual filesystem exhaustion.
+
+On the RK3576 board, create a low-event deterministic 10-second, 5-FPS source from one selected sample frame, then start the full soak with a unique state directory and the source commit identifier:
+
+```bash
+build/bin/create_static_video \
+  .work/p2-mpp-test/vtest-150f-h264.mp4 75 \
+  .work/p3-static-frame75-5fps-raw.avi 5 10
+
+PYTHONPATH=python python3 scripts/run_stability_test.py \
+  --model .work/p1-yolov8n-rk3576-fp/yolov8n-rk3576-fp.rknn \
+  --video .work/p3-static-frame75-5fps-raw.avi \
+  --state-dir ".work/p3-soak-$(date -u +%Y%m%dT%H%M%SZ)" \
+  --source-commit "$SOURCE_COMMIT"
+```
+
+Set `SOURCE_COMMIT` to the short commit hash synced and built on the board before running the command. The uncompressed static source is verified for exact frame count and identical decoded pixels; its SHA-256 is recorded in [the source manifest](evidence/p3/static-video-manifest.txt) and the soak manifest. A 45-second loop smoke passed. The 24-hour run has not yet been executed. Use a new output directory for every attempt and inspect `monitor/summary.json`, `monitor/samples.jsonl`, and `monitor/server.log` after completion.
 
 The worker discovers board OpenCV and RKNN headers/libraries and links dynamically to those installed libraries. The current reference path uses OpenCV CPU decode/preprocessing and paces file input at its reported media rate when valid. The queue policy is included in worker metric JSON as `queue_policy`; queue capacity and `dropped_frames` are reported alongside it. P2 exercised MPP decode and RGA letterboxing as isolated board probes; full worker integration remains deferred pending controlled end-to-end and output checks. Python's standard library provides the local HTTP server and SQLite store.
 

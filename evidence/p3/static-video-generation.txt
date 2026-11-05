@@ -1,0 +1,15 @@
+create_static_video: generated output frames are not identical after decode
+[ 50%] Building CXX object CMakeFiles/create_static_video.dir/tools/create_static_video.cpp.o
+[100%] Linking CXX executable bin/create_static_video
+[100%] Built target create_static_video
+create_static_video: repeated decoded frame difference exceeded tolerance: 50.000000
+[ 50%] Building CXX object CMakeFiles/create_static_video.dir/tools/create_static_video.cpp.o
+[100%] Linking CXX executable bin/create_static_video
+[100%] Built target create_static_video
+create_static_video: repeated decoded frame difference exceeded tolerance (max=50.000000, mean=2.419941)
+[ 50%] Building CXX object CMakeFiles/create_static_video.dir/tools/create_static_video.cpp.o
+[100%] Linking CXX executable bin/create_static_video
+[100%] Built target create_static_video
+created=".work/p3-static-frame75-5fps-raw.avi" source_frame=75 codec=uncompressed fps=5 frames=50 duration_seconds=10 max_decoded_pixel_difference=0 max_decoded_mean_difference=0 tolerances=(50,0.1)
+57fc5d026ecbdfe380a3c55975c3de3873741b917f1d7b458deb7d986bf72b5d  .work/p3-static-frame75-5fps-raw.avi
+-rw-rw-r-- 1 kickpi kickpi 32M Nov  5 14:00 .work/p3-static-frame75-5fps-raw.avi

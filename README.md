@@ -36,14 +36,16 @@ The P1 prototype includes a native RKNN YOLO worker, a bounded queue with select
 |---|---|---|
 | P0 | Hardware audit, open-source/license review, requirements, architecture, official RKNN demo | Complete; official RK3576 C API smoke test passed |
 | P1 | Single-stream detection-to-event loop and minimum local web UI | Still/moving API loops and ROI enter/leave/dwell/count plumbing pass; six-frame model comparison found a confidence-boundary difference; tracker identity and labeled accuracy remain open |
-| P2 | MPP/RGA pipeline, quantization comparison, scheduling and profiling | INT8 A/B: 9.986 vs 7.602 median FPS in latest-frame mode, without labeled accuracy. Queue A/B: latest p95 232.0 ms vs FIFO 263.8 ms on one 10-FPS sample. INT8 remains experimental; MPP/RGA remain stage-only |
-| P3 | Device management, failure/reliability testing, 24-hour run, release package | Not started |
+| P2 | MPP/RGA pipeline, quantization comparison, scheduling and profiling | INT8 A/B: 9.986 vs 7.602 median FPS in latest-frame mode, without labeled accuracy. Queue A/B: latest p95 232.0 ms vs FIFO 263.8 ms on one 10-FPS sample. SQLite path and bounded-write failure recovery now have board simulations; actual filesystem exhaustion remains open. INT8 remains experimental; MPP/RGA remain stage-only |
+| P3 | Device management, failure/reliability testing, 24-hour run, release package | Reliability tooling is underway; RTSP reconnect, service restart, actual low-disk behavior, the 24-hour run, and release handoff remain open |
 
 ## Documentation
 
 - [Build and deploy](BUILD_AND_DEPLOY.md)
 - [Model conversion](MODEL_CONVERSION.md)
 - [P1 acceptance report](P1_ACCEPTANCE_REPORT.md)
+- [P3 stability runner and deployment controls](BUILD_AND_DEPLOY.md#p3-stability-run)
+- `build/bin/create_static_video` creates and verifies a deterministic repeated-frame AVI test source for long-run experiments.
 - [Benchmark protocol](BENCHMARK_PROTOCOL.md)
 - [Optimization report](OPTIMIZATION_REPORT.md)
 - [Test plan](TEST_PLAN.md) and [results](TEST_RESULTS.md)

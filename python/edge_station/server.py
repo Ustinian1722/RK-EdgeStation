@@ -264,6 +264,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--video", type=Path)
     parser.add_argument("--worker", type=Path, default=ROOT / "build" / "bin" / "rk_edge_worker")
     parser.add_argument("--state-dir", type=Path, default=ROOT / "state")
+    parser.add_argument("--loop-video", action="store_true")
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--queue-capacity", type=int, default=1)
     parser.add_argument("--queue-policy", choices=("latest", "fifo"), default="latest")
@@ -276,13 +277,16 @@ def parse_args() -> argparse.Namespace:
 
 def build_worker_command(args: argparse.Namespace, worker: Path, model: Path,
                          video: Path, state_dir: Path) -> list[str]:
-    return [
+    command = [
         str(worker), "--model", str(model), "--video", str(video),
         "--state-dir", str(state_dir), "--roi", args.roi,
         "--queue-capacity", str(args.queue_capacity), "--queue-policy", args.queue_policy,
         "--confidence", str(args.confidence), "--dwell-ms", str(args.dwell_ms),
         "--roi-debounce-frames", str(args.roi_debounce_frames),
     ]
+    if args.loop_video:
+        command.append("--loop-video")
+    return command
 
 
 def main() -> int:
