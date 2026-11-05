@@ -15,10 +15,10 @@
 - Started: `2026-11-05T14:12:38Z`.
 - Source commit recorded by the runner: `640d6f3`.
 - State directory: `.work/p3-soak-640d6f3-20261105` on the board.
-- Latest saved sample: `2026-11-05T16:02:42Z`, 6,603.13 seconds elapsed (about 1 hour 50 minutes).
-- Latest counters: 33,000 processed, 33,007 decoded, 7 dropped, 6 events, 0 SQLite/storage failures.
-- Latest resources: worker RSS 117,192 KiB, temperatures 26.85–27.77 °C, `MemAvailable` 7.56 GB, root free space 46.65 GB. NPU-load telemetry is unavailable.
-- Read-only database check at `2026-11-05T16:03:20Z`: SQLite integrity `ok`, 6 events, 0 missing evidence references.
+- Latest saved sample: `2026-11-05T16:12:42Z`, 7,203.29 seconds elapsed (about 2 hours).
+- Latest counters: 36,000 processed, 36,007 decoded, 7 dropped, 6 events, 0 SQLite/storage failures.
+- Latest resources: worker RSS 117,192 KiB, temperature 27.77 °C, `MemAvailable` 7.56 GB, root free space 46.65 GB. NPU-load telemetry is unavailable.
+- Read-only database check at `2026-11-05T16:13:36Z`: SQLite integrity `ok`, 6 events, 0 missing evidence references.
 
 The soak continues on its original loaded worker binary and the source commit above. The RTSP and service-recovery changes in `637441b` have short board RTSP and local-file integration checks, but no 24-hour run. Do not attribute this in-progress baseline soak to those changes. Preserve the current run through its final SQLite and evidence-path checks, then run the release-candidate soak if acceptance requires exact-commit validation.
 
@@ -29,5 +29,6 @@ The soak continues on its original loaded worker binary and the source commit ab
 3. Exercise the application on a physical camera and confirm its codec, authentication, and network behavior. The current RTSP proof is synthetic JPEG/RTP over TCP.
 4. Decide whether a user-level service is sufficient. The tested unit is not enabled at boot; boot startup without login would need a separate user-lingering decision. Review the unit and actual source/model environment before persistent activation.
 5. Keep actual filesystem exhaustion open. Existing SQLite recovery evidence uses an unavailable path and a process-local file-size cap; the board filesystem was not filled.
+6. Produce a reviewable demo recording for handoff. Label the deterministic local-video and synthetic RTSP runs as test sources; no physical camera has been verified on this board.
 
 The unit template and environment example are in [`deploy/systemd`](deploy/systemd/rk-edge-station@.service). The service continues to bind to loopback by default. Full P3 acceptance and release handoff remain open until the required gates above are resolved.
