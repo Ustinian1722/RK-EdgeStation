@@ -137,7 +137,8 @@ std::vector<std::uint8_t> read_file(const std::string& path) {
 
 class RknnYoloEngine {
 public:
-    explicit RknnYoloEngine(const std::string& model_path) {
+    explicit RknnYoloEngine(const std::string& model_path, std::string raw_dump_dir)
+        : raw_dump_dir_(std::move(raw_dump_dir)) {
         try {
             auto model = read_file(model_path);
             int ret = rknn_init(&context_.rknn_ctx, model.data(),
@@ -187,6 +188,9 @@ public:
             }
             context_.is_quant = output_attrs_.front().qnt_type == RKNN_TENSOR_QNT_AFFINE_ASYMMETRIC &&
                                 output_attrs_.front().type == RKNN_TENSOR_INT8;
+            if (!raw_dump_dir_.empty() && context_.is_quant) {
+                throw std::runtime_error("raw RKNN output dump currently supports fp models only");
+            }
             model_name_ = basename(model_path);
             std::cerr << "RKNN model=" << model_name_
                       << " input=" << context_.model_width << 'x' << context_.model_height
@@ -271,6 +275,7 @@ public:
             ~OutputRelease() { rknn_outputs_release(context, count, outputs); }
         } output_release{context_.rknn_ctx, context_.io_num.n_output, outputs.data()};
         result.inference_ms = milliseconds(Clock::now() - inference_start);
+        dump_first_outputs(rgb, outputs, bgr.cols, bgr.rows, letterbox);
 
         const auto post_start = Clock::now();
         object_detect_result_list raw{};
@@ -290,14 +295,93 @@ public:
             result.detections.push_back({item.cls_id, item.prop, left, top, right, bottom,
                                          coco_cls_to_name(item.cls_id)});
         }
+        dump_first_detections(result.detections);
         return result;
     }
 
 private:
+    void dump_first_outputs(const cv::Mat& rgb, const std::vector<rknn_output>& outputs,
+                            int source_width, int source_height, const letterbox_t& letterbox) {
+        if (raw_dump_dir_.empty() || raw_dumped_) return;
+        fs::create_directories(raw_dump_dir_);
+
+        const fs::path root(raw_dump_dir_);
+        const fs::path input_path = root / "input-rgb-u8.bin";
+        std::ofstream input_file(input_path, std::ios::binary);
+        const auto input_bytes = rgb.total() * rgb.elemSize();
+        input_file.write(reinterpret_cast<const char*>(rgb.data),
+                         static_cast<std::streamsize>(input_bytes));
+        if (!input_file) throw std::runtime_error("failed to write raw RKNN input tensor");
+
+        std::ofstream manifest(root / "tensor-manifest.txt");
+        if (!manifest) throw std::runtime_error("failed to create raw RKNN tensor manifest");
+        manifest << "model=" << model_name_ << '\n'
+                 << "input_layout=NHWC\ninput_type=uint8\ninput_shape="
+                 << context_.model_height << ',' << context_.model_width << ','
+                 << context_.model_channel << '\n'
+                 << "input_file=" << input_path.filename().string() << '\n'
+                 << "input_bytes=" << input_bytes << '\n'
+                 << "source_width=" << source_width << '\n'
+                 << "source_height=" << source_height << '\n'
+                 << "letterbox_x_pad=" << letterbox.x_pad << '\n'
+                 << "letterbox_y_pad=" << letterbox.y_pad << '\n'
+                 << "letterbox_scale=" << std::setprecision(10) << letterbox.scale << '\n'
+                 << "output_requested_type=float32\n";
+
+        for (std::size_t i = 0; i < outputs.size(); ++i) {
+            if (outputs[i].buf == nullptr || outputs[i].size == 0 || outputs[i].size % sizeof(float) != 0) {
+                throw std::runtime_error("raw RKNN output is empty or not float32");
+            }
+            std::ostringstream filename;
+            filename << "output-" << std::setw(2) << std::setfill('0') << i << ".f32.bin";
+            std::ofstream output_file(root / filename.str(), std::ios::binary);
+            output_file.write(static_cast<const char*>(outputs[i].buf), outputs[i].size);
+            if (!output_file) throw std::runtime_error("failed to write raw RKNN output tensor");
+
+            const auto& attr = output_attrs_[i];
+            manifest << "output[" << i << "].name=" << attr.name << '\n'
+                     << "output[" << i << "].shape=";
+            for (std::uint32_t dim = 0; dim < attr.n_dims; ++dim) {
+                if (dim != 0) manifest << ',';
+                manifest << attr.dims[dim];
+            }
+            manifest << '\n'
+                     << "output[" << i << "].type=" << get_type_string(attr.type) << '\n'
+                     << "output[" << i << "].format=" << get_format_string(attr.fmt) << '\n'
+                     << "output[" << i << "].quantization=" << get_qnt_type_string(attr.qnt_type) << '\n'
+                     << "output[" << i << "].scale=" << attr.scale << '\n'
+                     << "output[" << i << "].zero_point=" << attr.zp << '\n'
+                     << "output[" << i << "].file=" << filename.str() << '\n'
+                     << "output[" << i << "].bytes=" << outputs[i].size << '\n';
+        }
+        manifest.flush();
+        if (!manifest) throw std::runtime_error("failed to flush raw RKNN tensor manifest");
+        raw_dumped_ = true;
+    }
+
+    void dump_first_detections(const std::vector<edge::Detection>& detections) {
+        if (raw_dump_dir_.empty() || detections_dumped_) return;
+        std::ofstream output(fs::path(raw_dump_dir_) / "rknn-detections.csv");
+        if (!output) throw std::runtime_error("failed to create raw RKNN detection dump");
+        output << "class_id,label,confidence,left,top,right,bottom\n";
+        output << std::fixed << std::setprecision(7);
+        for (const auto& detection : detections) {
+            output << detection.class_id << ',' << (detection.label ? detection.label : "unknown")
+                   << ',' << detection.confidence << ',' << detection.left << ',' << detection.top
+                   << ',' << detection.right << ',' << detection.bottom << '\n';
+        }
+        output.flush();
+        if (!output) throw std::runtime_error("failed to flush raw RKNN detection dump");
+        detections_dumped_ = true;
+    }
+
     rknn_app_context_t context_{};
     std::vector<rknn_tensor_attr> input_attrs_;
     std::vector<rknn_tensor_attr> output_attrs_;
     std::string model_name_;
+    std::string raw_dump_dir_;
+    bool raw_dumped_ = false;
+    bool detections_dumped_ = false;
 };
 
 struct Options {
@@ -309,6 +393,7 @@ struct Options {
     float confidence = 0.25F;
     std::chrono::milliseconds dwell_threshold{5000};
     std::size_t roi_debounce_frames = 2;
+    std::string raw_dump_dir;
 };
 
 Options parse_args(int argc, char** argv) {
@@ -318,7 +403,7 @@ Options parse_args(int argc, char** argv) {
         if (key == "--help" || key == "-h") {
             std::cout << "rk_edge_worker --model MODEL.rknn --video INPUT.mp4 "
                          "[--state-dir state] [--roi x,y,w,h] [--queue-capacity N] [--confidence X] "
-                         "[--dwell-ms N] [--roi-debounce-frames N]\n";
+                         "[--dwell-ms N] [--roi-debounce-frames N] [--dump-first-rknn-output DIR]\n";
             std::exit(0);
         }
         if (key.rfind("--", 0) != 0 || i + 1 >= argc) {
@@ -337,6 +422,7 @@ Options parse_args(int argc, char** argv) {
     if (args.count("--confidence")) options.confidence = std::stof(args.at("--confidence"));
     if (args.count("--dwell-ms")) options.dwell_threshold = std::chrono::milliseconds(std::stoll(args.at("--dwell-ms")));
     if (args.count("--roi-debounce-frames")) options.roi_debounce_frames = std::stoul(args.at("--roi-debounce-frames"));
+    if (args.count("--dump-first-rknn-output")) options.raw_dump_dir = args.at("--dump-first-rknn-output");
     if (args.count("--roi")) {
         std::stringstream input(args.at("--roi"));
         char comma1 = 0, comma2 = 0, comma3 = 0;
@@ -430,7 +516,7 @@ int main(int argc, char** argv) {
         if (init_post_process() != 0) throw std::runtime_error("failed to load COCO labels from ./model/coco_80_labels_list.txt");
         int exit_code = 0;
         {
-            RknnYoloEngine engine(options.model);
+            RknnYoloEngine engine(options.model, options.raw_dump_dir);
             edge::BoundedLatestQueue<Frame> queue(options.queue_capacity);
             std::atomic<std::uint64_t> decoded{0};
             std::string producer_error;

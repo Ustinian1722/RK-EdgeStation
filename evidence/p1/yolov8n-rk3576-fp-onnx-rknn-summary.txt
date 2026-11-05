@@ -1,0 +1,38 @@
+YOLOv8n ONNX CPU vs RKNN RK3576 exploratory same-input comparison
+Date: 2026-11-05
+
+Scope and setup
+- ONNX source: RKNN Model Zoo v2.0.0 optimized YOLOv8n graph, SHA-256 0c8716701f471067932b797eeb67c8e5db47c693c2557c881d7679ec12e21bc5.
+- RKNN model: RK3576 fp/non-quantized export, SHA-256 2162e0cf6a71270c092353d94abb391ac111910ce178547ef80dd89b225dab0b.
+- Board: KICKPI K7 / RK3576, RKNN Runtime 2.0.0b0, driver 0.9.7.
+- ONNX Runtime CPU: 1.16.0 in the isolated Toolkit2 WSL environment.
+- Both runtimes received the same saved post-letterbox RGB uint8 NHWC tensor. ONNX input was converted to float32, divided by 255, and transposed to NCHW.
+- RKNN output tensor attributes report FP16; rknn_outputs_get(want_float=1) returned the dumped tensors as float32.
+- Confidence threshold 0.25; NMS threshold 0.45; class-aware greedy detection matching threshold IoU 0.50.
+- The board worker received a 16-frame repeated-still clip for each source image; only the first processed inference output from each run was captured and compared. No frame averaging was used. This is not a labeled accuracy test.
+
+Results
+| Input | ONNX detections | RKNN detections | Matched | Mean box IoU | Mean absolute confidence delta | Set agreement F1 |
+|---|---:|---:|---:|---:|---:|---:|
+| Model Zoo bus still, 640x640 | 5 | 5 | 5/5 | 0.999324 | 0.002519 | 1.000 |
+| OpenCV vtest frame 100, 768x576 | 8 | 8 | 8/8 | 1.000000 | 0.002329 | 1.000 |
+
+Raw output comparison
+- The three box-regression tensors had cosine similarity 0.9999930-0.9999964 and range-normalized RMSE 0.000302-0.000672 on these two inputs.
+- Class-score tensors differed more in low-score regions. RKNN class outputs had a minimum value of 0.001831 on these samples, while ONNX outputs included exact zeros.
+- The ReduceSum score-sum tensors had mean absolute errors of 0.1455-0.1462. The observed class-score floor contributes to this gap; its exact runtime/compiler cause has not been isolated.
+- Despite raw low-score differences, the thresholded, post-NMS detection sets matched on both frames. This does not establish equivalence on other inputs or behavior near the confidence threshold.
+- Independent Python decoding of the RKNN tensors matched the C++ detections for 5/5 bus detections at IoU 0.90 (mean IoU 1.000) and 8/8 vtest detections at IoU 0.90 (mean IoU 0.950). Confidence differences were below 0.00000004; the vtest coordinates differed by about one pixel from floating-point DFL/postprocess rounding.
+
+Evidence files
+- yolov8n-rk3576-fp-onnx-rknn-bus.json
+- yolov8n-rk3576-fp-onnx-rknn-vtest100.json
+- yolov8n-rk3576-fp-onnx-rknn-bus-board.stdout.jsonl and -bus-board.stderr.log
+- yolov8n-rk3576-fp-onnx-rknn-vtest100-board.stdout.jsonl and -vtest100-board.stderr.log
+- yolov8n-rk3576-fp-debug-dump-board-build-test.log
+
+Limits
+- Only two single-frame inputs were compared; the vtest frame came from a public sample clip and was repeated only to run through the existing worker pipeline.
+- No ground-truth labels were used. These results are limited to numerical and thresholded detection-set observations, not detector accuracy, model equivalence, or product acceptance.
+- The low-score class and score-sum discrepancies need investigation with a larger representative set and confidence-boundary cases before accepting numerical alignment.
+- Raw input/output dumps and model weights remain in ignored .work directories and are not committed.

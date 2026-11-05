@@ -1,0 +1,28 @@
+=== native build ===
+[ 36%] Built target edge_core_tests
+[ 81%] Built target rk_edge_worker
+[100%] Built target edge_media_tests
+=== CTest ===
+Internal ctest changing into directory: /home/kickpi/projects/RK-EdgeStation/build
+Test project /home/kickpi/projects/RK-EdgeStation/build
+    Start 1: edge_core_tests
+1/2 Test #1: edge_core_tests ..................   Passed    0.01 sec
+    Start 2: edge_media_tests
+2/2 Test #2: edge_media_tests .................   Passed    0.47 sec
+
+100% tests passed, 0 tests failed out of 2
+
+Total Test time (real) =   0.48 sec
+=== Python tests ===
+test_loopback_health_events_and_dashboard (test_server.LocalApiTests.test_loopback_health_events_and_dashboard) ... http 127.0.0.1 "GET /api/health HTTP/1.1" 200 -
+http 127.0.0.1 "GET /api/events?limit=5 HTTP/1.1" 200 -
+http 127.0.0.1 "GET / HTTP/1.1" 200 -
+ok
+test_event_and_metric_round_trip (test_storage.EventStoreTests.test_event_and_metric_round_trip) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.726s
+
+OK
+=== worker help ===
+rk_edge_worker --model MODEL.rknn --video INPUT.mp4 [--state-dir state] [--roi x,y,w,h] [--queue-capacity N] [--confidence X] [--dwell-ms N] [--roi-debounce-frames N] [--dump-first-rknn-output DIR]

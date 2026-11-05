@@ -1,0 +1,371 @@
+{
+  "onnx_model_filename": "yolov8n-model-zoo-v2.0.0.onnx",
+  "onnx_sha256": "0c8716701f471067932b797eeb67c8e5db47c693c2557c881d7679ec12e21bc5",
+  "rknn_model": "yolov8n-rk3576-fp.rknn",
+  "rknn_original_tensor_types": [
+    "FP16"
+  ],
+  "rknn_dump_dtype": "float32",
+  "input_rgb_sha256": "6d0f950aa40ce9a960a2fcf8c68ca629211a07ba796b92f12aaac763474da38d",
+  "onnxruntime_version": "1.16.0",
+  "input_shape_nhwc": [
+    640,
+    640,
+    3
+  ],
+  "input_normalization": "RGB float32 / 255, NHWC to NCHW",
+  "confidence_threshold": 0.25,
+  "nms_threshold": 0.45,
+  "detection_match_iou_threshold": 0.5,
+  "tensor_comparison": [
+    {
+      "index": 0,
+      "name": "318",
+      "shape": [
+        1,
+        64,
+        80,
+        80
+      ],
+      "onnx_min": -5.430895805358887,
+      "onnx_max": 19.66910171508789,
+      "rknn_min": -5.41015625,
+      "rknn_max": 19.625,
+      "mean_absolute_error": 0.005278749216751635,
+      "rmse": 0.009010417196425083,
+      "max_absolute_error": 0.2673768997192383,
+      "range_normalized_rmse": 0.0003589807866209678,
+      "cosine_similarity": 0.9999949349687899
+    },
+    {
+      "index": 1,
+      "name": "onnx::ReduceSum_326",
+      "shape": [
+        1,
+        80,
+        80,
+        80
+      ],
+      "onnx_min": 0.0,
+      "onnx_max": 0.054886966943740845,
+      "rknn_min": 0.0018310546875,
+      "rknn_max": 0.053955078125,
+      "mean_absolute_error": 0.0018271462588454596,
+      "rmse": 0.0018280549547050348,
+      "max_absolute_error": 0.0019047558307647705,
+      "range_normalized_rmse": 0.03330581113324756,
+      "cosine_similarity": 0.16453550714359289
+    },
+    {
+      "index": 2,
+      "name": "331",
+      "shape": [
+        1,
+        1,
+        80,
+        80
+      ],
+      "onnx_min": 5.960464477539062e-07,
+      "onnx_max": 0.0719183087348938,
+      "rknn_min": 0.146484375,
+      "rknn_max": 0.205322265625,
+      "mean_absolute_error": 0.1461621915968135,
+      "rmse": 0.1461657491178346,
+      "max_absolute_error": 0.14648377895355225,
+      "range_normalized_rmse": 2.0324026398202855,
+      "cosine_similarity": 0.20259163813457062
+    },
+    {
+      "index": 3,
+      "name": "338",
+      "shape": [
+        1,
+        64,
+        40,
+        40
+      ],
+      "onnx_min": -4.837632656097412,
+      "onnx_max": 12.542813301086426,
+      "rknn_min": -4.8359375,
+      "rknn_max": 12.53125,
+      "mean_absolute_error": 0.005308597811472282,
+      "rmse": 0.00871093292582786,
+      "max_absolute_error": 0.1871044635772705,
+      "range_normalized_rmse": 0.0005011915796794701,
+      "cosine_similarity": 0.9999947985922588
+    },
+    {
+      "index": 4,
+      "name": "onnx::ReduceSum_346",
+      "shape": [
+        1,
+        80,
+        40,
+        40
+      ],
+      "onnx_min": 0.0,
+      "onnx_max": 0.34180358052253723,
+      "rknn_min": 0.0018310546875,
+      "rknn_max": 0.34521484375,
+      "mean_absolute_error": 0.0018262391213793307,
+      "rmse": 0.0018272164827841152,
+      "max_absolute_error": 0.0034112632274627686,
+      "range_normalized_rmse": 0.005345808490334511,
+      "cosine_similarity": 0.7537472797633973
+    },
+    {
+      "index": 5,
+      "name": "350",
+      "shape": [
+        1,
+        1,
+        40,
+        40
+      ],
+      "onnx_min": 2.086162567138672e-07,
+      "onnx_max": 0.3490820527076721,
+      "rknn_min": 0.146484375,
+      "rknn_max": 0.48974609375,
+      "mean_absolute_error": 0.14608499040827155,
+      "rmse": 0.1460882859941348,
+      "max_absolute_error": 0.1464841663837433,
+      "range_normalized_rmse": 0.4184929364469556,
+      "cosine_similarity": 0.229010371576868
+    },
+    {
+      "index": 6,
+      "name": "357",
+      "shape": [
+        1,
+        64,
+        20,
+        20
+      ],
+      "onnx_min": -6.777406692504883,
+      "onnx_max": 12.464644432067871,
+      "rknn_min": -6.77734375,
+      "rknn_max": 12.5390625,
+      "mean_absolute_error": 0.005755939981609118,
+      "rmse": 0.008941331460564583,
+      "max_absolute_error": 0.14266109466552734,
+      "range_normalized_rmse": 0.0004646766524955537,
+      "cosine_similarity": 0.9999954532433253
+    },
+    {
+      "index": 7,
+      "name": "onnx::ReduceSum_365",
+      "shape": [
+        1,
+        80,
+        20,
+        20
+      ],
+      "onnx_min": 0.0,
+      "onnx_max": 0.8838300704956055,
+      "rknn_min": 0.0018310546875,
+      "rknn_max": 0.88427734375,
+      "mean_absolute_error": 0.001825903158634901,
+      "rmse": 0.0018324900659930194,
+      "max_absolute_error": 0.018593192100524902,
+      "range_normalized_rmse": 0.0020733511193678387,
+      "cosine_similarity": 0.9977163545432449
+    },
+    {
+      "index": 8,
+      "name": "369",
+      "shape": [
+        1,
+        1,
+        20,
+        20
+      ],
+      "onnx_min": 5.960464477539063e-08,
+      "onnx_max": 0.8917372822761536,
+      "rknn_min": 0.146484375,
+      "rknn_max": 1.0,
+      "mean_absolute_error": 0.14551063410937787,
+      "rmse": 0.1455516167380713,
+      "max_absolute_error": 0.1630532145500183,
+      "range_normalized_rmse": 0.16322254251316418,
+      "cosine_similarity": 0.8990217830796622
+    }
+  ],
+  "detection_agreement": {
+    "iou_threshold": 0.5,
+    "first_count": 5,
+    "second_count": 5,
+    "matched_count": 5,
+    "unmatched_first_count": 0,
+    "unmatched_second_count": 0,
+    "set_f1_agreement": 1.0,
+    "matched_mean_iou": 0.9993243243243242,
+    "matched_mean_absolute_confidence_delta": 0.0025185167789459227
+  },
+  "onnx_detections": [
+    {
+      "class_id": 5,
+      "confidence": 0.8838300704956055,
+      "box": [
+        92,
+        137,
+        556,
+        451
+      ]
+    },
+    {
+      "class_id": 0,
+      "confidence": 0.8777402639389038,
+      "box": [
+        109,
+        236,
+        224,
+        536
+      ]
+    },
+    {
+      "class_id": 0,
+      "confidence": 0.8775816559791565,
+      "box": [
+        210,
+        241,
+        282,
+        507
+      ]
+    },
+    {
+      "class_id": 0,
+      "confidence": 0.8365299701690674,
+      "box": [
+        476,
+        224,
+        560,
+        519
+      ]
+    },
+    {
+      "class_id": 0,
+      "confidence": 0.34180358052253723,
+      "box": [
+        80,
+        326,
+        124,
+        513
+      ]
+    }
+  ],
+  "rknn_detections": [
+    {
+      "class_id": 5,
+      "confidence": 0.88427734375,
+      "box": [
+        92,
+        137,
+        556,
+        451
+      ]
+    },
+    {
+      "class_id": 0,
+      "confidence": 0.88134765625,
+      "box": [
+        210,
+        241,
+        282,
+        507
+      ]
+    },
+    {
+      "class_id": 0,
+      "confidence": 0.880859375,
+      "box": [
+        109,
+        236,
+        224,
+        536
+      ]
+    },
+    {
+      "class_id": 0,
+      "confidence": 0.83837890625,
+      "box": [
+        476,
+        223,
+        560,
+        519
+      ]
+    },
+    {
+      "class_id": 0,
+      "confidence": 0.34521484375,
+      "box": [
+        80,
+        326,
+        124,
+        513
+      ]
+    }
+  ],
+  "rknn_python_vs_cpp_postprocess": {
+    "iou_threshold": 0.9,
+    "first_count": 5,
+    "second_count": 5,
+    "matched_count": 5,
+    "unmatched_first_count": 0,
+    "unmatched_second_count": 0,
+    "set_f1_agreement": 1.0,
+    "matched_mean_iou": 1.0,
+    "matched_mean_absolute_confidence_delta": 3.249999996901565e-08
+  },
+  "cpp_detections": [
+    {
+      "class_id": 5,
+      "confidence": 0.8842773,
+      "box": [
+        92,
+        137,
+        556,
+        451
+      ]
+    },
+    {
+      "class_id": 0,
+      "confidence": 0.8813477,
+      "box": [
+        210,
+        241,
+        282,
+        507
+      ]
+    },
+    {
+      "class_id": 0,
+      "confidence": 0.8808594,
+      "box": [
+        109,
+        236,
+        224,
+        536
+      ]
+    },
+    {
+      "class_id": 0,
+      "confidence": 0.8383789,
+      "box": [
+        476,
+        223,
+        560,
+        519
+      ]
+    },
+    {
+      "class_id": 0,
+      "confidence": 0.3452148,
+      "box": [
+        80,
+        326,
+        124,
+        513
+      ]
+    }
+  ]
+}
