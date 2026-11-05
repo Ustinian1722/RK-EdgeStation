@@ -24,7 +24,7 @@ The soak continues on its original loaded worker binary and the source commit ab
 
 ## Handoff demo artifact
 
-A 36-second H.264 evidence-rendered demo is available locally at `.work/handoff-demo-20261105/RK-EdgeStation_RK3576_evidence-demo_20261105.mp4` (1280×720, 24 fps; SHA-256 `0FADEEF1A8E4818B4C82DAB513A4C2091A7EE490CFCF0E796A000F01F5E77A7A`). Its companion `manifest.txt` records the source files, sample time, metrics, and limitations. It combines board-saved event frames, the 16:17:42Z soak sample, and the separate synthetic RTSP test. It is not a raw UI screen capture; the fixed-frame input and synthetic RTSP source are labeled in the video. Both files remain under ignored `.work` and are not yet in a transferable release package.
+A 36-second H.264 evidence-rendered demo is available locally at `.work/handoff-demo-20261105/RK-EdgeStation_RK3576_evidence-demo_20261105.mp4` (1280×720, 24 fps; SHA-256 `0FADEEF1A8E4818B4C82DAB513A4C2091A7EE490CFCF0E796A000F01F5E77A7A`). Its companion `manifest.txt` records the source files, sample time, metrics, and limitations. A ready-to-transfer archive is at `.work/handoff-demo-20261105/RK-EdgeStation_RK3576_demo-handoff_20261105.zip` (SHA-256 `C03DCF353852C1B818E951728B01671DB9C93DF3DC16E6D2ECF2E46A7732751D`); it contains the MP4 and manifest. The video combines board-saved event frames, the 16:17:42Z soak sample, and the separate synthetic RTSP test. It is not a raw UI screen capture; the fixed-frame input and synthetic RTSP source are labeled in the video. These generated files remain under ignored `.work` and are not committed to Git.
 
 ## Open before calling P3 complete
 
@@ -33,6 +33,5 @@ A 36-second H.264 evidence-rendered demo is available locally at `.work/handoff-
 3. Exercise the application on a physical camera and confirm its codec, authentication, and network behavior. The current RTSP proof is synthetic JPEG/RTP over TCP.
 4. Decide whether a user-level service is sufficient. The tested unit is not enabled at boot; boot startup without login would need a separate user-lingering decision. Review the unit and actual source/model environment before persistent activation.
 5. Keep actual filesystem exhaustion open. Existing SQLite recovery evidence uses an unavailable path and a process-local file-size cap; the board filesystem was not filled.
-6. Include the local demo artifact in the handoff package and decide whether reviewers also require a raw UI screen capture. The current video is an evidence-rendered demo, not a screen recording, and makes no physical-camera claim.
 
 The unit template and environment example are in [`deploy/systemd`](deploy/systemd/rk-edge-station@.service). The service continues to bind to loopback by default. Full P3 acceptance and release handoff remain open until the required gates above are resolved.
