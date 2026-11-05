@@ -1,0 +1,8 @@
+Commit: aa6f5003a092e8c5291d3feaf6d53c39e1aba4a6
+Local git archive SHA-256: 653586ee2088eff011859a34caf889a102becc0501dd069680a95c4f2401daa9
+Board git archive SHA-256: 653586ee2088eff011859a34caf889a102becc0501dd069680a95c4f2401daa9
+Selected post-extraction hashes:
+  scripts/benchmark_rga_letterbox.cpp 8bbfd731789cba769faf05ea846559d4742454d83c1ccca56baf2607243ec896
+  scripts/compare_rknn_input_outputs.cpp 1b694fcaa1044b3346022f72d53be5e0bf856e2000be3b6b04a34a2f1eab0145
+  P2_ACCEPTANCE_REPORT.md becaf173d2bcf8079814f3e5d2539e8af693b0dc1b05030557c6ccb612c26709
+Native board validation after sync: build passed; CTest 2/2 passed; Python API/storage tests 2/2 passed. See aa6f500-post-sync-build-test.txt for the full output.
