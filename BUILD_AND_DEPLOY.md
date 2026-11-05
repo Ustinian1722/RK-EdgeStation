@@ -43,6 +43,21 @@ Set `SOURCE_COMMIT` to the short commit hash synced and built on the board befor
 
 The worker discovers board OpenCV and RKNN headers/libraries and links dynamically to those installed libraries. The current reference path uses OpenCV CPU decode/preprocessing and paces file input at its reported media rate when valid. The queue policy is included in worker metric JSON as `queue_policy`; queue capacity and `dropped_frames` are reported alongside it. P2 exercised MPP decode and RGA letterboxing as isolated board probes; full worker integration remains deferred pending controlled end-to-end and output checks. Python's standard library provides the local HTTP server and SQLite store.
 
+## P3 graceful process restart recovery
+
+This board-side probe starts the service and worker, records health and process resources, sends the service SIGTERM, checks worker exit and SQLite/evidence integrity, then restarts against the same state directory and verifies event retention. It refuses an existing state path. The probe records per-second samples and separate service logs under its state directory.
+
+```bash
+PYTHONPATH=python python3 scripts/restart_recovery_smoke.py \
+  --model .work/p1-yolov8n-rk3576-fp/yolov8n-rk3576-fp.rknn \
+  --video .work/p3-static-frame75-5fps-raw.avi \
+  --state-dir ".work/p3-restart-$(date -u +%Y%m%dT%H%M%SZ)" \
+  --port 18084 --observe-seconds 15 \
+  --source-commit "$SOURCE_COMMIT"
+```
+
+Set `SOURCE_COMMIT` to the probe source commit synced to the board. The 2026-11-05 RK3576 run passed in 31.63 seconds: manual stop exit codes were both 0, the worker PID changed after restart, 14 saved events remained available on restart, and final SQLite integrity/evidence checks passed. The run sampled service and worker RSS, thread count, and file descriptor count. This does not verify systemd automatic restart.
+
 ## Deployment controls
 
 - Deploy only to `/home/kickpi/projects/RK-EdgeStation`.

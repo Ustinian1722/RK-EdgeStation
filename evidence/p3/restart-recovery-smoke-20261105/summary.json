@@ -1,0 +1,154 @@
+{
+  "result": "passed",
+  "error": null,
+  "started_utc": "2026-11-05T14:28:00Z",
+  "finished_utc": "2026-11-05T14:28:32Z",
+  "elapsed_seconds": 31.63,
+  "source_commit": "56f39a5",
+  "model": "/home/kickpi/projects/RK-EdgeStation/.work/p1-yolov8n-rk3576-fp/yolov8n-rk3576-fp.rknn",
+  "model_sha256": "2162e0cf6a71270c092353d94abb391ac111910ce178547ef80dd89b225dab0b",
+  "video": "/home/kickpi/projects/RK-EdgeStation/.work/p3-static-frame75-5fps-raw.avi",
+  "video_sha256": "57fc5d026ecbdfe380a3c55975c3de3873741b917f1d7b458deb7d986bf72b5d",
+  "worker": "/home/kickpi/projects/RK-EdgeStation/build/bin/rk_edge_worker",
+  "worker_sha256": "ae15c5aef5df76305817887e2315f18822c936635c3f46f5941039ae7594549f",
+  "port": 18084,
+  "observe_seconds_per_run": 15,
+  "phases": [
+    {
+      "phase": "before_restart",
+      "service_pid": 30347,
+      "worker_pid": 30349,
+      "health": {
+        "status": "running",
+        "worker_pid": 30349,
+        "worker_exit_code": null,
+        "model": "yolov8n-rk3576-fp.rknn",
+        "source": "p3-static-frame75-5fps-raw.avi",
+        "uptime_seconds": 15.441,
+        "event_count": 14,
+        "storage_status": "available",
+        "storage_last_error": null,
+        "storage_failures": 0,
+        "event_write_failures": 0,
+        "metric_write_failures": 0,
+        "metrics": {
+          "type": "metric",
+          "status": "running",
+          "processed_frames": 60,
+          "decoded_frames": 62,
+          "detections": 420,
+          "roi_occupancy_count": 7,
+          "cumulative_roi_entries": 7,
+          "queue_capacity": 1,
+          "queue_policy": "latest",
+          "queue_depth": 0,
+          "dropped_frames": 2,
+          "throughput_fps": 4.854,
+          "last_preprocess_ms": 18.051,
+          "last_inference_ms": 80.485,
+          "last_postprocess_ms": 1.263,
+          "last_queue_wait_ms": 0.283,
+          "last_end_to_end_ms": 149.31,
+          "p50_end_to_end_ms": 152.941,
+          "p95_end_to_end_ms": 175.834,
+          "latency_window_frames": 60,
+          "process_rss_kb": 116032
+        }
+      },
+      "resources_before_stop": {
+        "service": {
+          "pid": 30347,
+          "alive": true,
+          "rss_kib": 21984,
+          "threads": 2,
+          "fd_count": 5
+        },
+        "worker": {
+          "pid": 30349,
+          "alive": true,
+          "rss_kib": 116032,
+          "threads": 9,
+          "fd_count": 18
+        }
+      },
+      "service_exit_code": 0,
+      "worker_stopped": true,
+      "database_after_stop": {
+        "integrity_check": "ok",
+        "event_count": 14,
+        "missing_evidence": 0
+      }
+    },
+    {
+      "phase": "after_restart",
+      "service_pid": 30379,
+      "worker_pid": 30380,
+      "health": {
+        "status": "running",
+        "worker_pid": 30380,
+        "worker_exit_code": null,
+        "model": "yolov8n-rk3576-fp.rknn",
+        "source": "p3-static-frame75-5fps-raw.avi",
+        "uptime_seconds": 15.354,
+        "event_count": 28,
+        "storage_status": "available",
+        "storage_last_error": null,
+        "storage_failures": 0,
+        "event_write_failures": 0,
+        "metric_write_failures": 0,
+        "metrics": {
+          "type": "metric",
+          "status": "running",
+          "processed_frames": 60,
+          "decoded_frames": 60,
+          "detections": 420,
+          "roi_occupancy_count": 7,
+          "cumulative_roi_entries": 7,
+          "queue_capacity": 1,
+          "queue_policy": "latest",
+          "queue_depth": 0,
+          "dropped_frames": 0,
+          "throughput_fps": 5.005,
+          "last_preprocess_ms": 8.853,
+          "last_inference_ms": 96.839,
+          "last_postprocess_ms": 1.208,
+          "last_queue_wait_ms": 0.183,
+          "last_end_to_end_ms": 166.682,
+          "p50_end_to_end_ms": 149.375,
+          "p95_end_to_end_ms": 178.417,
+          "latency_window_frames": 60,
+          "process_rss_kb": 115880
+        }
+      },
+      "resources_before_stop": {
+        "service": {
+          "pid": 30379,
+          "alive": true,
+          "rss_kib": 21532,
+          "threads": 2,
+          "fd_count": 5
+        },
+        "worker": {
+          "pid": 30380,
+          "alive": true,
+          "rss_kib": 115880,
+          "threads": 9,
+          "fd_count": 18
+        }
+      },
+      "service_exit_code": 0,
+      "worker_stopped": true,
+      "database_after_stop": {
+        "integrity_check": "ok",
+        "event_count": 28,
+        "missing_evidence": 0
+      },
+      "retained_event_count": 14
+    }
+  ],
+  "final_database": {
+    "integrity_check": "ok",
+    "event_count": 28,
+    "missing_evidence": 0
+  }
+}
