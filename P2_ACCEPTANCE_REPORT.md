@@ -45,6 +45,15 @@ The reported inference interval is each run's final `last_inference_ms` sample; 
 
 The worker now exposes `--queue-policy latest|fifo`; latest replaces the oldest pending frame while FIFO preserves pending order and drops a new arrival while full. Both modes use the same bounded, non-blocking queue and report the selected policy and total dropped frames. C++ tests check the exact replacement/drop result and FIFO pop order; a Python test checks latest as the default and FIFO forwarding from the service to the worker.
 
+Reproduce the three interleaved repetitions on RK3576 with a new output directory:
+
+```bash
+bash scripts/benchmark_queue_policy_ab.sh \
+  .work/p1-yolov8n-rk3576-fp/yolov8n-rk3576-fp.rknn \
+  .work/p2-mpp-test/vtest-150f-h264.mp4 \
+  .work/p2-queue-policy-next 3 1 0.25
+```
+
 On RK3576, the non-quantized YOLOv8n worker processed the same 150-frame, 10-FPS H.264 sample at confidence 0.25, queue capacity 1, with three interleaved runs per policy:
 
 | Policy | Median processed / dropped | Median throughput | Median end-to-end p50 | Median end-to-end p95 |
@@ -68,6 +77,7 @@ All runs decoded 150 frames and completed without worker errors; board temperatu
 - [Preprocessed tensor SHA-256 values](evidence/p2/rga-preprocessed-input-sha256.txt), [board probe compilation/CLI check](evidence/p2/p2-probe-build-check.txt), and [WSL Python syntax check](evidence/p2/p2-wsl-python-compile-check.txt)
 - [Commit/archive synchronization and post-push board build/test](evidence/p2/aa6f500-board-sync-verification.txt), with the [full CMake/CTest/Python output](evidence/p2/aa6f500-post-sync-build-test.txt)
 - [Latest commit `739fe95` board sync and validation](evidence/p2/739fe95-board-sync-verification.txt), including the [native build/tests](evidence/p2/739fe95-board-build-test.txt) and [two-model comparator compile/CLI check](evidence/p2/739fe95-board-comparator-build.txt)
+- [Latest queue-policy commit `b73e3da` board sync and validation](evidence/p2/b73e3da-board-sync-verification.txt), including [build/tests](evidence/p2/b73e3da-board-build-test.txt) and [CLI checks](evidence/p2/b73e3da-board-cli-check.txt)
 - INT8 conversion, calibration hashes, ten held-out tensor/detection comparisons, and input hashes: [conversion transcript](evidence/p2/yolov8n-rk3576-int8-conversion.txt), [calibration record](evidence/p2/int8-calibration-manifest.txt), [holdout input hashes](evidence/p2/int8-holdout-input-sha256.txt)
 - Native worker A/B raw records for all three interleaved repetitions: [latest-frame queue summary](evidence/p2/int8-queue1-summary.jsonl) and [preserve-all queue summary](evidence/p2/int8-queue150-summary.jsonl), with per-run stdout/stderr/temperature metadata alongside them
 - Per-frame letterbox and model-output records are alongside those summaries in `evidence/p2/`.

@@ -1,0 +1,5 @@
+Usage: scripts/benchmark_queue_policy_ab.sh MODEL.rknn INPUT.mp4 OUTPUT_DIR [REPETITIONS=3] [QUEUE_CAPACITY=1] [CONFIDENCE=0.25]
+fatal: --queue-policy must be latest or fifo
+output directory already exists: .work/p2-queue-policy-script
+invalid-policy-rejected
+existing-output-protected

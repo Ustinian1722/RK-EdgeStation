@@ -1,0 +1,14 @@
+Commit: b73e3da
+Local git archive SHA-256: b8dbb91340fcddb565ff61a74e4bdac82bbefff808a8db0472a7d8f5a0c45474
+Board transferred archive SHA-256: b8dbb91340fcddb565ff61a74e4bdac82bbefff808a8db0472a7d8f5a0c45474  /tmp/rk-edgestation-b73e3da.tar
+Archive extracted into /home/kickpi/projects/RK-EdgeStation (overlay; no system files changed).
+Selected board file hashes match the corresponding Git archive member hashes:
+3e6434c26e03fc4224d002e434993048240ceb6efbb7874c42a5e55e544d6618  src/bounded_queue.hpp
+f668b8844444c0394e0e8e2d8f46bff45da690aa2e7d26625a88297055af4c5a  src/main.cpp
+428742ff65ba2aaa9a5aa47b0a2dac3f19ef30ed10f32e7efe03cd0dd8d9e98b  tests/cpp_core_tests.cpp
+84824a9e74a1075188438e7ebf52cbcf0a8882c30bd9e3f2f83056357941ce66  python/edge_station/server.py
+54a933300ac6abc0121a66e5062e4100bb686b403aaf62acf35ef27065213580  scripts/benchmark_queue_policy_ab.sh
+3a65426d981886d12835042e8ddf1d7ade90217e18830c5e831636fd134e88ed  P2_ACCEPTANCE_REPORT.md
+c9d74260f3b5559d9c5e5bc12b4acd6a7916b8f91ff8af849245b12b9bf8e0ee  evidence/p2/queue-policy-ab-summary.jsonl
+Board native build passed; CTest 2/2 passed; Python API/storage tests 3/3 passed. See b73e3da-board-build-test.txt.
+Board CLI checks passed: benchmark script bash syntax/help, worker rejected invalid queue policy, benchmark runner refused an existing output directory. See b73e3da-board-cli-check.txt.
