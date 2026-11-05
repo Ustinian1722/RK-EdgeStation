@@ -1,0 +1,23 @@
+RK-EdgeStation bounded SQLite write-failure/recovery check
+Date: 2026-11-05
+Base repository commit: c4b543b
+Board: KICKPI K7 / RK3576 / Ubuntu 24.04.3 aarch64 / Python 3.12.3
+
+Command on board:
+  cd /home/kickpi/projects/RK-EdgeStation
+  PYTHONPATH=python python3 -m unittest discover -s tests/python -v
+
+Result: all 5 board Python API/storage tests passed. The POSIX-only test used
+resource.RLIMIT_FSIZE and ignored SIGXFSZ in the test process, with SQLite files in a
+TemporaryDirectory. A 256-KiB event exceeded the process-local per-file limit; SQLite
+returned "disk I/O error", AppState counted one failed event write, and the worker
+reader continued. The test restored the original resource limit and signal handler,
+then a later event persisted successfully and the storage status recovered.
+
+The test changed no filesystem quota or system setting and did not fill the board
+filesystem. This is not evidence of behavior under actual ENOSPC or sustained low disk.
+The Windows host suite skips this POSIX-only test; the complete suite ran on RK3576.
+
+Board test output: sqlite-write-failure-board-tests.txt
+Test source SHA-256 (local and board):
+  tests/python/test_server.py  92049541157466fe5a6234c18bbf593619529db40e2baf9fe024ca5152a66f30

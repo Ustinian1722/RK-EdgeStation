@@ -1,4 +1,6 @@
+import io
 import json
+import signal
 import tempfile
 import threading
 import unittest
@@ -7,6 +9,11 @@ from pathlib import Path
 from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import urlopen
+
+try:
+    import resource
+except ImportError:  # Windows host tests skip the POSIX file-size-limit probe.
+    resource = None
 
 from edge_station.server import AppState, build_worker_command, make_handler, parse_args
 from edge_station.storage import EventStore
@@ -124,6 +131,59 @@ class StorageRecoveryTests(unittest.TestCase):
                 server.shutdown()
                 server.server_close()
                 thread.join(timeout=3)
+
+    @unittest.skipIf(
+        resource is None or not hasattr(signal, "SIGXFSZ"),
+        "requires POSIX RLIMIT_FSIZE and SIGXFSZ",
+    )
+    def test_sqlite_write_failure_is_counted_and_recovers(self):
+        class WorkerOutput:
+            def __init__(self, event):
+                self.stdout = io.StringIO(json.dumps({"type": "event", **event}) + "\n")
+
+            def wait(self):
+                return 0
+
+        def event(sequence, evidence):
+            return {
+                "event_id": f"evt-limit-{sequence}",
+                "timestamp_utc": "2026-11-05T00:00:00.000Z",
+                "event_type": "enter",
+                "frame_sequence": sequence,
+                "track_id": 1,
+                "label": "person",
+                "confidence": 0.9,
+                "evidence": evidence,
+            }
+
+        with tempfile.TemporaryDirectory() as directory:
+            state_dir = Path(directory)
+            database = state_dir / "events.sqlite3"
+            state = AppState(EventStore(database), state_dir / "evidence")
+            original_limit = resource.getrlimit(resource.RLIMIT_FSIZE)
+            original_handler = signal.getsignal(signal.SIGXFSZ)
+            try:
+                signal.signal(signal.SIGXFSZ, signal.SIG_IGN)
+                resource.setrlimit(
+                    resource.RLIMIT_FSIZE,
+                    (database.stat().st_size, original_limit[1]),
+                )
+                state.process = WorkerOutput(event(1, "x" * 262144))
+                state._read_worker()
+                with state.lock:
+                    self.assertEqual(state.storage_status, "unavailable")
+                    self.assertEqual(state.event_write_failures, 1)
+            finally:
+                resource.setrlimit(resource.RLIMIT_FSIZE, original_limit)
+                signal.signal(signal.SIGXFSZ, original_handler)
+
+            state.process = WorkerOutput(event(2, "frame-2.jpg"))
+            state._read_worker()
+            recovered = state.snapshot()
+            self.assertEqual(recovered["storage_status"], "available")
+            self.assertEqual(recovered["event_count"], 1)
+            self.assertEqual(recovered["event_write_failures"], 1)
+            self.assertIn("write event", recovered["storage_last_error"])
 
 
 if __name__ == "__main__":

@@ -26,10 +26,11 @@ Status: requirements-derived plan. Current completed checks and limits are recor
 
 - Passed on RK3576 using [the reusable failure-path probe](scripts/probe_worker_failure_paths.sh): truncated MP4, empty MP4, and malformed RKNN model all returned nonzero within 30 seconds. The media cases exposed `status=error` with zero processed frames/events; invalid model reported `rknn_init` failure. Raw evidence is in [P2_ACCEPTANCE_REPORT.md](P2_ACCEPTANCE_REPORT.md).
 - Passed on RK3576 with a simulated unavailable SQLite path: the health API reported storage unavailable, the event API returned HTTP 503, and a later request reinitialized SQLite after the obstruction was removed. This did not exhaust the board filesystem; see [TEST_RESULTS.md](TEST_RESULTS.md).
+- Passed on RK3576 with a process-local `RLIMIT_FSIZE` cap against a temporary SQLite database: a large event write returned SQLite `disk I/O error`, the app counted the failed event write, and a later event persisted after restoring the limit. This checks the write-failure path without exhausting the filesystem; see [TEST_RESULTS.md](TEST_RESULTS.md).
 - RTSP disconnect/reconnect and authentication/network failure.
 - Unsupported codec, missing input/model, permission denial, and runtime initialization/inference failure.
 - Simulated inference-worker exception; verify worker status, event suppression, and clean shutdown.
-- Expired frame, deadline timeout, actual low-disk behavior, and normal process/service restart.
+- Expired frame, deadline timeout, actual filesystem low-disk behavior, and normal process/service restart.
 - Check file descriptors, thread count, memory, DB integrity, and current-event state before/after each recovery test.
 
 ## Long-run test
