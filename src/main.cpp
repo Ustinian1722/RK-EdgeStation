@@ -571,7 +571,7 @@ int main(int argc, char** argv) {
                         item.pts_ms = pts_ms;
                         last_pts_ms = pts_ms;
                         item.decoded_at = Clock::now();
-                        if (!queue.push(std::move(item))) break;
+                        if (queue.push(std::move(item)) == edge::QueuePushResult::Closed) break;
                         decoded.store(sequence);
                         if (pace_source) {
                             next_frame_at += frame_period;

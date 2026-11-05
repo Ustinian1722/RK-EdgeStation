@@ -1,0 +1,71 @@
+-- Configuring done (0.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/kickpi/projects/RK-EdgeStation/build
+[  9%] Building CXX object CMakeFiles/rk_edge_worker.dir/src/tracker.cpp.o
+[ 18%] Building CXX object CMakeFiles/rk_edge_worker.dir/src/main.cpp.o
+[ 27%] Building CXX object CMakeFiles/edge_media_tests.dir/tests/media_pipeline_tests.cpp.o
+[ 36%] Building CXX object CMakeFiles/edge_core_tests.dir/tests/cpp_core_tests.cpp.o
+[ 45%] Building CXX object CMakeFiles/rk_edge_worker.dir/src/roi_events.cpp.o
+[ 54%] Building CXX object CMakeFiles/edge_core_tests.dir/src/tracker.cpp.o
+[ 63%] Building CXX object CMakeFiles/rk_edge_worker.dir/src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc.o
+[ 72%] Linking CXX executable bin/edge_media_tests
+/home/kickpi/projects/RK-EdgeStation/src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc: In function ‘void compute_dfl(float*, int, float*)’:
+/home/kickpi/projects/RK-EdgeStation/src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc:210:15: warning: ISO C++ forbids variable length array ‘exp_t’ [-Wvla]
+  210 |         float exp_t[dfl_len];
+      |               ^~~~~
+/home/kickpi/projects/RK-EdgeStation/src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc: In function ‘int process_u8(uint8_t*, int32_t, float, uint8_t*, int32_t, float, uint8_t*, int32_t, float, int, int, int, int, std::vector<float>&, std::vector<float>&, std::vector<int>&, float)’:
+/home/kickpi/projects/RK-EdgeStation/src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc:271:23: warning: ISO C++ forbids variable length array ‘before_dfl’ [-Wvla]
+  271 |                 float before_dfl[dfl_len * 4];
+      |                       ^~~~~~~~~~
+/home/kickpi/projects/RK-EdgeStation/src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc: In function ‘int process_i8(int8_t*, int32_t, float, int8_t*, int32_t, float, int8_t*, int32_t, float, int, int, int, int, std::vector<float>&, std::vector<float>&, std::vector<int>&, float)’:
+/home/kickpi/projects/RK-EdgeStation/src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc:342:23: warning: ISO C++ forbids variable length array ‘before_dfl’ [-Wvla]
+  342 |                 float before_dfl[dfl_len*4];
+      |                       ^~~~~~~~~~
+/home/kickpi/projects/RK-EdgeStation/src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc: In function ‘int process_fp32(float*, float*, float*, int, int, int, int, std::vector<float>&, std::vector<float>&, std::vector<int>&, float)’:
+/home/kickpi/projects/RK-EdgeStation/src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc:407:23: warning: ISO C++ forbids variable length array ‘before_dfl’ [-Wvla]
+  407 |                 float before_dfl[dfl_len*4];
+      |                       ^~~~~~~~~~
+/home/kickpi/projects/RK-EdgeStation/src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc: In function ‘char* coco_cls_to_name(int)’:
+/home/kickpi/projects/RK-EdgeStation/src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc:675:16: warning: ISO C++ forbids converting a string constant to ‘char*’ [-Wwrite-strings]
+  675 |         return "null";
+      |                ^~~~~~
+/home/kickpi/projects/RK-EdgeStation/src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc:683:12: warning: ISO C++ forbids converting a string constant to ‘char*’ [-Wwrite-strings]
+  683 |     return "null";
+      |            ^~~~~~
+/home/kickpi/projects/RK-EdgeStation/src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc: At global scope:
+/home/kickpi/projects/RK-EdgeStation/src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc:225:12: warning: ‘int process_u8(uint8_t*, int32_t, float, uint8_t*, int32_t, float, uint8_t*, int32_t, float, int, int, int, int, std::vector<float>&, std::vector<float>&, std::vector<int>&, float)’ defined but not used [-Wunused-function]
+  225 | static int process_u8(uint8_t *box_tensor, int32_t box_zp, float box_scale,
+      |            ^~~~~~~~~~
+/home/kickpi/projects/RK-EdgeStation/src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc:182:14: warning: ‘float unsigmoid(float)’ defined but not used [-Wunused-function]
+  182 | static float unsigmoid(float y) { return -1.0 * logf((1.0 / y) - 1.0); }
+      |              ^~~~~~~~~
+/home/kickpi/projects/RK-EdgeStation/src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc:180:14: warning: ‘float sigmoid(float)’ defined but not used [-Wunused-function]
+  180 | static float sigmoid(float x) { return 1.0 / (1.0 + expf(-x)); }
+      |              ^~~~~~~
+[ 72%] Built target edge_media_tests
+[ 81%] Building CXX object CMakeFiles/edge_core_tests.dir/src/roi_events.cpp.o
+[ 90%] Linking CXX executable bin/edge_core_tests
+[ 90%] Built target edge_core_tests
+[100%] Linking CXX executable bin/rk_edge_worker
+[100%] Built target rk_edge_worker
+Internal ctest changing into directory: /home/kickpi/projects/RK-EdgeStation/build
+Test project /home/kickpi/projects/RK-EdgeStation/build
+    Start 1: edge_core_tests
+1/2 Test #1: edge_core_tests ..................   Passed    0.01 sec
+    Start 2: edge_media_tests
+2/2 Test #2: edge_media_tests .................   Passed    0.46 sec
+
+100% tests passed, 0 tests failed out of 2
+
+Total Test time (real) =   0.47 sec
+test_loopback_health_events_and_dashboard (test_server.LocalApiTests.test_loopback_health_events_and_dashboard) ... http 127.0.0.1 "GET /api/health HTTP/1.1" 200 -
+http 127.0.0.1 "GET /api/events?limit=5 HTTP/1.1" 200 -
+http 127.0.0.1 "GET / HTTP/1.1" 200 -
+ok
+test_default_and_fifo_policy_reach_worker_command (test_server.ServerQueuePolicyTests.test_default_and_fifo_policy_reach_worker_command) ... ok
+test_event_and_metric_round_trip (test_storage.EventStoreTests.test_event_and_metric_round_trip) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.708s
+
+OK

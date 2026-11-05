@@ -1,0 +1,19 @@
+run=latest-3 policy=latest queue_capacity=1
+start_utc=2026-11-05T13:01:43Z
+video_sha256=1ea4d10fac31c3b07be95117b3fc6e34e6f79daf9f3cddb3d25f7c4187e3ab98
+model_sha256=2162e0cf6a71270c092353d94abb391ac111910ce178547ef80dd89b225dab0b
+temp=28692
+temp=28692
+temp=28692
+temp=28692
+temp=27769
+temp=28692
+exit_status=0
+end_utc=2026-11-05T13:01:59Z
+wall_seconds=15.654
+temp_end=27769
+temp_end=28692
+temp_end=28692
+temp_end=27769
+temp_end=27769
+temp_end=28692

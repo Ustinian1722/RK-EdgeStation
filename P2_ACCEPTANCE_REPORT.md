@@ -41,6 +41,19 @@ The inference interval includes `rknn_run` plus output fetch. In capacity-1 mode
 
 The reported inference interval is each run's final `last_inference_ms` sample; its table value is the median of three run-level samples, not the median across every frame. Throughput and RSS are likewise summarized across three runs. The end-to-end p95 is computed over frame latencies within each run and then summarized across runs.
 
+## FIFO and latest-frame overload comparison
+
+The worker now exposes `--queue-policy latest|fifo`; latest replaces the oldest pending frame while FIFO preserves pending order and drops a new arrival while full. Both modes use the same bounded, non-blocking queue and report the selected policy and total dropped frames. C++ tests check the exact replacement/drop result and FIFO pop order; a Python test checks latest as the default and FIFO forwarding from the service to the worker.
+
+On RK3576, the non-quantized YOLOv8n worker processed the same 150-frame, 10-FPS H.264 sample at confidence 0.25, queue capacity 1, with three interleaved runs per policy:
+
+| Policy | Median processed / dropped | Median throughput | Median end-to-end p50 | Median end-to-end p95 |
+|---|---:|---:|---:|---:|
+| Latest | 119 / 31 | 7.892 FPS | 172.878 ms | 232.028 ms |
+| FIFO | 119 / 31 | 7.859 FPS | 199.284 ms | 263.793 ms |
+
+All runs decoded 150 frames and completed without worker errors; board temperatures were 26.846–28.692°C. Median processed/dropped counts and throughput were nearly identical. Latest had 26.406 ms lower p50 and 31.765 ms lower p95 than FIFO in these runs. The worker's end-to-end values are per-frame decode-to-result latencies; p50/p95 are computed per run then summarized across the three repetitions. Since the two policies process different frames, event and detection counts are not accuracy comparisons. Keep latest as the default for freshness; FIFO remains selectable when preserving the order of already queued frames is preferred. See the [six-run summary](evidence/p2/queue-policy-ab-summary.jsonl), [run manifest](evidence/p2/queue-policy-ab-manifest.txt), per-run JSONL/temperature files, and [board build/test log](evidence/p2/b43354b-board-build-test.txt).
+
 ## Decision and remaining P2 gates
 
 - Keep OpenCV CPU preprocessing as the worker default. The isolated RGA stage is about 0.47 ms faster per frame in this test, but that does not establish a meaningful end-to-end gain, and a threshold-sensitive detection difference appeared at confidence 0.25.
@@ -58,4 +71,4 @@ The reported inference interval is each run's final `last_inference_ms` sample; 
 - INT8 conversion, calibration hashes, ten held-out tensor/detection comparisons, and input hashes: [conversion transcript](evidence/p2/yolov8n-rk3576-int8-conversion.txt), [calibration record](evidence/p2/int8-calibration-manifest.txt), [holdout input hashes](evidence/p2/int8-holdout-input-sha256.txt)
 - Native worker A/B raw records for all three interleaved repetitions: [latest-frame queue summary](evidence/p2/int8-queue1-summary.jsonl) and [preserve-all queue summary](evidence/p2/int8-queue150-summary.jsonl), with per-run stdout/stderr/temperature metadata alongside them
 - Per-frame letterbox and model-output records are alongside those summaries in `evidence/p2/`.
-- Reusable probes: [GStreamer MPP decoder benchmark](scripts/benchmark_gstreamer_mpp_decode.py), [OpenCV FFmpeg decode benchmark](scripts/benchmark_opencv_cpu_decode.cpp), [RGA operation benchmark](scripts/benchmark_rga.cpp), [worker-matched RGA letterbox benchmark](scripts/benchmark_rga_letterbox.cpp), [RKNN input/output comparison](scripts/compare_rknn_input_outputs.cpp), [two-model RKNN comparison](scripts/compare_rknn_models.cpp), [Toolkit2 converter](scripts/convert_onnx_to_rknn.py), and [detection-set comparison](scripts/compare_rknn_detection_sets.py).
+- Reusable probes: [GStreamer MPP decoder benchmark](scripts/benchmark_gstreamer_mpp_decode.py), [OpenCV FFmpeg decode benchmark](scripts/benchmark_opencv_cpu_decode.cpp), [RGA operation benchmark](scripts/benchmark_rga.cpp), [worker-matched RGA letterbox benchmark](scripts/benchmark_rga_letterbox.cpp), [queue-policy A/B runner](scripts/benchmark_queue_policy_ab.sh), [RKNN input/output comparison](scripts/compare_rknn_input_outputs.cpp), [two-model RKNN comparison](scripts/compare_rknn_models.cpp), [Toolkit2 converter](scripts/convert_onnx_to_rknn.py), and [detection-set comparison](scripts/compare_rknn_detection_sets.py).

@@ -18,8 +18,8 @@
 int main() {
     {
         edge::BoundedQueue<int> queue(1, edge::QueuePolicy::Latest);
-        CHECK(queue.push(10));
-        CHECK(queue.push(20));
+        CHECK(queue.push(10) == edge::QueuePushResult::Queued);
+        CHECK(queue.push(20) == edge::QueuePushResult::ReplacedOldest);
         CHECK(queue.dropped_count() == 1);
         CHECK(queue.size() == 1);
         CHECK(edge::queue_policy_name(queue.policy()) == std::string("latest"));
@@ -27,19 +27,19 @@ int main() {
         CHECK(queue.pop(value) && value == 20);
         queue.close();
         CHECK(!queue.pop(value));
-        CHECK(!queue.push(30));
+        CHECK(queue.push(30) == edge::QueuePushResult::Closed);
     }
     {
         edge::BoundedQueue<int> queue(2, edge::QueuePolicy::Fifo);
-        CHECK(queue.push(10));
-        CHECK(queue.push(20));
-        CHECK(queue.push(30));  // Full FIFO queue drops the incoming item.
+        CHECK(queue.push(10) == edge::QueuePushResult::Queued);
+        CHECK(queue.push(20) == edge::QueuePushResult::Queued);
+        CHECK(queue.push(30) == edge::QueuePushResult::DroppedNewest);
         CHECK(queue.dropped_count() == 1);
         CHECK(queue.size() == 2);
         CHECK(edge::queue_policy_name(queue.policy()) == std::string("fifo"));
         int value = 0;
         CHECK(queue.pop(value) && value == 10);
-        CHECK(queue.push(30));
+        CHECK(queue.push(30) == edge::QueuePushResult::Queued);
         CHECK(queue.pop(value) && value == 20);
         CHECK(queue.pop(value) && value == 30);
         queue.close();

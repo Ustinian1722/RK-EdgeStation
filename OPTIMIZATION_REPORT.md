@@ -1,6 +1,6 @@
 # Optimization report
 
-Status: no optimization has been promoted as the product default. P2 now has a three-repeat RK3576 worker A/B for an INT8 candidate, alongside MPP/RGA stage probes. INT8 was faster on the tested sample, but the limited single-scene calibration and lack of labeled evaluation leave output quality unverified.
+Status: no optimization has been promoted as the product default. P2 includes three-repeat RK3576 worker A/Bs for the INT8 model and latest/FIFO queue policies, alongside MPP/RGA stage probes. INT8 was faster on the tested sample, but limited single-scene calibration and no labeled evaluation leave output quality unverified. Latest reduced end-to-end p95 versus FIFO in the measured overload run; wider inputs remain open.
 
 ## P0 constraints discovered
 
@@ -47,6 +47,10 @@ Median RSS was about 20% lower with INT8 (119,444 kB vs 149,268 kB) in the prese
 
 The inference-interval medians are calculated from each run's final `last_inference_ms` sample (three run-level values per model/mode), not from a per-frame latency distribution. Throughput and RSS are summarized across runs; the end-to-end p95 is computed per run from processed frame latencies and then summarized across runs.
 
+### FIFO/latest queue overload A/B (2026-11-05)
+
+The same FP worker, 150-frame/10-FPS H.264 clip, confidence 0.25 and queue capacity 1 were run in three interleaved repetitions per queue policy with the [queue A/B runner](scripts/benchmark_queue_policy_ab.sh). `latest` replaces the oldest pending frame; `fifo` preserves pending order and drops new frames while full. Latest medians were 119 processed / 31 dropped, 7.892 FPS, 172.878 ms p50 and 232.028 ms p95. FIFO medians were 119 / 31, 7.859 FPS, 199.284 ms p50 and 263.793 ms p95. Each run decoded 150 frames. Latest had 26.406 ms lower p50 and 31.765 ms lower p95 (12.0% relative to FIFO); throughput was nearly identical. Temperatures ranged 26.846–28.692°C. The tests verify queue semantics and policy propagation, but processed frames differ and there are no labels, so event counts are not comparable accuracy evidence. Keep latest as the default for freshness; FIFO is available where preserving the order of already queued frames is preferred. Raw data is in [queue-policy-ab-summary.jsonl](evidence/p2/queue-policy-ab-summary.jsonl), [the run manifest](evidence/p2/queue-policy-ab-manifest.txt), and per-run logs in `evidence/p2/queue-policy-*`.
+
 MPP and RGA remain isolated stage probes and do not establish an end-to-end gain. The worker's decode and preprocessing defaults remain OpenCV CPU. See [P2_ACCEPTANCE_REPORT.md](P2_ACCEPTANCE_REPORT.md) and the raw files in [evidence/p2](evidence/p2/).
 
 ## Planned baseline matrix
@@ -57,6 +61,6 @@ MPP and RGA remain isolated stage probes and do not establish an end-to-end gain
 | Resize/color | OpenCV CPU | RGA | Worker-matched stage probe completed at about 1.20×; six-frame tensor/detection sensitivity recorded. Full worker A/B and labeled accuracy remain open |
 | Inference | RKNN C API non-quantized worker path | INT8 | Three-repeat worker A/B on one sample recorded throughput, drops, inference interval, end-to-end latency and RSS; representative calibration, labeled accuracy/event comparison and broader inputs remain open |
 | Buffer transport | explicit CPU copy | imported DMA-BUF if compatible | fd/allocator ownership, cache sync, copy count, correctness and measured impact |
-| Scheduling | FIFO | latest-frame policy | queue wait, frame age, drops, event freshness and bounded RSS |
+| Scheduling | FIFO/drop-newest | latest/drop-oldest | Three-repeat capacity-1 A/B completed on one sample; broader source rates, stale-result policy, timeouts and recovery remain open |
 
 Before changing an implementation, save its source commit and raw run data. An optimization is accepted only if it improves the named metric without violating output correctness or stability. Neutral and negative results remain in the report.

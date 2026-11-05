@@ -10,6 +10,7 @@
 namespace edge {
 
 enum class QueuePolicy { Latest, Fifo };
+enum class QueuePushResult { Queued, ReplacedOldest, DroppedNewest, Closed };
 
 inline const char* queue_policy_name(QueuePolicy policy) noexcept {
     switch (policy) {
@@ -31,23 +32,24 @@ public:
         }
     }
 
-    // Returns false only after close(); a full FIFO queue counts and discards
-    // the incoming item while allowing the producer to continue decoding.
-    bool push(T value) {
+    QueuePushResult push(T value) {
         std::lock_guard<std::mutex> lock(mutex_);
         if (closed_) {
-            return false;
+            return QueuePushResult::Closed;
         }
         if (items_.size() == capacity_) {
             ++dropped_;
             if (policy_ == QueuePolicy::Fifo) {
-                return true;
+                return QueuePushResult::DroppedNewest;
             }
             items_.pop_front();
+            items_.push_back(std::move(value));
+            ready_.notify_one();
+            return QueuePushResult::ReplacedOldest;
         }
         items_.push_back(std::move(value));
         ready_.notify_one();
-        return true;
+        return QueuePushResult::Queued;
     }
 
     bool pop(T& value) {

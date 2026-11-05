@@ -1,0 +1,10 @@
+Board: KICKPI K7 / RK3576 / Ubuntu 24.04.3 aarch64
+Worker source commit: b43354b (the later QueuePushResult API cleanup does not change queue policy behavior)
+Run command: bash /tmp/benchmark_queue_policy_ab.sh .work/p1-yolov8n-rk3576-fp/yolov8n-rk3576-fp.rknn .work/p2-mpp-test/vtest-150f-h264.mp4 .work/p2-queue-policy-script 3 1 0.25
+Runner SHA-256: 70df8b44c2c73b85ac73ab5fdd6929967feb51d133a00961e4dfdb98bdf72561 (local script and board /tmp copy match)
+Checked-in runner SHA-256: 54a933300ac6abc0121a66e5062e4100bb686b403aaf62acf35ef27065213580; the only post-run change rejects an existing output directory to protect prior logs and state.
+Video SHA-256: 1ea4d10fac31c3b07be95117b3fc6e34e6f79daf9f3cddb3d25f7c4187e3ab98
+FP model SHA-256: 2162e0cf6a71270c092353d94abb391ac111910ce178547ef80dd89b225dab0b
+Conditions: queue capacity 1; 150-frame H.264 file; media-rate pacing at 10 FPS; confidence 0.25; three interleaved repetitions per policy in latest/fifo order.
+Summary values are medians across three runs; each run p50/p95 summarizes its per-frame end-to-end latency window.
+Temperature range from the run metadata: 26.846-28.692 C. No ground truth is available; outputs/events are not accuracy evidence.

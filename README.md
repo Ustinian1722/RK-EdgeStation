@@ -36,7 +36,7 @@ The P1 prototype includes a native RKNN YOLO worker, a bounded queue with select
 |---|---|---|
 | P0 | Hardware audit, open-source/license review, requirements, architecture, official RKNN demo | Complete; official RK3576 C API smoke test passed |
 | P1 | Single-stream detection-to-event loop and minimum local web UI | Still/moving API loops and ROI enter/leave/dwell/count plumbing pass; six-frame model comparison found a confidence-boundary difference; tracker identity and labeled accuracy remain open |
-| P2 | MPP/RGA pipeline, quantization comparison, scheduling and profiling | INT8 worker A/B completed on one clip: 9.986 vs 7.602 median FPS in latest-frame mode, with no labels; INT8 remains experimental. MPP/RGA remain stage-only; no production default changed |
+| P2 | MPP/RGA pipeline, quantization comparison, scheduling and profiling | INT8 A/B: 9.986 vs 7.602 median FPS in latest-frame mode, without labeled accuracy. Queue A/B: latest p95 232.0 ms vs FIFO 263.8 ms on one 10-FPS sample. INT8 remains experimental; MPP/RGA remain stage-only |
 | P3 | Device management, failure/reliability testing, 24-hour run, release package | Not started |
 
 ## Documentation

@@ -1,6 +1,6 @@
 # Test plan
 
-Status: requirements-derived plan. Current completed checks and limits are recorded in [TEST_RESULTS.md](TEST_RESULTS.md) and [P1_ACCEPTANCE_REPORT.md](P1_ACCEPTANCE_REPORT.md); the remaining cases below are still planned.
+Status: requirements-derived plan. Current completed checks and limits are recorded in [TEST_RESULTS.md](TEST_RESULTS.md), [P1_ACCEPTANCE_REPORT.md](P1_ACCEPTANCE_REPORT.md), and [P2_ACCEPTANCE_REPORT.md](P2_ACCEPTANCE_REPORT.md). Failure/recovery coverage and the broader P3 reliability campaign remain planned.
 
 ## CI CPU/mock tests
 
@@ -19,7 +19,8 @@ Status: requirements-derived plan. Current completed checks and limits are recor
 4. RGA resize/color conversion with input/output checksum or pixel tolerance against the CPU reference.
 5. RKNN model output repeatability and longer output-release loop remain planned; the current run verifies tensor layout and successful output release on the tested frames.
 6. Detection → tracking → ROI event smoke passed on repeated still and moving sample video with timestamps, saved evidence, SQLite persistence, and API retrieval. Debounced enter/leave, one-shot dwell, occupancy, and cumulative-entry semantics passed synthetic tests and a 150-frame RK3576 run. Track expiry removes the ID from occupancy without emitting a synthetic leave. Validate event precision and identity continuity against annotated input; the motion-predicted association candidate's 29 versus 33 enter events is not an accuracy measure.
-7. A latest-frame queue smoke passed at 15-FPS source pacing: 150 decoded, 88 processed, 62 dropped, capacity 1. Broader FIFO/latest overload, RSS bounds, stale-result, and recovery checks remain planned.
+7. Queue behavior passed the C++ policy tests and an RK3576 overload A/B using [the reusable runner](scripts/benchmark_queue_policy_ab.sh). On the 10-FPS sample with capacity 1, both policies had medians of 119/150 processed and 31 dropped. Latest p95 was 232.028 ms; FIFO p95 was 263.793 ms (three interleaved runs per policy). The earlier latest-frame 15-FPS smoke processed 88/150 and dropped 62. Broader burst rates, long-run RSS bounds, stale-result handling, and recovery remain planned.
+8. Board CTest includes explicit queue-policy unit cases: latest replaces the oldest pending frame, FIFO drops the newest frame while full and preserves the remaining pop order. The Python API tests verify latest as the default and FIFO forwarding to the worker. The suite passed after the policy changes; see [TEST_RESULTS.md](TEST_RESULTS.md).
 
 ## Failure and recovery tests
 

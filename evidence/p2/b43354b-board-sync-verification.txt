@@ -1,0 +1,10 @@
+Commit: b43354b
+Local git archive SHA-256: 3b06ae8e8fd2bfcca61642207ecb7667fda987f8a19297940d9cf45595d932b4
+Board transferred archive SHA-256: 3b06ae8e8fd2bfcca61642207ecb7667fda987f8a19297940d9cf45595d932b4
+Board extraction target: /home/kickpi/projects/RK-EdgeStation
+Selected extracted board source hashes:
+7dc845d43d1f386c3c5b3e93260a16de7ae1ec206063e9b01dec774a23fa03c1  src/bounded_queue.hpp
+b46833af5e8c3b96565b58a05dbfa0c4467a2920509e6124aea3c54e332e2c09  src/main.cpp
+84824a9e74a1075188438e7ebf52cbcf0a8882c30bd9e3f2f83056357941ce66  python/edge_station/server.py
+81eca3e085a2170ca67ff756e56e66b70024ccc3522b23d1a7587b21ee40dc45  tests/cpp_core_tests.cpp
+Native CMake build, CTest and Python tests were run after extraction; full output is recorded in b43354b-board-build-test.txt.
