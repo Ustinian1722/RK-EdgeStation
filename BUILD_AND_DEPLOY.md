@@ -21,7 +21,7 @@ PYTHONPATH=python python3 -m unittest discover -s tests/python -v
 
 The same sequence is available as `bash scripts/build_and_test_board.sh`; it passed on the target board on 2026-11-05 after the ROI event and media-time changes. Launch a local MP4/model run with `bash scripts/run_demo.sh MODEL.rknn INPUT.mp4`. The UI listens on `127.0.0.1:8080` by default. The worker supports `--dwell-ms N` (default 5000) and `--roi-debounce-frames N` (default 2); the Python service forwards both options. Dwell time follows monotonicized media timestamps, using nominal FPS or decode elapsed time when timestamps are invalid. Model files and run state stay outside Git. The first project model was converted in the isolated WSL Toolkit2 environment and run from the board workspace; see [MODEL_CONVERSION.md](MODEL_CONVERSION.md) and [P1_ACCEPTANCE_REPORT.md](P1_ACCEPTANCE_REPORT.md).
 
-The worker discovers board OpenCV and RKNN headers/libraries and links dynamically to those installed libraries. The current P1 reference path uses OpenCV CPU decode/preprocessing and paces file input at its reported media rate when valid; MPP/RGA integration is deferred until its measured comparison in P2. Python's standard library provides the local HTTP server and SQLite store.
+The worker discovers board OpenCV and RKNN headers/libraries and links dynamically to those installed libraries. The current reference path uses OpenCV CPU decode/preprocessing and paces file input at its reported media rate when valid. P2 exercised MPP decode and RGA letterboxing as isolated board probes; full worker integration remains deferred pending controlled end-to-end and output checks. Python's standard library provides the local HTTP server and SQLite store.
 
 ## Deployment controls
 

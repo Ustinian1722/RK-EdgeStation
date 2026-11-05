@@ -1,0 +1,6 @@
+{"operation":"cpu_resize_plus_color","ms_per_op":2.330587}
+{"operation":"rga_resize","ms_per_op":1.293067}
+{"operation":"rga_color_conversion","ms_per_op":1.203658}
+{"operation":"rga_resize_plus_color","ms_per_op":2.531270}
+{"operation":"rga_single_combined_operation","supported":true,"ms_per_op":1.344979,"error":""}
+{"type":"comparison","input_width":768,"input_height":576,"output_width":640,"output_height":480,"repetitions":200,"warmup":10,"resize_mean_absolute_difference":0.197439,"resize_max_absolute_difference":7.000000,"color_mean_absolute_difference":0.197439,"color_max_absolute_difference":7.000000,"combined_rgb_supported":true,"combined_rgb_mean_absolute_difference":0.197439,"combined_rgb_max_absolute_difference":7.000000,"input_memory":"CPU virtual address","output_memory":"CPU virtual address","note":"Operation-level RGA call check only; not zero-copy or full-pipeline proof."}

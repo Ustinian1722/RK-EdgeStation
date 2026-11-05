@@ -36,7 +36,7 @@ The P1 prototype includes a native RKNN YOLO worker, bounded latest-frame queue,
 |---|---|---|
 | P0 | Hardware audit, open-source/license review, requirements, architecture, official RKNN demo | Complete; official RK3576 C API smoke test passed |
 | P1 | Single-stream detection-to-event loop and minimum local web UI | Still/moving API loops and ROI enter/leave/dwell/count plumbing pass; six-frame model comparison found a confidence-boundary difference; tracker identity and labeled accuracy remain open |
-| P2 | MPP/RGA pipeline, quantization comparison, scheduling and profiling | Not started |
+| P2 | MPP/RGA pipeline, quantization comparison, scheduling and profiling | MPP/RGA stage probes recorded; no end-to-end optimization accepted yet |
 | P3 | Device management, failure/reliability testing, 24-hour run, release package | Not started |
 
 ## Documentation

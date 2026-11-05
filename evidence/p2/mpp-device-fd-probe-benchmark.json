@@ -1,0 +1,30 @@
+{
+  "video_filename": "vtest-repeat10-1500f-h264.mp4",
+  "video_bytes": 20307133,
+  "video_sha256": "9b37472e231a56c33a5731f6d4d93c72904c7a5def7d0fde10cc60e04d094126",
+  "gstreamer_version": "GStreamer 1.24.2",
+  "mpp_plugin_name": "rockchipmpp",
+  "mpp_plugin_version": "1.14.4",
+  "mpp_element": "mppvideodec",
+  "decoder_output_format": "NV12",
+  "expected_frames": null,
+  "warmup_runs": 0,
+  "repetitions": [
+    {
+      "decoded_frames": 1500,
+      "first_frame_latency_ms": 20.329028004198335,
+      "first_buffer_bytes": 829440,
+      "first_pts_ns": 0,
+      "last_pts_ns": 149900000000,
+      "output_caps": "video/x-raw, format=(string)NV12, width=(int)768, height=(int)576, interlace-mode=(string)progressive, multiview-mode=(string)mono, multiview-flags=(GstVideoMultiviewFlagsSet)0:ffffffff:/right-view-first/left-flipped/left-flopped/right-flipped/right-flopped/half-aspect/mixed-mono, pixel-aspect-ratio=(fraction)1/1, framerate=(fraction)10/1",
+      "warnings": [],
+      "elapsed_seconds": 0.918834235999384,
+      "throughput_fps": 1632.5033844309276,
+      "process_cpu_seconds": 1.155549,
+      "process_cpu_core_percent": 125.76251022505159,
+      "process_rss_kb_after": 33384
+    }
+  ],
+  "median_throughput_fps": 1632.5033844309276,
+  "interpretation": "MPP decode to NV12 and fakesink; no color conversion, resize, inference, or DMA-BUF import is measured."
+}

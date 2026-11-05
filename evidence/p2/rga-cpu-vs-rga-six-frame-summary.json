@@ -1,0 +1,204 @@
+{
+  "source_video_sha256": "9b37472e231a56c33a5731f6d4d93c72904c7a5def7d0fde10cc60e04d094126",
+  "model_sha256": "2162e0cf6a71270c092353d94abb391ac111910ce178547ef80dd89b225dab0b",
+  "frames": [
+    {
+      "frame_index": 0,
+      "thresholds": [
+        {
+          "confidence": 0.25,
+          "cpu_detections": 5,
+          "rga_detections": 5,
+          "matched": 5,
+          "set_f1_agreement": 1.0,
+          "mean_iou": 0.997752808988764,
+          "mean_confidence_delta": 0.001171875
+        },
+        {
+          "confidence": 0.345,
+          "cpu_detections": 5,
+          "rga_detections": 5,
+          "matched": 5,
+          "set_f1_agreement": 1.0,
+          "mean_iou": 0.997752808988764,
+          "mean_confidence_delta": 0.001171875
+        },
+        {
+          "confidence": 0.5,
+          "cpu_detections": 5,
+          "rga_detections": 5,
+          "matched": 5,
+          "set_f1_agreement": 1.0,
+          "mean_iou": 0.997752808988764,
+          "mean_confidence_delta": 0.001171875
+        }
+      ],
+      "min_tensor_cosine": 0.9998800448374933
+    },
+    {
+      "frame_index": 15,
+      "thresholds": [
+        {
+          "confidence": 0.25,
+          "cpu_detections": 7,
+          "rga_detections": 7,
+          "matched": 7,
+          "set_f1_agreement": 1.0,
+          "mean_iou": 0.9945054945054945,
+          "mean_confidence_delta": 0.002162388392857143
+        },
+        {
+          "confidence": 0.345,
+          "cpu_detections": 7,
+          "rga_detections": 7,
+          "matched": 7,
+          "set_f1_agreement": 1.0,
+          "mean_iou": 0.9945054945054945,
+          "mean_confidence_delta": 0.002162388392857143
+        },
+        {
+          "confidence": 0.5,
+          "cpu_detections": 6,
+          "rga_detections": 6,
+          "matched": 6,
+          "set_f1_agreement": 1.0,
+          "mean_iou": 0.9935897435897436,
+          "mean_confidence_delta": 0.0017903645833333333
+        }
+      ],
+      "min_tensor_cosine": 0.9999131347750111
+    },
+    {
+      "frame_index": 45,
+      "thresholds": [
+        {
+          "confidence": 0.25,
+          "cpu_detections": 7,
+          "rga_detections": 7,
+          "matched": 7,
+          "set_f1_agreement": 1.0,
+          "mean_iou": 1.0,
+          "mean_confidence_delta": 0.0016741071428571428
+        },
+        {
+          "confidence": 0.345,
+          "cpu_detections": 7,
+          "rga_detections": 7,
+          "matched": 7,
+          "set_f1_agreement": 1.0,
+          "mean_iou": 1.0,
+          "mean_confidence_delta": 0.0016741071428571428
+        },
+        {
+          "confidence": 0.5,
+          "cpu_detections": 7,
+          "rga_detections": 7,
+          "matched": 7,
+          "set_f1_agreement": 1.0,
+          "mean_iou": 1.0,
+          "mean_confidence_delta": 0.0016741071428571428
+        }
+      ],
+      "min_tensor_cosine": 0.9999027670091771
+    },
+    {
+      "frame_index": 75,
+      "thresholds": [
+        {
+          "confidence": 0.25,
+          "cpu_detections": 7,
+          "rga_detections": 7,
+          "matched": 7,
+          "set_f1_agreement": 1.0,
+          "mean_iou": 1.0,
+          "mean_confidence_delta": 0.001953125
+        },
+        {
+          "confidence": 0.345,
+          "cpu_detections": 7,
+          "rga_detections": 7,
+          "matched": 7,
+          "set_f1_agreement": 1.0,
+          "mean_iou": 1.0,
+          "mean_confidence_delta": 0.001953125
+        },
+        {
+          "confidence": 0.5,
+          "cpu_detections": 7,
+          "rga_detections": 7,
+          "matched": 7,
+          "set_f1_agreement": 1.0,
+          "mean_iou": 1.0,
+          "mean_confidence_delta": 0.001953125
+        }
+      ],
+      "min_tensor_cosine": 0.9999170207964027
+    },
+    {
+      "frame_index": 100,
+      "thresholds": [
+        {
+          "confidence": 0.25,
+          "cpu_detections": 9,
+          "rga_detections": 9,
+          "matched": 9,
+          "set_f1_agreement": 1.0,
+          "mean_iou": 0.9933762386440992,
+          "mean_confidence_delta": 0.0020616319444444445
+        },
+        {
+          "confidence": 0.345,
+          "cpu_detections": 9,
+          "rga_detections": 9,
+          "matched": 9,
+          "set_f1_agreement": 1.0,
+          "mean_iou": 0.9933762386440992,
+          "mean_confidence_delta": 0.0020616319444444445
+        },
+        {
+          "confidence": 0.5,
+          "cpu_detections": 8,
+          "rga_detections": 8,
+          "matched": 8,
+          "set_f1_agreement": 1.0,
+          "mean_iou": 0.994741250930752,
+          "mean_confidence_delta": 0.001708984375
+        }
+      ],
+      "min_tensor_cosine": 0.9999138095946426
+    },
+    {
+      "frame_index": 125,
+      "thresholds": [
+        {
+          "confidence": 0.25,
+          "cpu_detections": 10,
+          "rga_detections": 11,
+          "matched": 10,
+          "set_f1_agreement": 0.9523809523809523,
+          "mean_iou": 0.9988095238095237,
+          "mean_confidence_delta": 0.001318359375
+        },
+        {
+          "confidence": 0.345,
+          "cpu_detections": 9,
+          "rga_detections": 9,
+          "matched": 9,
+          "set_f1_agreement": 1.0,
+          "mean_iou": 0.9986772486772486,
+          "mean_confidence_delta": 0.00146484375
+        },
+        {
+          "confidence": 0.5,
+          "cpu_detections": 9,
+          "rga_detections": 9,
+          "matched": 9,
+          "set_f1_agreement": 1.0,
+          "mean_iou": 0.9986772486772486,
+          "mean_confidence_delta": 0.00146484375
+        }
+      ],
+      "min_tensor_cosine": 0.9999215691875308
+    }
+  ]
+}

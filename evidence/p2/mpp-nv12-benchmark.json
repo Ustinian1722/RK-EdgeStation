@@ -1,0 +1,58 @@
+{
+  "video_filename": "vtest-repeat10-1500f-h264.mp4",
+  "video_bytes": 20307133,
+  "video_sha256": "9b37472e231a56c33a5731f6d4d93c72904c7a5def7d0fde10cc60e04d094126",
+  "gstreamer_version": "GStreamer 1.24.2",
+  "mpp_plugin_name": "rockchipmpp",
+  "mpp_plugin_version": "1.14.4",
+  "mpp_element": "mppvideodec",
+  "decoder_output": "NV12",
+  "expected_frames": 1500,
+  "warmup_runs": 1,
+  "repetitions": [
+    {
+      "decoded_frames": 1500,
+      "first_frame_latency_ms": 11.95023299078457,
+      "first_buffer_bytes": 829440,
+      "first_pts_ns": 0,
+      "last_pts_ns": 149900000000,
+      "output_caps": "video/x-raw, format=(string)NV12, width=(int)768, height=(int)576, interlace-mode=(string)progressive, multiview-mode=(string)mono, multiview-flags=(GstVideoMultiviewFlagsSet)0:ffffffff:/right-view-first/left-flipped/left-flopped/right-flipped/right-flopped/half-aspect/mixed-mono, pixel-aspect-ratio=(fraction)1/1, framerate=(fraction)10/1",
+      "warnings": [],
+      "elapsed_seconds": 0.9200212479918264,
+      "throughput_fps": 1630.3971275382178,
+      "process_cpu_seconds": 1.28657,
+      "process_cpu_core_percent": 139.84133549178966,
+      "process_rss_kb_after": 33948
+    },
+    {
+      "decoded_frames": 1500,
+      "first_frame_latency_ms": 8.343228997546248,
+      "first_buffer_bytes": 829440,
+      "first_pts_ns": 0,
+      "last_pts_ns": 149900000000,
+      "output_caps": "video/x-raw, format=(string)NV12, width=(int)768, height=(int)576, interlace-mode=(string)progressive, multiview-mode=(string)mono, multiview-flags=(GstVideoMultiviewFlagsSet)0:ffffffff:/right-view-first/left-flipped/left-flopped/right-flipped/right-flopped/half-aspect/mixed-mono, pixel-aspect-ratio=(fraction)1/1, framerate=(fraction)10/1",
+      "warnings": [],
+      "elapsed_seconds": 0.8871212920057587,
+      "throughput_fps": 1690.8623584138513,
+      "process_cpu_seconds": 1.2151710000000002,
+      "process_cpu_core_percent": 136.9791268624079,
+      "process_rss_kb_after": 33916
+    },
+    {
+      "decoded_frames": 1500,
+      "first_frame_latency_ms": 8.200602998840623,
+      "first_buffer_bytes": 829440,
+      "first_pts_ns": 0,
+      "last_pts_ns": 149900000000,
+      "output_caps": "video/x-raw, format=(string)NV12, width=(int)768, height=(int)576, interlace-mode=(string)progressive, multiview-mode=(string)mono, multiview-flags=(GstVideoMultiviewFlagsSet)0:ffffffff:/right-view-first/left-flipped/left-flopped/right-flipped/right-flopped/half-aspect/mixed-mono, pixel-aspect-ratio=(fraction)1/1, framerate=(fraction)10/1",
+      "warnings": [],
+      "elapsed_seconds": 0.891152800002601,
+      "throughput_fps": 1683.2130247423584,
+      "process_cpu_seconds": 1.2930319999999997,
+      "process_cpu_core_percent": 145.09655358724405,
+      "process_rss_kb_after": 34092
+    }
+  ],
+  "median_throughput_fps": 1683.2130247423584,
+  "interpretation": "MPP decode to NV12 and fakesink; no RGB conversion, resize, inference, or DMA-BUF import is measured. This is a decoder-path benchmark, not a full pipeline result."
+}

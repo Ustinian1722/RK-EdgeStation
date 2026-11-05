@@ -1,0 +1,22 @@
+g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0
+PASS benchmark_opencv_cpu_decode.cpp
+PASS benchmark_rga.cpp
+PASS benchmark_rga_letterbox.cpp
+PASS compare_rknn_input_outputs.cpp
+usage: benchmark_gstreamer_mpp_decode.py [-h] --video VIDEO
+                                         [--expected-frames EXPECTED_FRAMES]
+                                         [--output-format {NV12,BGR}]
+                                         [--warmup-runs WARMUP_RUNS]
+                                         [--repetitions REPETITIONS]
+                                         [--output OUTPUT]
+
+Measure decoded buffers from the RK GStreamer MPP H.264 path.
+
+options:
+  -h, --help            show this help message and exit
+  --video VIDEO
+  --expected-frames EXPECTED_FRAMES
+  --output-format {NV12,BGR}
+  --warmup-runs WARMUP_RUNS
+  --repetitions REPETITIONS
+  --output OUTPUT

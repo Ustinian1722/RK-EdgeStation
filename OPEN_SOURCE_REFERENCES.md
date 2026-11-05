@@ -13,7 +13,7 @@ Reviewed 2026-11-05. Commit IDs below were read from public Git refs or GitHub m
 ## Community cross-checks
 
 - Reddit's [RK3576 vendor-stack discussion](https://www.reddit.com/r/RockchipNPU/comments/1ut8p1x/got_the_vendor_rknllmrknn_stack_running_on/) describes kernel/runtime alignment and driver-clock issues. This is anecdotal context, not a source of hardware facts or a reason to modify this board.
-- The [MPP device-node discussion](https://www.reddit.com/r/RockchipNPU/comments/1lwrx9x/listing_of_dev_mpi_device_nodes/) highlights that kernel image and MPP service nodes affect userspace behavior. Our own audit confirms `/dev/mpp_service` on this board; actual decode still needs a test.
+- The [MPP device-node discussion](https://www.reddit.com/r/RockchipNPU/comments/1lwrx9x/listing_of_dev_mpi_device_nodes/) highlights that kernel image and MPP service nodes affect userspace behavior. Our own P2 probe confirmed that the benchmark process held `/dev/mpp_service` while `mppvideodec` decoded the test clip; it does not establish an end-to-end worker gain or zero-copy behavior.
 - Reddit reports do not establish compatibility for this KICKPI K7. Board observations and official documentation remain the acceptance evidence.
 
 ## Pretrained model license boundary

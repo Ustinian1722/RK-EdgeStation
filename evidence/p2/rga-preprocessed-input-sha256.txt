@@ -1,0 +1,18 @@
+frame=0
+a7f40de7568fce8409b333c4edc3e25b8ca0cb64bb585506c7bd708caa53d669  .work/p2-mpp-test/rga-frame-comparisons-20261105/frame-0/inputs/cpu-rgb-u8.bin
+67113c5d8a566396ce48ac88aaf26916ef820ff73b0f283edc04712c9a0d33e5  .work/p2-mpp-test/rga-frame-comparisons-20261105/frame-0/inputs/rga-rgb-u8.bin
+frame=15
+193f9b8f5af1726a68ec276e9009f71c9755cf2d5cce9443bcbcb8e7c24b5a3a  .work/p2-mpp-test/rga-frame-comparisons-20261105/frame-15/inputs/cpu-rgb-u8.bin
+55787f97aa7cf17436cc03f53a4ebea4f307506cde012022a724babdaf958ec9  .work/p2-mpp-test/rga-frame-comparisons-20261105/frame-15/inputs/rga-rgb-u8.bin
+frame=45
+fac67fdb1aaeb0a87dca23d92d3ba0b1566a810843ab4b180ada3461afe0f90e  .work/p2-mpp-test/rga-frame-comparisons-20261105/frame-45/inputs/cpu-rgb-u8.bin
+c8b45f0ced6c840ad93e96e9e03bbecf05da55ed2852b8505c77625d190870aa  .work/p2-mpp-test/rga-frame-comparisons-20261105/frame-45/inputs/rga-rgb-u8.bin
+frame=75
+16719ea5f5545327382d783d00ca7c9db41189bb72d83873912a42a0bb1d8fbe  .work/p2-mpp-test/rga-frame-comparisons-20261105/frame-75/inputs/cpu-rgb-u8.bin
+704b5e72e6650652d7892f6b4824df722aec7c8a726ab1d53394b7eb5deecabe  .work/p2-mpp-test/rga-frame-comparisons-20261105/frame-75/inputs/rga-rgb-u8.bin
+frame=100
+50a4121113e172203cb520891b93508df28924a9c62deac5412dda608ab255b4  .work/p2-mpp-test/rga-frame-comparisons-20261105/frame-100/inputs/cpu-rgb-u8.bin
+ec64de319886ea41b59974500efc9cf062668c991f0ceb6b3a81616021ddd99c  .work/p2-mpp-test/rga-frame-comparisons-20261105/frame-100/inputs/rga-rgb-u8.bin
+frame=125
+14a4bdb568d7a66fe567684e64c463052f57d0e09dd61e5070705bfc6676bb98  .work/p2-mpp-test/rga-frame-comparisons-20261105/frame-125/inputs/cpu-rgb-u8.bin
+5b95ec8887d9c2716feb36dc8d89206477e5bbfbd64bcedbe9616dac048891e2  .work/p2-mpp-test/rga-frame-comparisons-20261105/frame-125/inputs/rga-rgb-u8.bin

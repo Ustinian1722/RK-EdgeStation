@@ -1,0 +1,4 @@
+WSL distro: RK-EdgeStation-Toolkit2 (Ubuntu 22.04 x86-64)
+Python: /usr/local/bin/rknn-python
+Command: rknn-python -m py_compile scripts/compare_rknn_detection_sets.py scripts/compare_onnx_rknn_outputs.py
+Result: exit code 0

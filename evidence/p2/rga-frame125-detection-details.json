@@ -1,0 +1,798 @@
+{
+  "reference": "RKNN outputs from the current CPU OpenCV preprocessing",
+  "candidate": "RKNN outputs from RGA synchronous preprocessing",
+  "model": "same loaded RKNN model and context, sequential input runs",
+  "nms_threshold": 0.45,
+  "detection_match_iou_threshold": 0.5,
+  "tensor_comparison": [
+    {
+      "index": 0,
+      "name": "318",
+      "shape": [
+        1,
+        64,
+        80,
+        80
+      ],
+      "cpu_min": -6.109375,
+      "cpu_max": 19.984375,
+      "rga_min": -6.1015625,
+      "rga_max": 19.9375,
+      "mean_absolute_difference": 0.018206464049144416,
+      "rmse": 0.03566734314154271,
+      "max_absolute_difference": 0.73046875,
+      "cosine_similarity": 0.9999215691875308
+    },
+    {
+      "index": 1,
+      "name": "onnx::ReduceSum_326",
+      "shape": [
+        1,
+        80,
+        80,
+        80
+      ],
+      "cpu_min": 0.0018310546875,
+      "cpu_max": 0.8515625,
+      "rga_min": 0.0018310546875,
+      "rga_max": 0.8515625,
+      "mean_absolute_difference": 8.434653282165527e-07,
+      "rmse": 5.981077029607028e-05,
+      "max_absolute_difference": 0.02099609375,
+      "cosine_similarity": 0.999961624911639
+    },
+    {
+      "index": 2,
+      "name": "331",
+      "shape": [
+        1,
+        1,
+        80,
+        80
+      ],
+      "cpu_min": 0.146484375,
+      "cpu_max": 1.0,
+      "rga_min": 0.146484375,
+      "rga_max": 1.0,
+      "mean_absolute_difference": 5.405426025390625e-05,
+      "rmse": 0.0004661803543549663,
+      "max_absolute_difference": 0.01513671875,
+      "cosine_similarity": 0.9999959895200076
+    },
+    {
+      "index": 3,
+      "name": "338",
+      "shape": [
+        1,
+        64,
+        40,
+        40
+      ],
+      "cpu_min": -3.763671875,
+      "cpu_max": 17.4375,
+      "rga_min": -3.759765625,
+      "rga_max": 17.453125,
+      "mean_absolute_difference": 0.009550269285682589,
+      "rmse": 0.020046563428659167,
+      "max_absolute_difference": 0.890625,
+      "cosine_similarity": 0.9999700719156878
+    },
+    {
+      "index": 4,
+      "name": "onnx::ReduceSum_346",
+      "shape": [
+        1,
+        80,
+        40,
+        40
+      ],
+      "cpu_min": 0.0018310546875,
+      "cpu_max": 0.830078125,
+      "rga_min": 0.0018310546875,
+      "rga_max": 0.8310546875,
+      "mean_absolute_difference": 1.6424655914306641e-06,
+      "rmse": 0.00010232007251229533,
+      "max_absolute_difference": 0.018310546875,
+      "cosine_similarity": 0.9999604444899687
+    },
+    {
+      "index": 5,
+      "name": "350",
+      "shape": [
+        1,
+        1,
+        40,
+        40
+      ],
+      "cpu_min": 0.146484375,
+      "cpu_max": 1.0,
+      "rga_min": 0.146484375,
+      "rga_max": 1.0,
+      "mean_absolute_difference": 8.21685791015625e-05,
+      "rmse": 0.0007714913766277664,
+      "max_absolute_difference": 0.017578125,
+      "cosine_similarity": 0.9999921632607777
+    },
+    {
+      "index": 6,
+      "name": "357",
+      "shape": [
+        1,
+        64,
+        20,
+        20
+      ],
+      "cpu_min": -2.466796875,
+      "cpu_max": 10.5,
+      "rga_min": -2.474609375,
+      "rga_max": 10.515625,
+      "mean_absolute_difference": 0.00947051543276757,
+      "rmse": 0.01836514465976502,
+      "max_absolute_difference": 0.3046875,
+      "cosine_similarity": 0.9999662341351164
+    },
+    {
+      "index": 7,
+      "name": "onnx::ReduceSum_365",
+      "shape": [
+        1,
+        80,
+        20,
+        20
+      ],
+      "cpu_min": 0.0018310546875,
+      "cpu_max": 0.00244140625,
+      "rga_min": 0.0018310546875,
+      "rga_max": 0.00238037109375,
+      "mean_absolute_difference": 1.621246337890625e-08,
+      "rmse": 1.4575937785753479e-06,
+      "max_absolute_difference": 0.00018310546875,
+      "cosine_similarity": 0.9999996832380281
+    },
+    {
+      "index": 8,
+      "name": "369",
+      "shape": [
+        1,
+        1,
+        20,
+        20
+      ],
+      "cpu_min": 0.146484375,
+      "cpu_max": 0.1470947265625,
+      "rga_min": 0.146484375,
+      "rga_max": 0.14697265625,
+      "mean_absolute_difference": 1.52587890625e-06,
+      "rmse": 1.6148384466946965e-05,
+      "max_absolute_difference": 0.000244140625,
+      "cosine_similarity": 0.9999999939785572
+    }
+  ],
+  "detection_comparisons": [
+    {
+      "confidence_threshold": 0.25,
+      "agreement": {
+        "iou_threshold": 0.5,
+        "first_count": 10,
+        "second_count": 11,
+        "matched_count": 10,
+        "unmatched_first_count": 0,
+        "unmatched_second_count": 1,
+        "set_f1_agreement": 0.9523809523809523,
+        "matched_mean_iou": 0.9988095238095237,
+        "matched_mean_absolute_confidence_delta": 0.001318359375
+      },
+      "cpu_detections": [
+        {
+          "class_id": 0,
+          "confidence": 0.8515625,
+          "box": [
+            552,
+            216,
+            577,
+            300
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.830078125,
+          "box": [
+            635,
+            211,
+            681,
+            296
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.7763671875,
+          "box": [
+            381,
+            181,
+            405,
+            261
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.7607421875,
+          "box": [
+            576,
+            125,
+            599,
+            187
+          ]
+        },
+        {
+          "class_id": 2,
+          "confidence": 0.73828125,
+          "box": [
+            733,
+            49,
+            767,
+            94
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.685546875,
+          "box": [
+            150,
+            74,
+            168,
+            110
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.67626953125,
+          "box": [
+            598,
+            128,
+            621,
+            192
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.65966796875,
+          "box": [
+            665,
+            125,
+            688,
+            196
+          ]
+        },
+        {
+          "class_id": 7,
+          "confidence": 0.62158203125,
+          "box": [
+            652,
+            44,
+            722,
+            100
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.2822265625,
+          "box": [
+            439,
+            175,
+            454,
+            203
+          ]
+        }
+      ],
+      "rga_detections": [
+        {
+          "class_id": 0,
+          "confidence": 0.8515625,
+          "box": [
+            552,
+            216,
+            577,
+            299
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.8310546875,
+          "box": [
+            635,
+            211,
+            681,
+            296
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.77392578125,
+          "box": [
+            381,
+            181,
+            405,
+            261
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.76220703125,
+          "box": [
+            576,
+            125,
+            599,
+            187
+          ]
+        },
+        {
+          "class_id": 2,
+          "confidence": 0.7353515625,
+          "box": [
+            733,
+            49,
+            767,
+            94
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.68701171875,
+          "box": [
+            150,
+            74,
+            168,
+            110
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.67578125,
+          "box": [
+            598,
+            128,
+            621,
+            192
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.66162109375,
+          "box": [
+            665,
+            125,
+            688,
+            196
+          ]
+        },
+        {
+          "class_id": 7,
+          "confidence": 0.623046875,
+          "box": [
+            652,
+            44,
+            722,
+            100
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.2822265625,
+          "box": [
+            439,
+            175,
+            454,
+            203
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.2607421875,
+          "box": [
+            29,
+            110,
+            49,
+            141
+          ]
+        }
+      ]
+    },
+    {
+      "confidence_threshold": 0.345,
+      "agreement": {
+        "iou_threshold": 0.5,
+        "first_count": 9,
+        "second_count": 9,
+        "matched_count": 9,
+        "unmatched_first_count": 0,
+        "unmatched_second_count": 0,
+        "set_f1_agreement": 1.0,
+        "matched_mean_iou": 0.9986772486772486,
+        "matched_mean_absolute_confidence_delta": 0.00146484375
+      },
+      "cpu_detections": [
+        {
+          "class_id": 0,
+          "confidence": 0.8515625,
+          "box": [
+            552,
+            216,
+            577,
+            300
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.830078125,
+          "box": [
+            635,
+            211,
+            681,
+            296
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.7763671875,
+          "box": [
+            381,
+            181,
+            405,
+            261
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.7607421875,
+          "box": [
+            576,
+            125,
+            599,
+            187
+          ]
+        },
+        {
+          "class_id": 2,
+          "confidence": 0.73828125,
+          "box": [
+            733,
+            49,
+            767,
+            94
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.685546875,
+          "box": [
+            150,
+            74,
+            168,
+            110
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.67626953125,
+          "box": [
+            598,
+            128,
+            621,
+            192
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.65966796875,
+          "box": [
+            665,
+            125,
+            688,
+            196
+          ]
+        },
+        {
+          "class_id": 7,
+          "confidence": 0.62158203125,
+          "box": [
+            652,
+            44,
+            722,
+            100
+          ]
+        }
+      ],
+      "rga_detections": [
+        {
+          "class_id": 0,
+          "confidence": 0.8515625,
+          "box": [
+            552,
+            216,
+            577,
+            299
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.8310546875,
+          "box": [
+            635,
+            211,
+            681,
+            296
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.77392578125,
+          "box": [
+            381,
+            181,
+            405,
+            261
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.76220703125,
+          "box": [
+            576,
+            125,
+            599,
+            187
+          ]
+        },
+        {
+          "class_id": 2,
+          "confidence": 0.7353515625,
+          "box": [
+            733,
+            49,
+            767,
+            94
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.68701171875,
+          "box": [
+            150,
+            74,
+            168,
+            110
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.67578125,
+          "box": [
+            598,
+            128,
+            621,
+            192
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.66162109375,
+          "box": [
+            665,
+            125,
+            688,
+            196
+          ]
+        },
+        {
+          "class_id": 7,
+          "confidence": 0.623046875,
+          "box": [
+            652,
+            44,
+            722,
+            100
+          ]
+        }
+      ]
+    },
+    {
+      "confidence_threshold": 0.5,
+      "agreement": {
+        "iou_threshold": 0.5,
+        "first_count": 9,
+        "second_count": 9,
+        "matched_count": 9,
+        "unmatched_first_count": 0,
+        "unmatched_second_count": 0,
+        "set_f1_agreement": 1.0,
+        "matched_mean_iou": 0.9986772486772486,
+        "matched_mean_absolute_confidence_delta": 0.00146484375
+      },
+      "cpu_detections": [
+        {
+          "class_id": 0,
+          "confidence": 0.8515625,
+          "box": [
+            552,
+            216,
+            577,
+            300
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.830078125,
+          "box": [
+            635,
+            211,
+            681,
+            296
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.7763671875,
+          "box": [
+            381,
+            181,
+            405,
+            261
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.7607421875,
+          "box": [
+            576,
+            125,
+            599,
+            187
+          ]
+        },
+        {
+          "class_id": 2,
+          "confidence": 0.73828125,
+          "box": [
+            733,
+            49,
+            767,
+            94
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.685546875,
+          "box": [
+            150,
+            74,
+            168,
+            110
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.67626953125,
+          "box": [
+            598,
+            128,
+            621,
+            192
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.65966796875,
+          "box": [
+            665,
+            125,
+            688,
+            196
+          ]
+        },
+        {
+          "class_id": 7,
+          "confidence": 0.62158203125,
+          "box": [
+            652,
+            44,
+            722,
+            100
+          ]
+        }
+      ],
+      "rga_detections": [
+        {
+          "class_id": 0,
+          "confidence": 0.8515625,
+          "box": [
+            552,
+            216,
+            577,
+            299
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.8310546875,
+          "box": [
+            635,
+            211,
+            681,
+            296
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.77392578125,
+          "box": [
+            381,
+            181,
+            405,
+            261
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.76220703125,
+          "box": [
+            576,
+            125,
+            599,
+            187
+          ]
+        },
+        {
+          "class_id": 2,
+          "confidence": 0.7353515625,
+          "box": [
+            733,
+            49,
+            767,
+            94
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.68701171875,
+          "box": [
+            150,
+            74,
+            168,
+            110
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.67578125,
+          "box": [
+            598,
+            128,
+            621,
+            192
+          ]
+        },
+        {
+          "class_id": 0,
+          "confidence": 0.66162109375,
+          "box": [
+            665,
+            125,
+            688,
+            196
+          ]
+        },
+        {
+          "class_id": 7,
+          "confidence": 0.623046875,
+          "box": [
+            652,
+            44,
+            722,
+            100
+          ]
+        }
+      ]
+    }
+  ],
+  "interpretation": "Preprocessing sensitivity comparison only. Agreement is not labeled detection accuracy; one source frame and one model execution per preprocessing path are represented."
+}

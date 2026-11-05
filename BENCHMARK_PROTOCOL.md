@@ -1,6 +1,6 @@
 # Benchmark protocol
 
-Status: protocol draft frozen for P1/P2. A short, repeated-still-image smoke baseline is recorded in [OPTIMIZATION_REPORT.md](OPTIMIZATION_REPORT.md); it is not a controlled product benchmark.
+Status: protocol draft frozen for P1/P2. P2 stage probes are recorded in [P2_ACCEPTANCE_REPORT.md](P2_ACCEPTANCE_REPORT.md); they are not a controlled end-to-end product benchmark.
 
 ## Reproducibility record
 
@@ -22,6 +22,13 @@ The current board exposes RKNPU devfreq but no `/dev/rknpu*` node. One repeated-
 ## Repetition plan
 
 For each stable model/source configuration: 30 warmup frames, 1,000 measured frames, three repetitions, same video and file hash, with p50/p95/p99 and arithmetic mean/std for latency. Record raw per-frame samples. If the source cannot supply 1,000 frames, state the actual count; do not silently extrapolate.
+
+### P2 media-stage probe details
+
+- MPP decode: 150-frame 768×576 H.264 Baseline/Constrained Baseline sample repeated ten times; one warmup run and three measured runs; count every decoded buffer and preserve first/last PTS, negotiated caps, bus warnings, process CPU and RSS. Keep the NV12/fakesink result separate from any BGR-conversion result.
+- OpenCV decode: use the same H.264 file and FFmpeg backend, produce BGR, discard 30 warmup frames, then decode/count 1,500 frames in each of three repetitions.
+- RGA preprocessing: use the same decoded BGR frame for both paths; compare the worker's 640×640 letterbox, fill value 114, and RGB order. Run 30 warmups and 1,000 timed calls per repetition, three repetitions. Include CPU fill of the RGA destination padding canvas in candidate time. Record image differences and keep input/output memory type explicit. A stage-only improvement is not an end-to-end gain.
+- Model sensitivity: run CPU and RGA uint8 inputs sequentially through the same FP RKNN model/context for each sampled frame. Compare all nine tensors and postprocessed detections at more than one confidence threshold. A matching detection set is consistency evidence only; without labels it is not accuracy evidence.
 
 Use the same source, model, resolution, input path, queue policy, worker count, and power state for before/after comparisons. Warm the board to a recorded steady state; do not change clocks between paired runs. Report model inference and end-to-end changes separately.
 
