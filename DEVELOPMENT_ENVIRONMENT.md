@@ -51,6 +51,16 @@ The workstation-specific bootstrap guide is `D:\WSL\RK-EdgeStation-bootstrap\REA
 
 Toolkit2 is licensed Rockchip SDK software. Keep its archive, wheel, and dependencies outside Git and use them only under the authorized compatible-product development terms. Current SDK and wheel artifacts are in the ignored local .work area; do not commit or redistribute them.
 
+## Shared Windows/WSL working tree
+
+The repository is shared from `D:\RK-EdgeStation` into WSL as `/mnt/d/RK-EdgeStation`. On 2026-11-05, Windows Git 2.51.2 reported a clean tree while WSL Git 2.34.1 marked `evidence/p0/hardware-audit.txt` modified only because the working copy uses CRLF and the committed bytes use LF; replacing CRLF with LF made the file byte-identical to `HEAD`. The file is covered by the repository's `-text` attribute, so preserve its current bytes. To verify this specific status without rewriting the evidence, run:
+
+```bash
+git diff --ignore-cr-at-eol -- evidence/p0/hardware-audit.txt
+```
+
+Before committing changes made from WSL, check `git status --short` from both WSL and Windows. Do not stage this audit file merely to clear a line-ending-only status.
+
 ## Native RK3576 build
 
 SSH to the board, enter /home/kickpi/projects/RK-EdgeStation, and use the commands in [build and deploy](BUILD_AND_DEPLOY.md). The board-side build and inference path uses the installed runtime; no host-side RKNN Runtime installation is part of it.
