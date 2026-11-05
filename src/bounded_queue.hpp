@@ -9,24 +9,41 @@
 
 namespace edge {
 
-// A bounded latest-frame queue. On overload the oldest pending item is dropped.
+enum class QueuePolicy { Latest, Fifo };
+
+inline const char* queue_policy_name(QueuePolicy policy) noexcept {
+    switch (policy) {
+        case QueuePolicy::Latest: return "latest";
+        case QueuePolicy::Fifo: return "fifo";
+    }
+    return "unknown";
+}
+
+// Latest evicts the oldest pending item; FIFO preserves pending order and drops
+// each new item while full. Both policies remain bounded and non-blocking.
 template <typename T>
-class BoundedLatestQueue {
+class BoundedQueue {
 public:
-    explicit BoundedLatestQueue(std::size_t capacity) : capacity_(capacity) {
+    explicit BoundedQueue(std::size_t capacity, QueuePolicy policy = QueuePolicy::Latest)
+        : capacity_(capacity), policy_(policy) {
         if (capacity_ == 0) {
             throw std::invalid_argument("queue capacity must be positive");
         }
     }
 
+    // Returns false only after close(); a full FIFO queue counts and discards
+    // the incoming item while allowing the producer to continue decoding.
     bool push(T value) {
         std::lock_guard<std::mutex> lock(mutex_);
         if (closed_) {
             return false;
         }
         if (items_.size() == capacity_) {
-            items_.pop_front();
             ++dropped_;
+            if (policy_ == QueuePolicy::Fifo) {
+                return true;
+            }
+            items_.pop_front();
         }
         items_.push_back(std::move(value));
         ready_.notify_one();
@@ -61,9 +78,11 @@ public:
     }
 
     std::size_t capacity() const noexcept { return capacity_; }
+    QueuePolicy policy() const noexcept { return policy_; }
 
 private:
     const std::size_t capacity_;
+    const QueuePolicy policy_;
     mutable std::mutex mutex_;
     std::condition_variable ready_;
     std::deque<T> items_;

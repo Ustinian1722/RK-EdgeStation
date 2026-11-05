@@ -42,7 +42,8 @@ Use the same source, model, resolution, input path, queue policy, worker count, 
 
 ## Overload and stability
 
-- Exercise slow-consumer and burst-input cases at increasing rates while recording queue bounds, frame age, drops, timeouts, RSS, CPU/NPU, and event correctness.
+- `latest`: on a full queue, evict the oldest pending frame and enqueue the new frame. `fifo`: preserve queued order and drop the newly decoded frame while full. Both must remain bounded and report their policy and dropped count.
+- Exercise slow-consumer and burst-input cases under both policies at increasing rates while recording queue bounds, frame age, drops, timeouts, RSS, CPU/NPU, and event correctness. Compare the actual processed frame sequences; total drop counts alone do not establish freshness or correctness.
 - Use deterministic injected delays for queue-control tests; label them as scheduler tests, not hardware saturation results.
 - Run reconnect, malformed input, model-load error, inference-worker failure, low disk, restart, and long-run tests from [TEST_PLAN.md](TEST_PLAN.md).
 - P3 requires a continuous 24-hour run with timestamps, periodic resource snapshots, error counts, restart count, storage free space, and event sanity checks.

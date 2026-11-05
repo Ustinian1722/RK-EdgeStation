@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -lt 2 || $# -gt 4 ]]; then
-  echo "Usage: $0 MODEL.rknn INPUT.mp4 [STATE_DIR] [PORT]" >&2
+if [[ $# -lt 2 || $# -gt 5 ]]; then
+  echo "Usage: $0 MODEL.rknn INPUT.mp4 [STATE_DIR] [PORT] [latest|fifo]" >&2
   exit 2
 fi
 
@@ -10,10 +10,12 @@ model_path=$1
 video_path=$2
 state_dir=${3:-state}
 port=${4:-8080}
+queue_policy=${5:-latest}
 
 exec env PYTHONPATH=python python3 -m edge_station.server \
   --worker build/bin/rk_edge_worker \
   --model "$model_path" \
   --video "$video_path" \
   --state-dir "$state_dir" \
-  --port "$port"
+  --port "$port" \
+  --queue-policy "$queue_policy"

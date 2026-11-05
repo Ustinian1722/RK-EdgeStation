@@ -390,6 +390,7 @@ struct Options {
     std::string state_dir = "state";
     Roi roi;
     std::size_t queue_capacity = 1;
+    edge::QueuePolicy queue_policy = edge::QueuePolicy::Latest;
     float confidence = 0.25F;
     std::chrono::milliseconds dwell_threshold{5000};
     std::size_t roi_debounce_frames = 2;
@@ -402,7 +403,8 @@ Options parse_args(int argc, char** argv) {
         const std::string key = argv[i];
         if (key == "--help" || key == "-h") {
             std::cout << "rk_edge_worker --model MODEL.rknn --video INPUT.mp4 "
-                         "[--state-dir state] [--roi x,y,w,h] [--queue-capacity N] [--confidence X] "
+                         "[--state-dir state] [--roi x,y,w,h] [--queue-capacity N] "
+                         "[--queue-policy latest|fifo] [--confidence X] "
                          "[--dwell-ms N] [--roi-debounce-frames N] [--dump-first-rknn-output DIR]\n";
             std::exit(0);
         }
@@ -419,6 +421,12 @@ Options parse_args(int argc, char** argv) {
     options.video = args.at("--video");
     if (args.count("--state-dir")) options.state_dir = args.at("--state-dir");
     if (args.count("--queue-capacity")) options.queue_capacity = std::stoul(args.at("--queue-capacity"));
+    if (args.count("--queue-policy")) {
+        const auto& policy = args.at("--queue-policy");
+        if (policy == "latest") options.queue_policy = edge::QueuePolicy::Latest;
+        else if (policy == "fifo") options.queue_policy = edge::QueuePolicy::Fifo;
+        else throw std::invalid_argument("--queue-policy must be latest or fifo");
+    }
     if (args.count("--confidence")) options.confidence = std::stof(args.at("--confidence"));
     if (args.count("--dwell-ms")) options.dwell_threshold = std::chrono::milliseconds(std::stoll(args.at("--dwell-ms")));
     if (args.count("--roi-debounce-frames")) options.roi_debounce_frames = std::stoul(args.at("--roi-debounce-frames"));
@@ -444,7 +452,7 @@ Options parse_args(int argc, char** argv) {
 }
 
 void emit_metric(std::uint64_t processed, std::uint64_t detections, std::uint64_t decoded,
-                 const edge::BoundedLatestQueue<Frame>& queue, Clock::time_point started,
+                 const edge::BoundedQueue<Frame>& queue, Clock::time_point started,
                  double preprocess_ms, double inference_ms, double postprocess_ms,
                  double queue_wait_ms, double e2e_ms, const std::deque<double>& latency_window,
                  std::size_t roi_occupancy_count, std::uint64_t cumulative_roi_entries,
@@ -466,6 +474,7 @@ void emit_metric(std::uint64_t processed, std::uint64_t detections, std::uint64_
               << ",\"roi_occupancy_count\":" << roi_occupancy_count
               << ",\"cumulative_roi_entries\":" << cumulative_roi_entries
               << ",\"queue_capacity\":" << queue.capacity()
+              << ",\"queue_policy\":\"" << edge::queue_policy_name(queue.policy()) << "\""
               << ",\"queue_depth\":" << queue.size()
               << ",\"dropped_frames\":" << queue.dropped_count()
               << ",\"throughput_fps\":" << fps
@@ -517,7 +526,7 @@ int main(int argc, char** argv) {
         int exit_code = 0;
         {
             RknnYoloEngine engine(options.model, options.raw_dump_dir);
-            edge::BoundedLatestQueue<Frame> queue(options.queue_capacity);
+            edge::BoundedQueue<Frame> queue(options.queue_capacity, options.queue_policy);
             std::atomic<std::uint64_t> decoded{0};
             std::string producer_error;
             const auto started = Clock::now();

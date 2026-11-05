@@ -171,11 +171,23 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--state-dir", type=Path, default=ROOT / "state")
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--queue-capacity", type=int, default=1)
+    parser.add_argument("--queue-policy", choices=("latest", "fifo"), default="latest")
     parser.add_argument("--roi", default="0,0,1,1")
     parser.add_argument("--confidence", type=float, default=0.25)
     parser.add_argument("--dwell-ms", type=int, default=5000)
     parser.add_argument("--roi-debounce-frames", type=int, default=2)
     return parser.parse_args()
+
+
+def build_worker_command(args: argparse.Namespace, worker: Path, model: Path,
+                         video: Path, state_dir: Path) -> list[str]:
+    return [
+        str(worker), "--model", str(model), "--video", str(video),
+        "--state-dir", str(state_dir), "--roi", args.roi,
+        "--queue-capacity", str(args.queue_capacity), "--queue-policy", args.queue_policy,
+        "--confidence", str(args.confidence), "--dwell-ms", str(args.dwell_ms),
+        "--roi-debounce-frames", str(args.roi_debounce_frames),
+    ]
 
 
 def main() -> int:
@@ -205,13 +217,7 @@ def main() -> int:
         if not model.is_file() or not video.is_file() or not worker.is_file():
             print("model, video, and worker must all exist", file=sys.stderr)
             return 2
-        command = [
-            str(worker), "--model", str(model), "--video", str(video),
-            "--state-dir", str(state_dir), "--roi", args.roi,
-            "--queue-capacity", str(args.queue_capacity), "--confidence", str(args.confidence),
-            "--dwell-ms", str(args.dwell_ms),
-            "--roi-debounce-frames", str(args.roi_debounce_frames),
-        ]
+        command = build_worker_command(args, worker, model, video, state_dir)
         state.start_worker(command, model, video)
 
     print(f"RK-EdgeStation UI: http://127.0.0.1:{args.port}/", flush=True)

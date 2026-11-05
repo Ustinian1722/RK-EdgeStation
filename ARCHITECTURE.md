@@ -53,7 +53,7 @@ Inference results retain source/frame sequence and monotonic start/end times. Tr
 ## Scheduling behavior
 
 - Queue capacity is configured and finite.
-- FIFO preserves every accepted frame until full; latest-frame mode evicts an older queued frame when a newer frame arrives.
+- FIFO preserves queued order and drops newly decoded frames while full; latest-frame mode evicts the oldest pending frame and enqueues the new one. Both modes are bounded and report their selected policy and drop count.
 - Every evicted, expired, timed-out, or failed frame increments a distinct counter.
 - A stream epoch, cancellation token, and bounded worker shutdown prevent stale results after reconnect/restart.
 - Queue wait, inference duration, end-to-end latency, and frame age use monotonic clocks and are reported separately.

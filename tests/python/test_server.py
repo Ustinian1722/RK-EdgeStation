@@ -4,9 +4,10 @@ import threading
 import unittest
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from unittest.mock import patch
 from urllib.request import urlopen
 
-from edge_station.server import AppState, make_handler
+from edge_station.server import AppState, build_worker_command, make_handler, parse_args
 from edge_station.storage import EventStore
 
 
@@ -61,6 +62,24 @@ class LocalApiTests(unittest.TestCase):
                 server.shutdown()
                 server.server_close()
                 thread.join(timeout=3)
+
+
+class ServerQueuePolicyTests(unittest.TestCase):
+    def test_default_and_fifo_policy_reach_worker_command(self):
+        with patch("sys.argv", ["edge_station.server"]):
+            default_args = parse_args()
+        self.assertEqual(default_args.queue_policy, "latest")
+
+        with patch("sys.argv", ["edge_station.server", "--queue-policy", "fifo"]):
+            fifo_args = parse_args()
+        command = build_worker_command(
+            fifo_args,
+            Path("worker"),
+            Path("model.rknn"),
+            Path("video.mp4"),
+            Path("state"),
+        )
+        self.assertEqual(command[command.index("--queue-policy") + 1], "fifo")
 
 
 if __name__ == "__main__":
