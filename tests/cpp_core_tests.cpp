@@ -59,6 +59,10 @@ int main() {
         CHECK(tracker.active_ids().empty());
         result = tracker.update({first});
         CHECK(result.size() == 1 && result[0].created && result[0].track_id == 2);
+        tracker.reset();
+        CHECK(tracker.active_ids().empty());
+        result = tracker.update({first});
+        CHECK(result.size() == 1 && result[0].created && result[0].track_id == 3);
     }
     {
         edge::IoUTracker tracker(0.3F, 2);
@@ -123,6 +127,13 @@ int main() {
         CHECK(transitions.size() == 1 && transitions[0].type == edge::RoiEventType::Leave);
         CHECK(transitions[0].occupancy_count == 0 && transitions[0].cumulative_entries == 1);
         CHECK(events.cumulative_entries() == 1);
+        events.update({inside}, active, start + 6s);
+        transitions = events.update({inside}, active, start + 6100ms);
+        CHECK(transitions.size() == 1 && transitions[0].type == edge::RoiEventType::Enter);
+        CHECK(transitions[0].cumulative_entries == 2 && transitions[0].occupancy_count == 1);
+        events.reset_stream();
+        CHECK(events.occupancy_count() == 0);
+        CHECK(events.cumulative_entries() == 2);
     }
     {
         using namespace std::chrono_literals;

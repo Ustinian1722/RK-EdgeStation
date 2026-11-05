@@ -1,0 +1,86 @@
+2026-11-05T15:29:59.127584+00:00 kickpi systemd[1961]: Started rk-edge-station@rtsp-test.service - RK-EdgeStation vision service (rtsp-test).
+2026-11-05T15:29:59.333228+00:00 kickpi python3[32539]: RK-EdgeStation UI: http://127.0.0.1:18085/
+2026-11-05T15:29:59.605238+00:00 kickpi python3[32542]: fatal: video file does not exist: rtsp://127.0.0.1:18555/test
+2026-11-05T15:30:03.195330+00:00 kickpi python3[32539]: http 127.0.0.1 "GET /api/health HTTP/1.1" 200 -
+2026-11-05T15:31:42.441444+00:00 kickpi systemd[1961]: Stopping rk-edge-station@rtsp-test.service - RK-EdgeStation vision service (rtsp-test)...
+2026-11-05T15:31:42.569205+00:00 kickpi systemd[1961]: Stopped rk-edge-station@rtsp-test.service - RK-EdgeStation vision service (rtsp-test).
+2026-11-05T15:32:20.324114+00:00 kickpi systemd[1961]: Started rk-edge-station@rtsp-test.service - RK-EdgeStation vision service (rtsp-test).
+2026-11-05T15:32:20.587628+00:00 kickpi python3[32710]: RK-EdgeStation UI: http://127.0.0.1:18085/
+2026-11-05T15:32:20.926569+00:00 kickpi python3[32713]: load lable ./model/coco_80_labels_list.txt
+2026-11-05T15:32:20.982124+00:00 kickpi python3[32713]: RKNN model=yolov8n-rk3576-fp.rknn input=640x640 channels=3 outputs=9 quantized=false
+2026-11-05T15:32:20.983179+00:00 kickpi python3[32713]: video source_type=rtsp pacing=disabled reconnect=enabled
+2026-11-05T15:32:20.983770+00:00 kickpi python3[32713]: [tcp @ 0x7f9c003f60] Connection to tcp://127.0.0.1:18555?timeout=0 failed: Connection refused
+2026-11-05T15:32:20.983904+00:00 kickpi python3[32713]: RTSP reconnect attempt=1
+2026-11-05T15:32:21.488442+00:00 kickpi python3[32713]: [tcp @ 0x7f9c003f60] Connection to tcp://127.0.0.1:18555?timeout=0 failed: Connection refused
+2026-11-05T15:32:21.490348+00:00 kickpi python3[32713]: RTSP reconnect attempt=2
+2026-11-05T15:32:22.496203+00:00 kickpi python3[32713]: [tcp @ 0x7f9c003f60] Connection to tcp://127.0.0.1:18555?timeout=0 failed: Connection refused
+2026-11-05T15:32:22.500153+00:00 kickpi python3[32713]: RTSP reconnect attempt=3
+2026-11-05T15:32:24.510641+00:00 kickpi python3[32713]: [tcp @ 0x7f9c003f60] Connection to tcp://127.0.0.1:18555?timeout=0 failed: Connection refused
+2026-11-05T15:32:24.514017+00:00 kickpi python3[32713]: RTSP reconnect attempt=4
+2026-11-05T15:32:25.379092+00:00 kickpi python3[32710]: http 127.0.0.1 "GET /api/health HTTP/1.1" 200 -
+2026-11-05T15:32:28.535137+00:00 kickpi python3[32713]: [tcp @ 0x7f9c003f60] Connection to tcp://127.0.0.1:18555?timeout=0 failed: Connection refused
+2026-11-05T15:32:28.535137+00:00 kickpi python3[32713]: RTSP reconnect attempt=5
+2026-11-05T15:32:33.556124+00:00 kickpi python3[32713]: [tcp @ 0x7f9c003f60] Connection to tcp://127.0.0.1:18555?timeout=0 failed: Connection refused
+2026-11-05T15:32:33.558330+00:00 kickpi python3[32713]: RTSP reconnect attempt=6
+2026-11-05T15:32:35.058157+00:00 kickpi systemd[1961]: rk-edge-station@rtsp-test.service: Sent signal SIGKILL to main process 32710 (python3) on client request.
+2026-11-05T15:32:35.067422+00:00 kickpi systemd[1961]: rk-edge-station@rtsp-test.service: Main process exited, code=killed, status=9/KILL
+2026-11-05T15:32:35.134093+00:00 kickpi systemd[1961]: rk-edge-station@rtsp-test.service: Failed with result 'signal'.
+2026-11-05T15:32:38.356966+00:00 kickpi systemd[1961]: rk-edge-station@rtsp-test.service: Scheduled restart job, restart counter is at 1.
+2026-11-05T15:32:38.361658+00:00 kickpi systemd[1961]: Started rk-edge-station@rtsp-test.service - RK-EdgeStation vision service (rtsp-test).
+2026-11-05T15:32:38.607955+00:00 kickpi python3[32747]: RK-EdgeStation UI: http://127.0.0.1:18085/
+2026-11-05T15:32:38.858354+00:00 kickpi python3[32749]: load lable ./model/coco_80_labels_list.txt
+2026-11-05T15:32:38.902620+00:00 kickpi python3[32749]: RKNN model=yolov8n-rk3576-fp.rknn input=640x640 channels=3 outputs=9 quantized=false
+2026-11-05T15:32:38.903329+00:00 kickpi python3[32749]: video source_type=rtsp pacing=disabled reconnect=enabled
+2026-11-05T15:32:38.903789+00:00 kickpi python3[32749]: [tcp @ 0x7f84003f60] Connection to tcp://127.0.0.1:18555?timeout=0 failed: Connection refused
+2026-11-05T15:32:38.903916+00:00 kickpi python3[32749]: RTSP reconnect attempt=1
+2026-11-05T15:32:39.407170+00:00 kickpi python3[32749]: [tcp @ 0x7f84003f60] Connection to tcp://127.0.0.1:18555?timeout=0 failed: Connection refused
+2026-11-05T15:32:39.407170+00:00 kickpi python3[32749]: RTSP reconnect attempt=2
+2026-11-05T15:32:40.411495+00:00 kickpi python3[32749]: [tcp @ 0x7f84003f60] Connection to tcp://127.0.0.1:18555?timeout=0 failed: Connection refused
+2026-11-05T15:32:40.412902+00:00 kickpi python3[32749]: RTSP reconnect attempt=3
+2026-11-05T15:32:41.109014+00:00 kickpi python3[32747]: http 127.0.0.1 "GET /api/health HTTP/1.1" 200 -
+2026-11-05T15:32:42.423691+00:00 kickpi python3[32749]: [tcp @ 0x7f84003f60] Connection to tcp://127.0.0.1:18555?timeout=0 failed: Connection refused
+2026-11-05T15:32:42.423691+00:00 kickpi python3[32749]: RTSP reconnect attempt=4
+2026-11-05T15:32:46.442497+00:00 kickpi python3[32749]: [tcp @ 0x7f84003f60] Connection to tcp://127.0.0.1:18555?timeout=0 failed: Connection refused
+2026-11-05T15:32:46.444496+00:00 kickpi python3[32749]: RTSP reconnect attempt=5
+2026-11-05T15:32:51.472066+00:00 kickpi python3[32749]: [tcp @ 0x7f84003f60] Connection to tcp://127.0.0.1:18555?timeout=0 failed: Connection refused
+2026-11-05T15:32:51.472066+00:00 kickpi python3[32749]: RTSP reconnect attempt=6
+2026-11-05T15:32:56.497622+00:00 kickpi python3[32749]: [tcp @ 0x7f84003f60] Connection to tcp://127.0.0.1:18555?timeout=0 failed: Connection refused
+2026-11-05T15:32:56.501843+00:00 kickpi python3[32749]: RTSP reconnect attempt=7
+2026-11-05T15:32:57.238617+00:00 kickpi systemd[1961]: rk-edge-station@rtsp-test.service: Main process exited, code=exited, status=1/FAILURE
+2026-11-05T15:32:57.239204+00:00 kickpi systemd[1961]: rk-edge-station@rtsp-test.service: Failed with result 'exit-code'.
+2026-11-05T15:33:00.357211+00:00 kickpi systemd[1961]: rk-edge-station@rtsp-test.service: Scheduled restart job, restart counter is at 2.
+2026-11-05T15:33:00.363977+00:00 kickpi systemd[1961]: Started rk-edge-station@rtsp-test.service - RK-EdgeStation vision service (rtsp-test).
+2026-11-05T15:33:00.588159+00:00 kickpi python3[32782]: RK-EdgeStation UI: http://127.0.0.1:18085/
+2026-11-05T15:33:00.867196+00:00 kickpi python3[32784]: load lable ./model/coco_80_labels_list.txt
+2026-11-05T15:33:00.947785+00:00 kickpi python3[32784]: RKNN model=yolov8n-rk3576-fp.rknn input=640x640 channels=3 outputs=9 quantized=false
+2026-11-05T15:33:00.948846+00:00 kickpi python3[32784]: video source_type=rtsp pacing=disabled reconnect=enabled
+2026-11-05T15:33:00.949602+00:00 kickpi python3[32784]: [tcp @ 0x7f9c003f60] Connection to tcp://127.0.0.1:18555?timeout=0 failed: Connection refused
+2026-11-05T15:33:00.949602+00:00 kickpi python3[32784]: RTSP reconnect attempt=1
+2026-11-05T15:33:01.452595+00:00 kickpi python3[32784]: [tcp @ 0x7f9c003f60] Connection to tcp://127.0.0.1:18555?timeout=0 failed: Connection refused
+2026-11-05T15:33:01.452595+00:00 kickpi python3[32784]: RTSP reconnect attempt=2
+2026-11-05T15:33:02.458704+00:00 kickpi python3[32784]: [tcp @ 0x7f9c003f60] Connection to tcp://127.0.0.1:18555?timeout=0 failed: Connection refused
+2026-11-05T15:33:02.458704+00:00 kickpi python3[32784]: RTSP reconnect attempt=3
+2026-11-05T15:33:03.763138+00:00 kickpi python3[32782]: http 127.0.0.1 "GET /api/health HTTP/1.1" 200 -
+2026-11-05T15:33:04.467917+00:00 kickpi python3[32784]: [tcp @ 0x7f9c003f60] Connection to tcp://127.0.0.1:18555?timeout=0 failed: Connection refused
+2026-11-05T15:33:04.469311+00:00 kickpi python3[32784]: RTSP reconnect attempt=4
+2026-11-05T15:33:08.490460+00:00 kickpi python3[32784]: [tcp @ 0x7f9c003f60] Connection to tcp://127.0.0.1:18555?timeout=0 failed: Connection refused
+2026-11-05T15:33:08.490460+00:00 kickpi python3[32784]: RTSP reconnect attempt=5
+2026-11-05T15:33:13.515494+00:00 kickpi python3[32784]: [tcp @ 0x7f9c003f60] Connection to tcp://127.0.0.1:18555?timeout=0 failed: Connection refused
+2026-11-05T15:33:13.515494+00:00 kickpi python3[32784]: RTSP reconnect attempt=6
+2026-11-05T15:33:18.541066+00:00 kickpi python3[32784]: [tcp @ 0x7f9c003f60] Connection to tcp://127.0.0.1:18555?timeout=0 failed: Connection refused
+2026-11-05T15:33:18.541066+00:00 kickpi python3[32784]: RTSP reconnect attempt=7
+2026-11-05T15:33:23.564999+00:00 kickpi python3[32784]: [tcp @ 0x7f9c003f60] Connection to tcp://127.0.0.1:18555?timeout=0 failed: Connection refused
+2026-11-05T15:33:23.567269+00:00 kickpi python3[32784]: RTSP reconnect attempt=8
+2026-11-05T15:33:28.590787+00:00 kickpi python3[32784]: [tcp @ 0x7f9c003f60] Connection to tcp://127.0.0.1:18555?timeout=0 failed: Connection refused
+2026-11-05T15:33:28.590787+00:00 kickpi python3[32784]: RTSP reconnect attempt=9
+2026-11-05T15:33:33.614623+00:00 kickpi python3[32784]: [tcp @ 0x7f9c003f60] Connection to tcp://127.0.0.1:18555?timeout=0 failed: Connection refused
+2026-11-05T15:33:33.614623+00:00 kickpi python3[32784]: RTSP reconnect attempt=10
+2026-11-05T15:33:38.638076+00:00 kickpi python3[32784]: [tcp @ 0x7f9c003f60] Connection to tcp://127.0.0.1:18555?timeout=0 failed: Connection refused
+2026-11-05T15:33:38.639503+00:00 kickpi python3[32784]: RTSP reconnect attempt=11
+2026-11-05T15:33:43.661164+00:00 kickpi python3[32784]: [tcp @ 0x7f9c003f60] Connection to tcp://127.0.0.1:18555?timeout=0 failed: Connection refused
+2026-11-05T15:33:43.662600+00:00 kickpi python3[32784]: RTSP reconnect attempt=12
+2026-11-05T15:33:48.684556+00:00 kickpi python3[32784]: [tcp @ 0x7f9c003f60] Connection to tcp://127.0.0.1:18555?timeout=0 failed: Connection refused
+2026-11-05T15:33:48.684556+00:00 kickpi python3[32784]: RTSP reconnect attempt=13
+2026-11-05T15:33:48.997413+00:00 kickpi systemd[1961]: Stopping rk-edge-station@rtsp-test.service - RK-EdgeStation vision service (rtsp-test)...
+2026-11-05T15:33:49.037106+00:00 kickpi python3[32784]: worker completed: decoded=0 processed=0 detections=0 events=0 dropped=0
+2026-11-05T15:33:49.351520+00:00 kickpi systemd[1961]: Stopped rk-edge-station@rtsp-test.service - RK-EdgeStation vision service (rtsp-test).

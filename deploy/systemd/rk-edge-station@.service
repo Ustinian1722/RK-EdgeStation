@@ -1,0 +1,23 @@
+[Unit]
+Description=RK-EdgeStation vision service (%i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/kickpi/projects/RK-EdgeStation
+Environment=PYTHONPATH=/home/kickpi/projects/RK-EdgeStation/python
+EnvironmentFile=%h/.config/rk-edge-station/%i.env
+ExecStart=/usr/bin/python3 -m edge_station.server --worker ${WORKER_PATH} --model ${MODEL_PATH} --video ${VIDEO_SOURCE} --state-dir ${STATE_DIR} --port ${PORT} --roi ${ROI} --confidence ${CONFIDENCE} --dwell-ms ${DWELL_MS} --roi-debounce-frames ${ROI_DEBOUNCE_FRAMES} --queue-capacity ${QUEUE_CAPACITY} --queue-policy ${QUEUE_POLICY}
+Restart=on-failure
+RestartSec=3
+KillSignal=SIGTERM
+TimeoutStopSec=12
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=%h/.local/state/rk-edge-station
+
+[Install]
+WantedBy=default.target

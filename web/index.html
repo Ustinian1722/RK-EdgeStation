@@ -23,13 +23,16 @@
   <h2>Recent ROI events</h2>
   <div class="card"><table><thead><tr><th>Time (UTC)</th><th>Object / type</th><th>State</th><th>Track</th><th>Confidence</th><th>ROI occupancy</th><th>Evidence</th></tr></thead>
     <tbody id="events"><tr><td colspan="7">Waiting for events</td></tr></tbody></table></div>
-  <p class="muted">This service binds to loopback. Metrics describe this local-file run and its configured queue.</p>
+  <p class="muted">This service binds to loopback. Metrics describe the active input source and its configured queue.</p>
   <script>
     const metricKeys = [
       ["status", "Worker"], ["throughput_fps", "Processed FPS"],
       ["last_inference_ms", "Last inference ms"], ["p95_end_to_end_ms", "P95 end-to-end ms"],
       ["dropped_frames", "Dropped frames"], ["process_rss_kb", "Process RSS kB"],
-      ["roi_occupancy_count", "Objects inside ROI"], ["cumulative_roi_entries", "Total entries"]
+      ["roi_occupancy_count", "Objects inside ROI"], ["cumulative_roi_entries", "Total entries"],
+      ["source_type", "Input type"], ["source_status", "Stream status"],
+      ["reconnect_attempts", "Reconnect attempts"],
+      ["stream_epoch", "Stream epoch"]
     ];
     async function refresh() {
       try {

@@ -29,6 +29,16 @@ rknn-python -m pip check
 
 The 2026-11-05 verification reported Python 3.10.12, ONNX 1.14.1, PyTorch 2.0.1+cpu, rknn.api under /opt/rknn-toolkit2-2.0.0b0, and no broken requirements. See [model conversion](MODEL_CONVERSION.md) for conversion settings and recorded model hashes.
 
+## WSL RTSP integration test source
+
+The same WSL distro now has a system GStreamer RTSP test server for board reconnect checks. This is optional test tooling and is not required for Toolkit2 conversion or RK3576 inference. Installed Ubuntu packages include `python3-gi`, `gir1.2-gst-rtsp-server-1.0`, `gstreamer1.0-tools`, and GStreamer base/good plugins. From the repository root in WSL:
+
+```bash
+python3 scripts/rtsp_test_server.py --port 18554 --pattern ball --fps 10
+```
+
+The board test used an SSH reverse tunnel bound to `127.0.0.1:18554` on the RK3576, then opened `rtsp://127.0.0.1:18554/test` from the worker. Keep the RTSP test server and tunnel confined to the test run; they are not part of deployment. The server produces a synthetic JPEG/RTP stream and does not validate a physical camera or alternate codecs.
+
 ## Repair and preserve the distro
 
 The registered distro is installed at `D:\WSL\RK-EdgeStation-Toolkit2-Fresh`. To re-apply cached dependencies and verify Toolkit2 without re-importing the distro, run:

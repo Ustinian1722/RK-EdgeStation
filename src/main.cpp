@@ -11,8 +11,11 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <cctype>
+#include <csignal>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <ctime>
 #include <deque>
 #include <filesystem>
@@ -21,6 +24,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <numeric>
 #include <sstream>
 #include <stdexcept>
@@ -34,10 +38,36 @@ using Clock = std::chrono::steady_clock;
 
 namespace {
 
+volatile std::sig_atomic_t shutdown_requested = 0;
+std::mutex stdout_mutex;
+
+void request_shutdown(int) { shutdown_requested = 1; }
+
+bool is_rtsp_source(const std::string& source) {
+    std::string prefix = source.substr(0, std::min<std::size_t>(source.size(), 8));
+    std::transform(prefix.begin(), prefix.end(), prefix.begin(),
+                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+    return prefix.rfind("rtsp://", 0) == 0 || prefix.rfind("rtsps://", 0) == 0;
+}
+
+bool wait_for_retry(std::chrono::milliseconds duration) {
+    const auto end = Clock::now() + duration;
+    while (!shutdown_requested && Clock::now() < end) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+    return !shutdown_requested;
+}
+
+std::vector<int> rtsp_open_parameters() {
+    return {cv::CAP_PROP_OPEN_TIMEOUT_MSEC, 3000,
+            cv::CAP_PROP_READ_TIMEOUT_MSEC, 3000};
+}
+
 struct Frame {
     cv::Mat image;
     std::uint64_t sequence = 0;
     double pts_ms = 0.0;
+    std::uint64_t stream_epoch = 0;
     Clock::time_point decoded_at;
 };
 
@@ -461,7 +491,9 @@ void emit_metric(std::uint64_t processed, std::uint64_t detections, std::uint64_
                  double preprocess_ms, double inference_ms, double postprocess_ms,
                  double queue_wait_ms, double e2e_ms, const std::deque<double>& latency_window,
                  std::size_t roi_occupancy_count, std::uint64_t cumulative_roi_entries,
-                 const char* status) {
+                 std::uint64_t reconnect_attempts, std::uint64_t stream_epoch,
+                 const char* source_type, const char* source_status, const char* status) {
+    std::lock_guard<std::mutex> output_lock(stdout_mutex);
     std::vector<double> sorted(latency_window.begin(), latency_window.end());
     std::sort(sorted.begin(), sorted.end());
     auto percentile = [&sorted](double fraction) {
@@ -491,12 +523,25 @@ void emit_metric(std::uint64_t processed, std::uint64_t detections, std::uint64_
               << ",\"p50_end_to_end_ms\":" << percentile(0.50)
               << ",\"p95_end_to_end_ms\":" << percentile(0.95)
               << ",\"latency_window_frames\":" << sorted.size()
-              << ",\"process_rss_kb\":" << read_rss_kb() << "}\n" << std::flush;
+              << ",\"process_rss_kb\":" << read_rss_kb()
+              << ",\"source_type\":\"" << source_type << "\""
+              << ",\"source_status\":\"" << source_status << "\""
+              << ",\"reconnect_attempts\":" << reconnect_attempts
+              << ",\"stream_epoch\":" << stream_epoch << "}\n" << std::flush;
+}
+
+void emit_source_status(const char* source_status, std::uint64_t reconnect_attempts,
+                        std::uint64_t stream_epoch) {
+    std::lock_guard<std::mutex> output_lock(stdout_mutex);
+    std::cout << "{\"type\":\"source_status\",\"source_type\":\"rtsp\",\"source_status\":\""
+              << source_status << "\",\"reconnect_attempts\":" << reconnect_attempts
+              << ",\"stream_epoch\":" << stream_epoch << "}\n" << std::flush;
 }
 
 std::string event_json(const edge::RoiEventTransition& event, std::uint64_t frame_sequence,
                        double pts_ms, const std::string& evidence, const std::string& model,
-                       const std::string& event_id, const std::string& timestamp) {
+                       const std::string& event_id, const std::string& timestamp,
+                       const char* source_id) {
     const auto& d = event.detection;
     std::ostringstream out;
     out << std::fixed << std::setprecision(4)
@@ -505,7 +550,8 @@ std::string event_json(const edge::RoiEventTransition& event, std::uint64_t fram
         << "\",\"state\":\"" << edge::roi_event_state_name(event.type)
         << "\",\"transition_reason\":\"" << edge::roi_event_reason(event.type)
         << "\",\"timestamp_utc\":\""
-        << json_escape(timestamp) << "\",\"source_id\":\"local-file\",\"frame_sequence\":"
+        << json_escape(timestamp) << "\",\"source_id\":\"" << source_id
+        << "\",\"frame_sequence\":"
         << frame_sequence << ",\"source_pts_ms\":" << pts_ms
         << ",\"track_id\":" << event.track_id << ",\"class_id\":" << d.class_id
         << ",\"label\":\"" << json_escape(d.label ? d.label : "unknown")
@@ -522,9 +568,14 @@ std::string event_json(const edge::RoiEventTransition& event, std::uint64_t fram
 
 int main(int argc, char** argv) {
     try {
+        std::signal(SIGINT, request_shutdown);
+        std::signal(SIGTERM, request_shutdown);
         const Options options = parse_args(argc, argv);
+        const bool rtsp_source = is_rtsp_source(options.video);
         if (!fs::exists(options.model)) throw std::runtime_error("model file does not exist: " + options.model);
-        if (!fs::exists(options.video)) throw std::runtime_error("video file does not exist: " + options.video);
+        if (!rtsp_source && !fs::exists(options.video)) {
+            throw std::runtime_error("video file does not exist: " + options.video);
+        }
         fs::create_directories(fs::path(options.state_dir) / "evidence");
 
         if (init_post_process() != 0) throw std::runtime_error("failed to load COCO labels from ./model/coco_80_labels_list.txt");
@@ -533,6 +584,8 @@ int main(int argc, char** argv) {
             RknnYoloEngine engine(options.model, options.raw_dump_dir);
             edge::BoundedQueue<Frame> queue(options.queue_capacity, options.queue_policy);
             std::atomic<std::uint64_t> decoded{0};
+            std::atomic<std::uint64_t> reconnect_attempts{0};
+            std::atomic<std::uint64_t> stream_epoch{0};
             std::string producer_error;
             const auto started = Clock::now();
             const auto run_started_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -540,26 +593,82 @@ int main(int argc, char** argv) {
 
             std::thread producer([&] {
                 try {
-                    cv::VideoCapture capture(options.video);
-                    if (!capture.isOpened()) {
+                    cv::VideoCapture capture;
+                    auto open_source = [&]() {
+                        if (rtsp_source) {
+                            const auto parameters = rtsp_open_parameters();
+                            return capture.open(options.video, cv::CAP_FFMPEG, parameters);
+                        }
+                        return capture.open(options.video);
+                    };
+                    if (rtsp_source) {
+                        // OpenCV's FFmpeg backend reads this process-level option for RTSP transport.
+                        ::setenv("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp", 1);
+                    }
+                    if (!rtsp_source && !open_source()) {
                         producer_error = "OpenCV could not open the video source";
                         queue.close();
                         return;
                     }
-                    const double source_fps = capture.get(cv::CAP_PROP_FPS);
-                    const bool pace_source = std::isfinite(source_fps) && source_fps > 0.0 && source_fps <= 240.0;
+                    const double source_fps = rtsp_source ? 0.0 : capture.get(cv::CAP_PROP_FPS);
+                    const bool pace_source = !rtsp_source && std::isfinite(source_fps) &&
+                                             source_fps > 0.0 && source_fps <= 240.0;
                     const auto frame_period = pace_source
                         ? std::chrono::duration_cast<Clock::duration>(std::chrono::duration<double>(1.0 / source_fps))
                         : Clock::duration::zero();
                     auto next_frame_at = Clock::now();
-                    std::cerr << "video source_fps=" << source_fps
-                              << " pacing=" << (pace_source ? "media-rate" : "disabled")
-                              << " looping=" << (options.loop_video ? "enabled" : "disabled") << '\n';
+                    if (rtsp_source) {
+                        std::cerr << "video source_type=rtsp pacing=disabled reconnect=enabled\n";
+                    } else {
+                        std::cerr << "video source_type=local-file source_fps=" << source_fps
+                                  << " pacing=" << (pace_source ? "media-rate" : "disabled")
+                                  << " looping=" << (options.loop_video ? "enabled" : "disabled") << '\n';
+                    }
                     cv::Mat frame;
                     std::uint64_t sequence = 0;
+                    std::uint64_t local_stream_epoch = 0;
                     double last_pts_ms = -1.0;
-                    while (true) {
-                        if (!capture.read(frame)) {
+                    bool ever_decoded = false;
+                    bool awaiting_reconnect = false;
+                    std::chrono::milliseconds retry_delay{500};
+                    while (!shutdown_requested) {
+                        if (rtsp_source && !capture.isOpened()) {
+                            bool opened = false;
+                            try {
+                                opened = open_source();
+                            } catch (const std::exception&) {
+                                opened = false;
+                            }
+                            if (!opened) {
+                                capture.release();
+                                const auto attempt = reconnect_attempts.fetch_add(1) + 1;
+                                emit_source_status(ever_decoded ? "reconnecting" : "connecting",
+                                                   attempt, local_stream_epoch);
+                                std::cerr << "RTSP reconnect attempt=" << attempt << '\n';
+                                if (!wait_for_retry(retry_delay)) break;
+                                retry_delay = std::min(retry_delay * 2, std::chrono::milliseconds(5000));
+                                continue;
+                            }
+                        }
+
+                        bool frame_read = false;
+                        try {
+                            frame_read = capture.read(frame) && !frame.empty();
+                        } catch (const std::exception&) {
+                            frame_read = false;
+                        }
+                        if (!frame_read) {
+                            if (rtsp_source) {
+                                capture.release();
+                                awaiting_reconnect = ever_decoded;
+                                const auto attempt = reconnect_attempts.fetch_add(1) + 1;
+                                emit_source_status(ever_decoded ? "reconnecting" : "connecting",
+                                                   attempt, local_stream_epoch);
+                                std::cerr << "RTSP reconnect attempt=" << attempt << '\n';
+                                if (!wait_for_retry(retry_delay)) break;
+                                retry_delay = std::min(retry_delay * 2, std::chrono::milliseconds(5000));
+                                continue;
+                            }
                             if (!options.loop_video) break;
                             capture.release();
                             if (!capture.open(options.video)) {
@@ -571,22 +680,40 @@ int main(int argc, char** argv) {
                                 break;
                             }
                         }
-                        if (frame.empty()) continue;
+                        if (rtsp_source) {
+                            if (awaiting_reconnect) {
+                                ++local_stream_epoch;
+                                stream_epoch.store(local_stream_epoch);
+                                awaiting_reconnect = false;
+                                retry_delay = std::chrono::milliseconds(500);
+                                std::cerr << "RTSP stream reconnected epoch=" << local_stream_epoch << '\n';
+                                emit_source_status("connected", reconnect_attempts.load(),
+                                                   local_stream_epoch);
+                            }
+                            if (!ever_decoded) {
+                                emit_source_status("connected", reconnect_attempts.load(),
+                                                   local_stream_epoch);
+                            }
+                            ever_decoded = true;
+                        }
                         ++sequence;
-                        double pts_ms = capture.get(cv::CAP_PROP_POS_MSEC);
-                        if (!std::isfinite(pts_ms) || pts_ms < 0.0 ||
-                            (sequence > 1 && pts_ms <= last_pts_ms)) {
+                        double pts_ms = rtsp_source
+                            ? milliseconds(Clock::now() - started)
+                            : capture.get(cv::CAP_PROP_POS_MSEC);
+                        if (!rtsp_source && (!std::isfinite(pts_ms) || pts_ms < 0.0 ||
+                            (sequence > 1 && pts_ms <= last_pts_ms))) {
                             pts_ms = pace_source
                                 ? static_cast<double>(sequence - 1) * 1000.0 / source_fps
                                 : milliseconds(Clock::now() - started);
                         }
-                        if (sequence > 1 && pts_ms <= last_pts_ms) {
+                        if (!rtsp_source && sequence > 1 && pts_ms <= last_pts_ms) {
                             pts_ms = last_pts_ms + (pace_source ? 1000.0 / source_fps : 1.0);
                         }
                         Frame item;
                         item.image = frame.clone();
                         item.sequence = sequence;
                         item.pts_ms = pts_ms;
+                        item.stream_epoch = local_stream_epoch;
                         last_pts_ms = pts_ms;
                         item.decoded_at = Clock::now();
                         if (queue.push(std::move(item)) == edge::QueuePushResult::Closed) break;
@@ -603,7 +730,7 @@ int main(int argc, char** argv) {
                     }
                     queue.close();
                 } catch (const std::exception& error) {
-                    producer_error = error.what();
+                    producer_error = rtsp_source ? "RTSP capture failed unexpectedly" : error.what();
                     queue.close();
                 }
             });
@@ -611,6 +738,7 @@ int main(int argc, char** argv) {
             edge::IoUTracker tracker;
             edge::RoiEventMachine roi_event_machine(options.dwell_threshold,
                                                     options.roi_debounce_frames);
+            std::uint64_t processed_stream_epoch = 0;
             std::deque<double> latency_window;
             std::uint64_t processed = 0;
             std::uint64_t detection_total = 0;
@@ -622,6 +750,13 @@ int main(int argc, char** argv) {
             double last_queue_wait = 0.0, last_e2e = 0.0;
             Frame frame;
             while (queue.pop(frame)) {
+                if (frame.stream_epoch != processed_stream_epoch) {
+                    tracker.reset();
+                    roi_event_machine.reset_stream();
+                    roi_occupancy_count = 0;
+                    processed_stream_epoch = frame.stream_epoch;
+                    std::cerr << "stream state reset epoch=" << processed_stream_epoch << '\n';
+                }
                 const auto process_start = Clock::now();
                 last_queue_wait = milliseconds(process_start - frame.decoded_at);
                 try {
@@ -685,9 +820,14 @@ int main(int argc, char** argv) {
                         for (const auto& pending : pending_events) {
                             const std::string event_id = pending.second;
                             const auto timestamp = utc_timestamp(std::chrono::system_clock::now());
-                            std::cout << event_json(pending.first, frame.sequence, frame.pts_ms,
-                                                    evidence, basename(options.model), event_id, timestamp)
-                                      << '\n' << std::flush;
+                            const auto payload = event_json(
+                                pending.first, frame.sequence, frame.pts_ms, evidence,
+                                basename(options.model), event_id, timestamp,
+                                rtsp_source ? "rtsp" : "local-file");
+                            {
+                                std::lock_guard<std::mutex> output_lock(stdout_mutex);
+                                std::cout << payload << '\n' << std::flush;
+                            }
                             ++event_total;
                         }
                     }
@@ -700,7 +840,10 @@ int main(int argc, char** argv) {
                         emit_metric(processed, detection_total, decoded.load(), queue, started,
                                     last_preprocess, last_inference, last_postprocess,
                                     last_queue_wait, last_e2e, latency_window,
-                                    roi_occupancy_count, cumulative_roi_entries, "running");
+                                    roi_occupancy_count, cumulative_roi_entries,
+                                    reconnect_attempts.load(), stream_epoch.load(),
+                                    rtsp_source ? "rtsp" : "local-file",
+                                    rtsp_source ? "connected" : "not-applicable", "running");
                     }
                 } catch (const std::exception& error) {
                     std::cerr << "frame processing failed at sequence " << frame.sequence
@@ -711,11 +854,11 @@ int main(int argc, char** argv) {
                 }
             }
             producer.join();
-            if (decoded.load() == 0) {
+            if (decoded.load() == 0 && !shutdown_requested) {
                 std::cerr << "video input failed: "
                           << (producer_error.empty() ? "no frames decoded" : producer_error) << '\n';
                 exit_code = 2;
-            } else if (!producer_error.empty()) {
+            } else if (!producer_error.empty() && !shutdown_requested) {
                 std::cerr << "video producer stopped after input error: " << producer_error << '\n';
                 exit_code = 3;
             }
@@ -723,6 +866,9 @@ int main(int argc, char** argv) {
                         last_preprocess, last_inference, last_postprocess,
                         last_queue_wait, last_e2e, latency_window,
                         roi_occupancy_count, cumulative_roi_entries,
+                        reconnect_attempts.load(), stream_epoch.load(),
+                        rtsp_source ? "rtsp" : "local-file",
+                        rtsp_source ? "connected" : "not-applicable",
                         exit_code == 0 ? "completed" : "error");
             std::cerr << "worker completed: decoded=" << decoded.load()
                       << " processed=" << processed << " detections=" << detection_total

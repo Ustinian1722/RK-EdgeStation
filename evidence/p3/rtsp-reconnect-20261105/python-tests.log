@@ -1,0 +1,23 @@
+test_loopback_health_events_and_dashboard (test_server.LocalApiTests) ... http 127.0.0.1 "GET /api/health HTTP/1.1" 200 -
+http 127.0.0.1 "GET /api/events?limit=5 HTTP/1.1" 200 -
+http 127.0.0.1 "GET / HTTP/1.1" 200 -
+ok
+test_default_and_fifo_policy_reach_worker_command (test_server.ServerQueuePolicyTests) ... ok
+test_invalid_rtsp_uri_requires_host (test_server.ServerQueuePolicyTests) ... ok
+test_rtsp_source_preserves_uri_and_hides_credentials (test_server.ServerQueuePolicyTests) ... ok
+test_reconnect_state_updates_health_without_persisting_each_retry (test_server.SourceStatusTests) ... ok
+test_worker_failure_is_signaled_for_service_manager_restart (test_server.SourceStatusTests) ... ok
+test_sqlite_write_failure_is_counted_and_recovers (test_server.StorageRecoveryTests) ... SQLite unavailable: write event: OperationalError: disk I/O error
+ok
+test_unavailable_sqlite_is_reported_and_retried (test_server.StorageRecoveryTests) ... SQLite initialization failed: OperationalError: simulated unavailable database
+http 127.0.0.1 "GET /api/health HTTP/1.1" 200 -
+http 127.0.0.1 "GET /api/events HTTP/1.1" 503 -
+http 127.0.0.1 "GET /api/events HTTP/1.1" 200 -
+http 127.0.0.1 "GET /api/health HTTP/1.1" 200 -
+ok
+test_event_and_metric_round_trip (test_storage.EventStoreTests) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 1.326s
+
+OK

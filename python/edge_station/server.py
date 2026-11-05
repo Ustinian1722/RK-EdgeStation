@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
+from .media_source import display_source, is_rtsp_source, resolve_worker_source
 from .storage import EventStore
 
 
@@ -47,6 +48,7 @@ class AppState:
         self.worker_status = "idle"
         self.worker_pid: int | None = None
         self.worker_exit_code: int | None = None
+        self.worker_failure = threading.Event()
         self.metrics: dict[str, Any] = {}
         self.model_name = ""
         self.video_name = ""
@@ -99,9 +101,9 @@ class AppState:
         self._mark_storage_available()
         return events
 
-    def start_worker(self, command: list[str], model: Path, video: Path) -> None:
+    def start_worker(self, command: list[str], model: Path, video: Path | str) -> None:
         self.model_name = model.name
-        self.video_name = video.name
+        self.video_name = display_source(str(video))
         self.worker_status = "starting"
         self.process = subprocess.Popen(
             command,
@@ -134,6 +136,10 @@ class AppState:
                         self._mark_storage_failure("write event", error)
                     else:
                         self._mark_storage_available()
+                elif message.get("type") == "source_status":
+                    # Keep reconnect state visible between frames without storing every retry.
+                    with self.lock:
+                        self.metrics.update(message)
                 elif message.get("type") == "metric":
                     with self.lock:
                         self.metrics = message
@@ -150,6 +156,8 @@ class AppState:
             with self.lock:
                 self.worker_exit_code = code
                 self.worker_status = "completed" if code == 0 else "error"
+            if code != 0:
+                self.worker_failure.set()
 
     def snapshot(self) -> dict[str, Any]:
         event_count: int | None = None
@@ -261,7 +269,7 @@ def make_handler(state: AppState):
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="RK-EdgeStation local dashboard")
     parser.add_argument("--model", type=Path)
-    parser.add_argument("--video", type=Path)
+    parser.add_argument("--video")
     parser.add_argument("--worker", type=Path, default=ROOT / "build" / "bin" / "rk_edge_worker")
     parser.add_argument("--state-dir", type=Path, default=ROOT / "state")
     parser.add_argument("--loop-video", action="store_true")
@@ -276,7 +284,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def build_worker_command(args: argparse.Namespace, worker: Path, model: Path,
-                         video: Path, state_dir: Path) -> list[str]:
+                         video: Path | str, state_dir: Path) -> list[str]:
     command = [
         str(worker), "--model", str(model), "--video", str(video),
         "--state-dir", str(state_dir), "--roi", args.roi,
@@ -316,11 +324,13 @@ def main() -> int:
 
     server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(state))
     server.daemon_threads = True
+    server.timeout = 0.5
     if args.model is not None and args.video is not None:
         model = args.model.resolve()
-        video = args.video.resolve()
+        video = resolve_worker_source(args.video)
         worker = args.worker.resolve()
-        if not model.is_file() or not video.is_file() or not worker.is_file():
+        if (not model.is_file() or not worker.is_file() or
+                (not is_rtsp_source(video) and not Path(video).is_file())):
             print("model, video, and worker must all exist", file=sys.stderr)
             return 2
         command = build_worker_command(args, worker, model, video, state_dir)
@@ -333,13 +343,14 @@ def main() -> int:
 
     signal.signal(signal.SIGTERM, request_shutdown)
     try:
-        server.serve_forever(poll_interval=0.5)
+        while not state.worker_failure.is_set():
+            server.handle_request()
     except KeyboardInterrupt:
         pass
     finally:
         server.server_close()
         state.stop()
-    return 0
+    return 1 if state.worker_failure.is_set() else 0
 
 
 if __name__ == "__main__":

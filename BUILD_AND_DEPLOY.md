@@ -1,6 +1,6 @@
 # Build and deploy
 
-Status: native RK3576 build/tests and still/moving project-model detection-to-event/API smoke runs pass. Full P1 acceptance remains open for tracker continuity, numerical model comparison, labeled accuracy, and reliable NPU-utilization evidence.
+Status: native RK3576 build/tests, still/moving detection-to-event/API smokes, synthetic RTSP reconnect, and temporary systemd user-service recovery pass. Full P1 acceptance remains open for tracker continuity, numerical model comparison, labeled accuracy, and reliable NPU-utilization evidence.
 
 ## Current supported development path
 
@@ -20,6 +20,12 @@ PYTHONPATH=python python3 -m unittest discover -s tests/python -v
 ```
 
 The same sequence is available as `bash scripts/build_and_test_board.sh`; it passed on the target board on 2026-11-05 after the ROI event and media-time changes. Launch a local MP4/model run with `bash scripts/run_demo.sh MODEL.rknn INPUT.mp4`. The UI listens on `127.0.0.1:8080` by default. Queue policy defaults to `latest` (replace the oldest pending frame); select FIFO with `bash scripts/run_demo.sh MODEL.rknn INPUT.mp4 state 8080 fifo` or pass `--queue-policy fifo` to the worker/service. FIFO keeps queued frames in order and drops newly decoded frames while full. The worker also supports `--dwell-ms N` (default 5000) and `--roi-debounce-frames N` (default 2); the Python service forwards these options. Dwell time follows monotonicized media timestamps, using nominal FPS or decode elapsed time when source timestamps are invalid. The opt-in `--loop-video` flag reopens a local MP4 at EOF while preserving increasing frame sequence and monotonicized media time; normal runs remain one-shot. Model files and run state stay outside Git. The first project model was converted in the isolated WSL Toolkit2 environment and run from the board workspace; see [MODEL_CONVERSION.md](MODEL_CONVERSION.md) and [P1_ACCEPTANCE_REPORT.md](P1_ACCEPTANCE_REPORT.md).
+
+## RTSP input and reconnect
+
+Pass an RTSP URL as the service's `--video` value; local-file path resolution and existence checks are skipped for RTSP sources. The worker opens RTSP through OpenCV's FFmpeg backend over TCP with 3-second open/read timeouts. A failed read or connection is released and retried with an interruptible 0.5-to-5-second exponential backoff. Frame sequence stays monotonic across reconnects; each successful reconnection increments `stream_epoch`, resets tracker and current ROI occupancy, and preserves cumulative ROI entries. Health metrics include input type, connected/reconnecting state, reconnect attempts, and stream epoch. Retry status updates the health API without writing every retry to SQLite. A nonzero worker exit makes the Python service exit with failure so `Restart=on-failure` can recover it. Health source display strips URL credentials, path, and query parameters.
+
+The board reconnect gate passed against a synthetic 640×480@10 FPS JPEG/RTP stream served from the isolated WSL test environment through an SSH reverse tunnel. On the RK3576 worker, the run decoded 667 frames, processed 582, and emitted 7 stored events. During source loss, `/api/health` showed `source_status=reconnecting` after 3 attempts; restoring the source resumed inference at `source_status=connected`, `reconnect_attempts=4`, and `stream_epoch=1`. SIGTERM stopped the worker cleanly and SQLite integrity passed. This verifies software reconnect behavior with the selected codec/transport; physical cameras, alternate codecs, authentication, and customer network behavior remain separate checks. The reproducible harness is [scripts/rtsp_test_server.py](scripts/rtsp_test_server.py), and the captured evidence is in [evidence/p3/rtsp-reconnect-20261105](evidence/p3/rtsp-reconnect-20261105/summary.md).
 
 ## P3 stability run
 
@@ -71,6 +77,12 @@ Set `SOURCE_COMMIT` to the probe source commit synced to the board. The 2026-11-
 - ROI enter/leave transitions require the configured number of consecutive processed frames inside/outside. Dwell emits once per confirmed visit. Current occupancy counts confirmed tracks; when a track expires while inside, the count decreases but no synthetic leave event is emitted. The board event run used a queue of 150 for reproducible frame-by-frame behavior and is not a live latency result.
 - During repeated-still queue probes, the worker processed 88/150 and 91/150 frames at capacity 1. One run recorded shared NPU/IOMMU interrupt counts +5,096 during inference and 0 change during a two-second idle check. In the dynamic run, a later same-boot read was lower than the captured sample, so IRQ evidence remains exploratory. `/dev/rknpu*` remains absent, per-core utilization is not exposed, and devfreq stayed at 300 MHz.
 - systemd installation and a LAN-bound API are P3 tasks and require review of their exact unit/configuration before activation.
+
+## Prepared user-level systemd unit
+
+[`deploy/systemd/rk-edge-station@.service`](deploy/systemd/rk-edge-station@.service) is a per-user unit template. It runs the service as the logged-in board account, binds the UI/API through the application's existing loopback listener, restarts the service after a failure, uses a private `/tmp`, and allows writes only under `%h/.local/state/rk-edge-station`. [`deploy/systemd/demo.env.example`](deploy/systemd/demo.env.example) lists the required model, source, state, port, ROI, queue, and timing values. Copy it to `~/.config/rk-edge-station/demo.env`, replace the model/source values, protect it with mode 600, and create `~/.local/state/rk-edge-station` before activation. For an RTSP URL containing credentials, protect the environment file; the health API redacts URL details, while the process command line can still be visible to users with permission to inspect that process.
+
+The unit passed `systemd-analyze verify` and a temporary `systemctl --user` recovery run on the RK3576. SIGKILL of the service main process triggered a restart; SIGKILL of the worker caused the Python service to exit nonzero and triggered a second restart. The test instance was stopped, its copied unit and environment file were removed, and it was not enabled for boot. Review the exact unit and environment configuration before permanent activation. A user unit starts with the user's systemd manager; boot-time startup without login would require a separate lingering decision.
 
 ## Deployment evidence
 

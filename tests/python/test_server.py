@@ -17,6 +17,7 @@ except ImportError:  # Windows host tests skip the POSIX file-size-limit probe.
 
 from edge_station.server import AppState, build_worker_command, make_handler, parse_args
 from edge_station.storage import EventStore
+from edge_station.media_source import display_source, resolve_worker_source
 
 
 class LocalApiTests(unittest.TestCase):
@@ -65,6 +66,8 @@ class LocalApiTests(unittest.TestCase):
                     page = response.read().decode("utf-8")
                 self.assertIn("RK-EdgeStation", page)
                 self.assertIn("ROI occupancy", page)
+                self.assertIn("reconnect_attempts", page)
+                self.assertIn("source_status", page)
                 self.assertIn("event.state", page)
             finally:
                 server.shutdown()
@@ -100,6 +103,73 @@ class ServerQueuePolicyTests(unittest.TestCase):
             Path("state"),
         )
         self.assertIn("--loop-video", loop_command)
+
+    def test_rtsp_source_preserves_uri_and_hides_credentials(self):
+        source = "rtsp://u:p@camera.example:8554/live?x=1"
+        with patch("sys.argv", ["edge_station.server", "--video", source]):
+            args = parse_args()
+        self.assertEqual(args.video, source)
+        self.assertEqual(resolve_worker_source(args.video), source)
+        self.assertEqual(display_source(args.video), "rtsp://camera.example:8554")
+
+        command = build_worker_command(
+            args,
+            Path("worker"),
+            Path("model.rknn"),
+            args.video,
+            Path("state"),
+        )
+        self.assertEqual(command[command.index("--video") + 1], source)
+
+    def test_invalid_rtsp_uri_requires_host(self):
+        with self.assertRaises(ValueError):
+            resolve_worker_source("rtsp:///stream")
+
+
+class SourceStatusTests(unittest.TestCase):
+    def test_reconnect_state_updates_health_without_persisting_each_retry(self):
+        class WorkerOutput:
+            def __init__(self):
+                messages = [
+                    {"type": "metric", "status": "running", "processed_frames": 10},
+                    {"type": "source_status", "source_type": "rtsp",
+                     "source_status": "reconnecting", "reconnect_attempts": 3,
+                     "stream_epoch": 0},
+                ]
+                self.stdout = io.StringIO("".join(json.dumps(message) + "\n" for message in messages))
+
+            def wait(self):
+                return 0
+
+        with tempfile.TemporaryDirectory() as directory:
+            state_dir = Path(directory)
+            store = EventStore(state_dir / "events.sqlite3")
+            state = AppState(store, state_dir / "evidence")
+            state.process = WorkerOutput()
+            state._read_worker()
+
+            metrics = state.snapshot()["metrics"]
+            self.assertEqual(metrics["processed_frames"], 10)
+            self.assertEqual(metrics["source_status"], "reconnecting")
+            self.assertEqual(metrics["reconnect_attempts"], 3)
+            self.assertEqual(metrics["stream_epoch"], 0)
+            self.assertEqual(store.latest_metric()["processed_frames"], 10)
+            self.assertFalse(state.worker_failure.is_set())
+
+    def test_worker_failure_is_signaled_for_service_manager_restart(self):
+        class FailedWorker:
+            stdout = io.StringIO("")
+
+            def wait(self):
+                return 2
+
+        with tempfile.TemporaryDirectory() as directory:
+            state_dir = Path(directory)
+            state = AppState(EventStore(state_dir / "events.sqlite3"), state_dir / "evidence")
+            state.process = FailedWorker()
+            state._read_worker()
+            self.assertTrue(state.worker_failure.is_set())
+            self.assertEqual(state.worker_status, "error")
 
 
 class StorageRecoveryTests(unittest.TestCase):

@@ -44,6 +44,7 @@ public:
 
     std::size_t occupancy_count() const noexcept;
     std::uint64_t cumulative_entries() const noexcept { return cumulative_entries_; }
+    void reset_stream() noexcept { tracks_.clear(); }
 
 private:
     struct TrackState {

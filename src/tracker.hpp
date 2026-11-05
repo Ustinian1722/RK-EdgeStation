@@ -27,6 +27,7 @@ public:
     explicit IoUTracker(float match_threshold = 0.30F, int max_missed = 5);
     std::vector<TrackedDetection> update(const std::vector<Detection>& detections);
     std::set<std::uint64_t> active_ids() const;
+    void reset() noexcept { tracks_.clear(); }
 
 private:
     struct TrackState {
