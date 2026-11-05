@@ -1,0 +1,17 @@
+test_loopback_health_events_and_dashboard (test_server.LocalApiTests.test_loopback_health_events_and_dashboard) ... http 127.0.0.1 "GET /api/health HTTP/1.1" 200 -
+http 127.0.0.1 "GET /api/events?limit=5 HTTP/1.1" 200 -
+http 127.0.0.1 "GET / HTTP/1.1" 200 -
+ok
+test_default_and_fifo_policy_reach_worker_command (test_server.ServerQueuePolicyTests.test_default_and_fifo_policy_reach_worker_command) ... ok
+test_unavailable_sqlite_is_reported_and_retried (test_server.StorageRecoveryTests.test_unavailable_sqlite_is_reported_and_retried) ... SQLite initialization failed: OperationalError: simulated unavailable database
+http 127.0.0.1 "GET /api/health HTTP/1.1" 200 -
+http 127.0.0.1 "GET /api/events HTTP/1.1" 503 -
+http 127.0.0.1 "GET /api/events HTTP/1.1" 200 -
+http 127.0.0.1 "GET /api/health HTTP/1.1" 200 -
+ok
+test_event_and_metric_round_trip (test_storage.EventStoreTests.test_event_and_metric_round_trip) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 1.261s
+
+OK

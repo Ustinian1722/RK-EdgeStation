@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import signal
+import sqlite3
 import subprocess
 import sys
 import threading
@@ -18,12 +19,31 @@ from .storage import EventStore
 ROOT = Path(__file__).resolve().parents[2]
 
 
+class StorageUnavailable(RuntimeError):
+    pass
+
+
 class AppState:
-    def __init__(self, store: EventStore, evidence_dir: Path):
+    def __init__(
+        self,
+        store: EventStore | None,
+        evidence_dir: Path,
+        store_path: Path | None = None,
+        storage_error: str | None = None,
+    ):
         self.store = store
+        self.store_path = Path(store_path) if store_path is not None else None
         self.evidence_dir = evidence_dir.resolve()
         self.started_at = time.monotonic()
         self.lock = threading.Lock()
+        self.storage_init_lock = threading.Lock()
+        self.storage_status = "available" if store is not None else "unavailable"
+        self.storage_error = storage_error
+        self.storage_failures = 1 if storage_error else 0
+        self.event_write_failures = 0
+        self.metric_write_failures = 0
+        if storage_error:
+            print(f"SQLite initialization failed: {storage_error}", file=sys.stderr)
         self.worker_status = "idle"
         self.worker_pid: int | None = None
         self.worker_exit_code: int | None = None
@@ -32,6 +52,52 @@ class AppState:
         self.video_name = ""
         self.process: subprocess.Popen[str] | None = None
         self.reader: threading.Thread | None = None
+
+    def _mark_storage_failure(self, operation: str, error: Exception) -> str:
+        detail = f"{operation}: {type(error).__name__}: {error}"
+        with self.lock:
+            should_log = self.storage_status != "unavailable"
+            self.storage_status = "unavailable"
+            self.storage_error = detail
+            self.storage_failures += 1
+            if operation == "write event":
+                self.event_write_failures += 1
+            elif operation == "write metric":
+                self.metric_write_failures += 1
+        if should_log:
+            print(f"SQLite unavailable: {detail}", file=sys.stderr)
+        return detail
+
+    def _mark_storage_available(self) -> None:
+        with self.lock:
+            self.storage_status = "available"
+
+    def _get_store(self) -> EventStore:
+        with self.storage_init_lock:
+            if self.store is not None:
+                return self.store
+            if self.store_path is None:
+                error = StorageUnavailable(self.storage_error or "database path is not configured")
+                self._mark_storage_failure("initialize", error)
+                raise error
+            try:
+                self.store = EventStore(self.store_path)
+            except (OSError, sqlite3.Error) as error:
+                detail = self._mark_storage_failure("initialize", error)
+                raise StorageUnavailable(detail) from error
+            self._mark_storage_available()
+            return self.store
+
+    def read_events(self, limit: int) -> list[dict[str, Any]]:
+        try:
+            events = self._get_store().events(limit)
+        except StorageUnavailable:
+            raise
+        except (OSError, sqlite3.Error, ValueError, TypeError) as error:
+            detail = self._mark_storage_failure("read events", error)
+            raise StorageUnavailable(detail) from error
+        self._mark_storage_available()
+        return events
 
     def start_worker(self, command: list[str], model: Path, video: Path) -> None:
         self.model_name = model.name
@@ -61,16 +127,24 @@ class AppState:
                     continue
                 if message.get("type") == "event":
                     try:
-                        self.store.add_event(message)
-                    except (KeyError, TypeError, ValueError) as error:
-                        print(f"event persistence failed: {error}", file=sys.stderr)
+                        self._get_store().add_event(message)
+                    except StorageUnavailable as error:
+                        self._mark_storage_failure("write event", error)
+                    except (OSError, sqlite3.Error, KeyError, TypeError, ValueError) as error:
+                        self._mark_storage_failure("write event", error)
+                    else:
+                        self._mark_storage_available()
                 elif message.get("type") == "metric":
                     with self.lock:
                         self.metrics = message
                     try:
-                        self.store.add_metric(message)
-                    except Exception as error:
-                        print(f"metric persistence failed: {error}", file=sys.stderr)
+                        self._get_store().add_metric(message)
+                    except StorageUnavailable as error:
+                        self._mark_storage_failure("write metric", error)
+                    except (OSError, sqlite3.Error, TypeError, ValueError) as error:
+                        self._mark_storage_failure("write metric", error)
+                    else:
+                        self._mark_storage_available()
         finally:
             code = self.process.wait()
             with self.lock:
@@ -78,11 +152,24 @@ class AppState:
                 self.worker_status = "completed" if code == 0 else "error"
 
     def snapshot(self) -> dict[str, Any]:
+        event_count: int | None = None
+        try:
+            event_count = self._get_store().event_count()
+        except (StorageUnavailable, OSError, sqlite3.Error, ValueError, TypeError) as error:
+            if not isinstance(error, StorageUnavailable):
+                self._mark_storage_failure("read event count", error)
+        else:
+            self._mark_storage_available()
         with self.lock:
             metrics = dict(self.metrics)
             status = self.worker_status
             pid = self.worker_pid
             exit_code = self.worker_exit_code
+            storage_status = self.storage_status
+            storage_error = self.storage_error
+            storage_failures = self.storage_failures
+            event_write_failures = self.event_write_failures
+            metric_write_failures = self.metric_write_failures
         return {
             "status": status,
             "worker_pid": pid,
@@ -90,7 +177,12 @@ class AppState:
             "model": self.model_name,
             "source": self.video_name,
             "uptime_seconds": round(time.monotonic() - self.started_at, 3),
-            "event_count": self.store.event_count(),
+            "event_count": event_count,
+            "storage_status": storage_status,
+            "storage_last_error": storage_error,
+            "storage_failures": storage_failures,
+            "event_write_failures": event_write_failures,
+            "metric_write_failures": metric_write_failures,
             "metrics": metrics,
         }
 
@@ -138,9 +230,12 @@ def make_handler(state: AppState):
             if parsed.path == "/api/events":
                 limit = parse_qs(parsed.query).get("limit", ["100"])[0]
                 try:
-                    events = state.store.events(int(limit))
+                    events = state.read_events(int(limit))
                 except ValueError:
                     self._json(400, {"error": "limit must be an integer"})
+                    return
+                except StorageUnavailable as error:
+                    self._json(503, {"error": "event storage unavailable", "detail": str(error)})
                     return
                 self._json(200, {"events": events})
                 return
@@ -206,7 +301,14 @@ def main() -> int:
     state_dir = state_dir.resolve()
     evidence_dir = state_dir / "evidence"
     evidence_dir.mkdir(parents=True, exist_ok=True)
-    state = AppState(EventStore(state_dir / "events.sqlite3"), evidence_dir)
+    database = state_dir / "events.sqlite3"
+    try:
+        store = EventStore(database)
+        storage_error = None
+    except (OSError, sqlite3.Error) as error:
+        store = None
+        storage_error = f"{type(error).__name__}: {error}"
+    state = AppState(store, evidence_dir, database, storage_error)
 
     server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(state))
     server.daemon_threads = True

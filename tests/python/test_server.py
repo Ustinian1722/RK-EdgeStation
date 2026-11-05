@@ -5,6 +5,7 @@ import unittest
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
+from urllib.error import HTTPError
 from urllib.request import urlopen
 
 from edge_station.server import AppState, build_worker_command, make_handler, parse_args
@@ -80,6 +81,49 @@ class ServerQueuePolicyTests(unittest.TestCase):
             Path("state"),
         )
         self.assertEqual(command[command.index("--queue-policy") + 1], "fifo")
+
+
+class StorageRecoveryTests(unittest.TestCase):
+    def test_unavailable_sqlite_is_reported_and_retried(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state_dir = Path(directory)
+            database = state_dir / "events.sqlite3"
+            database.mkdir()
+            state = AppState(
+                None,
+                state_dir / "evidence",
+                database,
+                "OperationalError: simulated unavailable database",
+            )
+            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(state))
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            base = f"http://127.0.0.1:{server.server_port}"
+            try:
+                with urlopen(base + "/api/health", timeout=3) as response:
+                    health = json.load(response)
+                self.assertEqual(health["storage_status"], "unavailable")
+                self.assertIsNone(health["event_count"])
+
+                with self.assertRaises(HTTPError) as unavailable:
+                    urlopen(base + "/api/events", timeout=3)
+                self.assertEqual(unavailable.exception.code, 503)
+                self.assertEqual(json.load(unavailable.exception)["error"], "event storage unavailable")
+
+                database.rmdir()
+                with urlopen(base + "/api/events", timeout=3) as response:
+                    events = json.load(response)
+                self.assertEqual(events["events"], [])
+
+                with urlopen(base + "/api/health", timeout=3) as response:
+                    recovered = json.load(response)
+                self.assertEqual(recovered["storage_status"], "available")
+                self.assertEqual(recovered["event_count"], 0)
+                self.assertIsNotNone(recovered["storage_last_error"])
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=3)
 
 
 if __name__ == "__main__":

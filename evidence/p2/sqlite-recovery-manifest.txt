@@ -1,0 +1,26 @@
+RK-EdgeStation SQLite unavailable/recovery check
+Date: 2026-11-05
+Base repository commit: 54e8b71
+Board: KICKPI K7 / RK3576 / Ubuntu 24.04.3 aarch64 / Python 3.12.3
+
+Command on board:
+  cd /home/kickpi/projects/RK-EdgeStation
+  PYTHONPATH=python python3 -m unittest discover -s tests/python -v
+
+Result: 4 Python API/storage tests passed. The new recovery test places a directory at
+the SQLite database path to simulate an unavailable database, verifies health remains
+available and /api/events returns HTTP 503, removes the obstruction, then verifies a
+later request initializes SQLite and the API returns HTTP 200 with an empty event list.
+The health payload includes event/metric write-failure counters, and the page retains
+the most recent storage error after recovery. The test uses a temporary directory and
+removes it on completion.
+
+This is an SQLite path failure/retry simulation. It did not exhaust the filesystem,
+measure low-disk behavior, restart the service, or test recovery of failed event writes.
+
+Synced source SHA-256 (local and board):
+  python/edge_station/server.py  b3c3aedaa9d5a8c7da3e2667a534beb730374380a369e7efca8293ed3eeea532
+  tests/python/test_server.py    7d00804d36a8d14d33fce02e0c84b72fa13adc52d8d24c49c96ce835ac156139
+  web/index.html                 8c3d8d3045ef0a9e08236d1232c6ca49e5bfb6bd8b8b637b975c384e4d2bc714
+
+Raw board test output: sqlite-recovery-board-python-tests.txt

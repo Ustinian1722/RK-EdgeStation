@@ -33,13 +33,18 @@
     ];
     async function refresh() {
       try {
-        const [health, metrics, eventData] = await Promise.all([
+        const [health, metrics, eventResponse] = await Promise.all([
           fetch('/api/health', {cache:'no-store'}).then(r => r.json()),
           fetch('/api/metrics', {cache:'no-store'}).then(r => r.json()),
-          fetch('/api/events?limit=30', {cache:'no-store'}).then(r => r.json())
+          fetch('/api/events?limit=30', {cache:'no-store'})
         ]);
+        const eventData = await eventResponse.json();
         const summary = document.getElementById('summary');
-        summary.textContent = `Source: ${health.source || 'not configured'} · Model: ${health.model || 'not configured'} · Events: ${health.event_count} · Uptime: ${health.uptime_seconds}s`;
+        const storageLabel = health.storage_status || 'unknown';
+        const storageDetail = health.storage_last_error
+          ? ` · Last storage error: ${health.storage_last_error} · failed event writes: ${health.event_write_failures || 0}`
+          : (storageLabel === 'available' ? '' : ` · ${eventData.detail || 'event history unavailable'}`);
+        summary.textContent = `Source: ${health.source || 'not configured'} · Model: ${health.model || 'not configured'} · Events: ${health.event_count ?? 'unavailable'} · Storage: ${storageLabel}${storageDetail} · Uptime: ${health.uptime_seconds}s`;
         const grid = document.getElementById('metrics');
         grid.replaceChildren(...metricKeys.map(([key, label]) => {
           const card = document.createElement('div'); card.className = 'card';
@@ -49,8 +54,10 @@
           card.append(value, caption); return card;
         }));
         const body = document.getElementById('events'); body.replaceChildren();
-        if (!eventData.events.length) { const row = body.insertRow(); const cell = row.insertCell(); cell.colSpan = 7; cell.textContent = 'No events yet'; }
-        for (const event of eventData.events) {
+        const events = Array.isArray(eventData.events) ? eventData.events : [];
+        if (!eventResponse.ok) { const row = body.insertRow(); const cell = row.insertCell(); cell.colSpan = 7; cell.textContent = `Event history unavailable: ${eventData.detail || eventData.error || eventResponse.status}`; }
+        else if (!events.length) { const row = body.insertRow(); const cell = row.insertCell(); cell.colSpan = 7; cell.textContent = 'No events yet'; }
+        for (const event of events) {
           const row = body.insertRow();
           for (const value of [event.timestamp_utc, `${event.label} · ${event.event_type}`, event.state ?? '—',
             event.track_id, Number(event.confidence).toFixed(3), event.roi_occupancy_count ?? '—']) {
