@@ -15,11 +15,11 @@
 - Started: `2026-11-05T14:12:38Z`.
 - Source commit recorded by the runner: `640d6f3`.
 - State directory: `.work/p3-soak-640d6f3-20261105` on the board.
-- Latest saved sample: `2026-11-05T15:45:41Z`, 5,582.70 seconds elapsed (about 1 hour 33 minutes).
-- Latest counters: 27,900 processed, 27,907 decoded, 7 dropped, 6 events, 0 SQLite/storage failures.
-- Latest resources: worker RSS 117,192 KiB, temperatures 26.85–27.77 °C, `MemAvailable` 7.56 GB, root free space 46.65 GB. NPU-load telemetry is unavailable.
+- Latest saved sample: `2026-11-05T15:51:41Z`, 5,942.82 seconds elapsed (about 1 hour 39 minutes).
+- Latest counters: 29,700 processed, 29,707 decoded, 7 dropped, 6 events, 0 SQLite/storage failures.
+- Latest resources: worker RSS 117,192 KiB, temperature 27.77 °C, `MemAvailable` 7.56 GB, root free space 46.65 GB. NPU-load telemetry is unavailable.
 
-The soak continues on its original loaded worker binary and the source commit above. The repo is now at `637441b`; that commit has short board RTSP and local-file integration checks, but has not yet had its own 24-hour run. Do not attribute this in-progress baseline soak to `637441b`. Preserve the current run through its final SQLite and evidence-path checks, then run the release-candidate soak if acceptance requires the exact pushed commit.
+The soak continues on its original loaded worker binary and the source commit above. The RTSP and service-recovery changes in `637441b` have short board RTSP and local-file integration checks, but no 24-hour run. Do not attribute this in-progress baseline soak to those changes. Preserve the current run through its final SQLite and evidence-path checks, then run the release-candidate soak if acceptance requires exact-commit validation.
 
 ## Open before calling P3 complete
 
