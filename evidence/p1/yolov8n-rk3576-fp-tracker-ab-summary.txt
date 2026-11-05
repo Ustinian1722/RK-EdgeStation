@@ -1,0 +1,23 @@
+RK3576 tracker association comparison
+Date: 2026-11-05 UTC
+Board: KICKPI K7 / RK3576 / Ubuntu 24.04.3 aarch64
+Baseline: greedy last-box IoU tracker from commit 1e6842a, compiled as a separate worker binary with the same board C++17/OpenCV/RKNN build settings.
+Candidate: velocity-predicted box plus class/area gating and globally ordered one-to-one IoU/center-distance assignment from the working tree.
+Model: yolov8n-rk3576-fp.rknn, SHA-256 2162e0cf6a71270c092353d94abb391ac111910ce178547ef80dd89b225dab0b
+Input: vtest-first150-10fps.mp4, 768x576, 150 frames at 10 FPS, SHA-256 aed460c93874b0bff1439df89ec6ea741f3df1128b061a3d29b97d4445ce4d49
+Worker settings: confidence 0.25, full-frame ROI 0,0,1,1, queue capacity 150. Each run processed the same complete 150-frame input with zero drops and reported 1,194 detections.
+
+Three repeated runs per implementation produced the same event tally in every repetition:
+- Baseline: 33 enter events each run; labels car=1, person=29, skis=2, truck=1.
+- Candidate: 29 enter events each run; labels car=1, person=25, skis=2, truck=1.
+- Candidate produced four fewer enter events per run (12.1%) while detection count, decoded/processed frames, and dropped-frame count remained identical. This is consistent with fewer track splits, but without ground-truth identities it could also reflect incorrect merges; it is not an accuracy or identity-continuity result. The two low-confidence skis outputs remain.
+
+Per-run performance observations (baseline / candidate):
+- Throughput ranges: 7.721-8.055 / 7.602-8.044 FPS.
+- End-to-end p50 ranges: 2,177-2,399 / 2,074-2,676 ms.
+- End-to-end p95 ranges: 3,506-4,263 / 3,571-4,614 ms.
+- RSS ranges: 134,476-171,992 / 136,016-178,536 kB.
+
+Queue capacity 150 preserved every frame for this association comparison but accumulated a large queue wait; p95 was 3.5-4.6 seconds, so these values do not represent the live latest-frame mode. They show the cost of retaining all frames when processing falls behind. No throughput or latency improvement is claimed. A separate latest-frame/API smoke with the candidate completed 129/150 frames, dropped 21, persisted 29 events, and returned completed health plus HTTP 200 from health/metrics/events.
+
+Raw worker JSONL and stderr are saved as tracker-iou-baseline-rep{1,2,3} and tracker-motion-rep{1,2,3} evidence files. Board CTest passed 2/2, Python API/storage tests passed 2/2, and the WSL C++ core test passed. Synthetic tracker tests cover motion extrapolation across a missed frame, reversed detection order, class isolation, and track expiry. Labeled detection and identity metrics remain required before accepting this behavior as an accuracy improvement.

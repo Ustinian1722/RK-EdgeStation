@@ -38,7 +38,7 @@ Every block is in one RK3576 Linux deployment. No Jetson, remote inference servi
 - `video`: source interface, OpenCV CPU fallback, GStreamer/MPP candidate, V4L2 camera adapter enabled only after sensor verification.
 - `preprocess`: deterministic CPU/OpenCV reference and optional RGA backend. Input/output pixel formats, strides, alignment, and copy count are explicit.
 - `inference`: `IInferenceEngine` interface; RKNN implementation owns context and output buffers with RAII. Mock implementation is for host CI only.
-- `vision`: detector decoding, stable-ID tracker, ROI geometry, event state machine, evidence extraction.
+- `vision`: detector decoding, class-gated velocity-predicted IoU/center association, ROI geometry, event state machine, evidence extraction. Current ID continuity is experimental and remains unvalidated against labeled identities.
 - `runtime`: bounded workers, FIFO/latest-frame policies, deadlines, backpressure, reconnect and cancellation.
 - `management`: loopback REST API, browser assets, model/source/ROI CRUD, authentication, and health routes.
 - `storage`: SQLite schema/migrations and structured event/evidence metadata.

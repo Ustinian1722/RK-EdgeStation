@@ -18,7 +18,7 @@ Status: requirements-derived plan. Current completed checks and limits are recor
 3. MPP GStreamer H.264 and H.265 decode, if matching sample media is available.
 4. RGA resize/color conversion with input/output checksum or pixel tolerance against the CPU reference.
 5. RKNN model output repeatability and longer output-release loop remain planned; the current run verifies tensor layout and successful output release on the tested frames.
-6. Detection → tracking → ROI event smoke passed on repeated still and moving sample video with timestamps, saved evidence, SQLite persistence, and API retrieval. Identity continuity is not accepted yet: the moving run emitted 42 unique track IDs for 42 enter events, including likely fragmentation. Dwell/leave and labeled detection/event accuracy remain planned.
+6. Detection → tracking → ROI event smoke passed on repeated still and moving sample video with timestamps, saved evidence, SQLite persistence, and API retrieval. A motion-predicted association candidate emitted 29 rather than 33 enter events in three same-frame board runs, but without labeled identities this cannot distinguish fewer track splits from incorrect merges. Implement leave/dwell/count semantics, then validate event precision and identity continuity against annotations.
 7. A latest-frame queue smoke passed at 15-FPS source pacing: 150 decoded, 88 processed, 62 dropped, capacity 1. Broader FIFO/latest overload, RSS bounds, stale-result, and recovery checks remain planned.
 
 ## Failure and recovery tests

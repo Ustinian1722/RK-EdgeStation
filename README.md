@@ -2,7 +2,7 @@
 
 RK-EdgeStation is an independent, single-board RK3576 edge-vision project. Its target is a maintainable industrial vision terminal that accepts local video or RTSP, runs a Rockchip NPU model, tracks objects, emits evidence-backed events, and exposes a local management interface. It has no Jetson dependency or second compute board.
 
-The project has completed **P0** and reached **P1 board-side still and moving-video detection-to-event/API runs**. The official RK3576 MobileNet C++ sample and the project YOLOv8n worker both ran through the board's RKNN Runtime. A 150-frame moving sample completed on RK3576 with 130 frames processed, 20 dropped, 1,033 detections, 42 persisted events, and HTTP 200 from health/metrics/events. The output also exposed likely track fragmentation and two low-confidence `skis` predictions on a pedestrian, so this remains a pipeline smoke rather than an accuracy result; full P1 acceptance remains open. See the [P0 report](P0_ACCEPTANCE_REPORT.md) and [P1 report](P1_ACCEPTANCE_REPORT.md).
+The project has completed **P0** and reached **P1 board-side still and moving-video detection-to-event/API runs**. The official RK3576 MobileNet C++ sample and the project YOLOv8n worker both ran through the board's RKNN Runtime. After a motion-predicted tracker refinement, a 150-frame moving sample completed with 129 frames processed, 21 dropped, 1,021 detections, 29 persisted events, and HTTP 200 from health/metrics/events. A separate three-run full-frame comparison emitted 33 entry events with the original tracker and 29 with the candidate on each run; this suggests fewer track splits but has no ground-truth identity labels, so it is not an accuracy result. Two low-confidence `skis` predictions remain. Full P1 acceptance is open. See the [P0 report](P0_ACCEPTANCE_REPORT.md) and [P1 report](P1_ACCEPTANCE_REPORT.md).
 
 ## Current target and findings
 
@@ -28,14 +28,14 @@ The planned product has six cooperating subsystems:
 
 The staged requirements and architecture are in [REQUIREMENTS.md](REQUIREMENTS.md) and [ARCHITECTURE.md](ARCHITECTURE.md). The implementation will not call a pipeline zero-copy until buffer ownership and DMA-BUF import are demonstrated on this board.
 
-The P1 prototype includes a native RKNN YOLO worker, bounded latest-frame queue, IoU tracker, ROI entry events with saved frame evidence, SQLite persistence, and a loopback-only HTTP dashboard. The non-quantized (`fp`) YOLOv8n model was converted in WSL and run on RK3576. A 150-frame moving sample run processed 130 and dropped 20 under the one-frame latest queue. Dynamic-scene ID continuity, model-vs-ONNX numerical comparison, labeled accuracy, per-core NPU utilization, and product performance remain open.
+The P1 prototype includes a native RKNN YOLO worker, bounded latest-frame queue, class-gated motion-predicted IoU/center tracker, ROI entry events with saved frame evidence, SQLite persistence, and a loopback-only HTTP dashboard. The non-quantized (`fp`) YOLOv8n model was converted in WSL and run on RK3576. The controlled tracker comparison used a 150-frame queue to preserve the same frames, but p95 end-to-end delay reached 3.5–4.6 seconds; the live path uses capacity 1 and drops stale frames. Ground-truth ID continuity, leave/dwell/count events, model-vs-ONNX comparison, labeled accuracy, per-core NPU utilization, and product performance remain open.
 
 ## Phases
 
 | Phase | Scope | State |
 |---|---|---|
 | P0 | Hardware audit, open-source/license review, requirements, architecture, official RKNN demo | Complete; official RK3576 C API smoke test passed |
-| P1 | Single-stream detection-to-event loop and minimum local web UI | Static-video model/API smoke passes on board; full acceptance remains in progress |
+| P1 | Single-stream detection-to-event loop and minimum local web UI | Still and moving-video API loops pass; tracker association is under evaluation; leave/dwell/count events and labeled accuracy remain open |
 | P2 | MPP/RGA pipeline, quantization comparison, scheduling and profiling | Not started |
 | P3 | Device management, failure/reliability testing, 24-hour run, release package | Not started |
 

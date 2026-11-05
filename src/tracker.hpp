@@ -32,6 +32,8 @@ private:
     struct TrackState {
         std::uint64_t id;
         Detection detection;
+        float velocity_x = 0.0F;
+        float velocity_y = 0.0F;
         int missed = 0;
         std::uint64_t age = 0;
     };

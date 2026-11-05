@@ -40,6 +40,41 @@ int main() {
         result = tracker.update({first});
         CHECK(result.size() == 1 && result[0].created && result[0].track_id == 2);
     }
+    {
+        edge::IoUTracker tracker(0.3F, 2);
+        edge::Detection first{0, 0.9F, 0, 0, 20, 80, "person"};
+        edge::Detection next{0, 0.9F, 8, 0, 28, 80, "person"};
+        edge::Detection after_gap{0, 0.9F, 24, 0, 44, 80, "person"};
+
+        auto result = tracker.update({first});
+        CHECK(result.size() == 1 && result[0].created && result[0].track_id == 1);
+        result = tracker.update({next});
+        CHECK(result.size() == 1 && !result[0].created && result[0].track_id == 1);
+        CHECK(tracker.update({}).empty());
+        result = tracker.update({after_gap});
+        CHECK(result.size() == 1 && !result[0].created && result[0].track_id == 1);
+    }
+    {
+        edge::IoUTracker tracker(0.3F, 2);
+        edge::Detection left{0, 0.9F, 0, 0, 30, 80, "person"};
+        edge::Detection right{0, 0.9F, 100, 0, 130, 80, "person"};
+        auto result = tracker.update({left, right});
+        CHECK(result.size() == 2 && result[0].track_id == 1 && result[1].track_id == 2);
+
+        edge::Detection right_next{0, 0.9F, 90, 0, 120, 80, "person"};
+        edge::Detection left_next{0, 0.9F, 10, 0, 40, 80, "person"};
+        result = tracker.update({right_next, left_next});
+        CHECK(result.size() == 2 && result[0].track_id == 2 && result[1].track_id == 1);
+        CHECK(!result[0].created && !result[1].created);
+    }
+    {
+        edge::IoUTracker tracker(0.3F, 2);
+        edge::Detection person{0, 0.9F, 0, 0, 30, 80, "person"};
+        edge::Detection car{2, 0.9F, 0, 0, 30, 80, "car"};
+        tracker.update({person});
+        const auto result = tracker.update({car});
+        CHECK(result.size() == 1 && result[0].created && result[0].track_id == 2);
+    }
     std::cout << "core tests passed\n";
     return 0;
 }

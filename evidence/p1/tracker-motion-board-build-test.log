@@ -1,0 +1,27 @@
+[ 22%] Built target edge_media_tests
+[ 33%] Building CXX object CMakeFiles/edge_core_tests.dir/src/tracker.cpp.o
+[ 44%] Building CXX object CMakeFiles/rk_edge_worker.dir/src/tracker.cpp.o
+[ 55%] Linking CXX executable bin/rk_edge_worker
+[ 66%] Linking CXX executable bin/edge_core_tests
+[ 77%] Built target edge_core_tests
+[100%] Built target rk_edge_worker
+Internal ctest changing into directory: /home/kickpi/projects/RK-EdgeStation/build
+Test project /home/kickpi/projects/RK-EdgeStation/build
+    Start 1: edge_core_tests
+1/2 Test #1: edge_core_tests ..................   Passed    0.00 sec
+    Start 2: edge_media_tests
+2/2 Test #2: edge_media_tests .................   Passed    0.45 sec
+
+100% tests passed, 0 tests failed out of 2
+
+Total Test time (real) =   0.46 sec
+test_loopback_health_events_and_dashboard (test_server.LocalApiTests.test_loopback_health_events_and_dashboard) ... http 127.0.0.1 "GET /api/health HTTP/1.1" 200 -
+http 127.0.0.1 "GET /api/events?limit=5 HTTP/1.1" 200 -
+http 127.0.0.1 "GET / HTTP/1.1" 200 -
+ok
+test_event_and_metric_round_trip (test_storage.EventStoreTests.test_event_and_metric_round_trip) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.724s
+
+OK
