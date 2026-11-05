@@ -173,6 +173,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--queue-capacity", type=int, default=1)
     parser.add_argument("--roi", default="0,0,1,1")
     parser.add_argument("--confidence", type=float, default=0.25)
+    parser.add_argument("--dwell-ms", type=int, default=5000)
+    parser.add_argument("--roi-debounce-frames", type=int, default=2)
     return parser.parse_args()
 
 
@@ -183,6 +185,9 @@ def main() -> int:
         return 2
     if not (1 <= args.port <= 65535):
         print("port must be between 1 and 65535", file=sys.stderr)
+        return 2
+    if args.dwell_ms <= 0 or not (1 <= args.roi_debounce_frames <= 10000):
+        print("dwell-ms must be positive and ROI debounce frames must be 1..10000", file=sys.stderr)
         return 2
 
     state_dir = args.state_dir if args.state_dir.is_absolute() else ROOT / args.state_dir
@@ -204,6 +209,8 @@ def main() -> int:
             str(worker), "--model", str(model), "--video", str(video),
             "--state-dir", str(state_dir), "--roi", args.roi,
             "--queue-capacity", str(args.queue_capacity), "--confidence", str(args.confidence),
+            "--dwell-ms", str(args.dwell_ms),
+            "--roi-debounce-frames", str(args.roi_debounce_frames),
         ]
         state.start_worker(command, model, video)
 

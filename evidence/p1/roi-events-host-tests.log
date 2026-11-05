@@ -1,0 +1,10 @@
+test_loopback_health_events_and_dashboard (test_server.LocalApiTests.test_loopback_health_events_and_dashboard) ... http 127.0.0.1 "GET /api/health HTTP/1.1" 200 -
+http 127.0.0.1 "GET /api/events?limit=5 HTTP/1.1" 200 -
+http 127.0.0.1 "GET / HTTP/1.1" 200 -
+ok
+test_event_and_metric_round_trip (test_storage.EventStoreTests.test_event_and_metric_round_trip) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.641s
+
+OK

@@ -1,0 +1,13 @@
+[ 36%] Built target edge_media_tests
+[ 54%] Built target edge_core_tests
+[100%] Built target rk_edge_worker
+Internal ctest changing into directory: /home/kickpi/projects/RK-EdgeStation/build
+Test project /home/kickpi/projects/RK-EdgeStation/build
+    Start 1: edge_core_tests
+1/2 Test #1: edge_core_tests ..................   Passed    0.01 sec
+    Start 2: edge_media_tests
+2/2 Test #2: edge_media_tests .................   Passed    0.47 sec
+
+100% tests passed, 0 tests failed out of 2
+
+Total Test time (real) =   0.47 sec

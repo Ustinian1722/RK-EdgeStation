@@ -1,4 +1,5 @@
 #include "bounded_queue.hpp"
+#include "roi_events.hpp"
 #include "tracker.hpp"
 #include "yolov8.h"
 
@@ -306,6 +307,8 @@ struct Options {
     Roi roi;
     std::size_t queue_capacity = 1;
     float confidence = 0.25F;
+    std::chrono::milliseconds dwell_threshold{5000};
+    std::size_t roi_debounce_frames = 2;
 };
 
 Options parse_args(int argc, char** argv) {
@@ -314,7 +317,8 @@ Options parse_args(int argc, char** argv) {
         const std::string key = argv[i];
         if (key == "--help" || key == "-h") {
             std::cout << "rk_edge_worker --model MODEL.rknn --video INPUT.mp4 "
-                         "[--state-dir state] [--roi x,y,w,h] [--queue-capacity N] [--confidence X]\n";
+                         "[--state-dir state] [--roi x,y,w,h] [--queue-capacity N] [--confidence X] "
+                         "[--dwell-ms N] [--roi-debounce-frames N]\n";
             std::exit(0);
         }
         if (key.rfind("--", 0) != 0 || i + 1 >= argc) {
@@ -331,6 +335,8 @@ Options parse_args(int argc, char** argv) {
     if (args.count("--state-dir")) options.state_dir = args.at("--state-dir");
     if (args.count("--queue-capacity")) options.queue_capacity = std::stoul(args.at("--queue-capacity"));
     if (args.count("--confidence")) options.confidence = std::stof(args.at("--confidence"));
+    if (args.count("--dwell-ms")) options.dwell_threshold = std::chrono::milliseconds(std::stoll(args.at("--dwell-ms")));
+    if (args.count("--roi-debounce-frames")) options.roi_debounce_frames = std::stoul(args.at("--roi-debounce-frames"));
     if (args.count("--roi")) {
         std::stringstream input(args.at("--roi"));
         char comma1 = 0, comma2 = 0, comma3 = 0;
@@ -341,10 +347,12 @@ Options parse_args(int argc, char** argv) {
         }
     }
     if (options.queue_capacity == 0 || options.confidence < 0.0F || options.confidence > 1.0F ||
+        options.dwell_threshold.count() <= 0 || options.roi_debounce_frames == 0 ||
+        options.roi_debounce_frames > 10000 ||
         options.roi.x < 0.0 || options.roi.y < 0.0 || options.roi.width <= 0.0 ||
         options.roi.height <= 0.0 || options.roi.x + options.roi.width > 1.0 ||
         options.roi.y + options.roi.height > 1.0) {
-        throw std::invalid_argument("invalid queue, confidence, or ROI configuration");
+        throw std::invalid_argument("invalid queue, confidence, ROI, dwell, or debounce configuration");
     }
     return options;
 }
@@ -353,6 +361,7 @@ void emit_metric(std::uint64_t processed, std::uint64_t detections, std::uint64_
                  const edge::BoundedLatestQueue<Frame>& queue, Clock::time_point started,
                  double preprocess_ms, double inference_ms, double postprocess_ms,
                  double queue_wait_ms, double e2e_ms, const std::deque<double>& latency_window,
+                 std::size_t roi_occupancy_count, std::uint64_t cumulative_roi_entries,
                  const char* status) {
     std::vector<double> sorted(latency_window.begin(), latency_window.end());
     std::sort(sorted.begin(), sorted.end());
@@ -368,6 +377,8 @@ void emit_metric(std::uint64_t processed, std::uint64_t detections, std::uint64_
               << "\",\"processed_frames\":" << processed
               << ",\"decoded_frames\":" << decoded
               << ",\"detections\":" << detections
+              << ",\"roi_occupancy_count\":" << roi_occupancy_count
+              << ",\"cumulative_roi_entries\":" << cumulative_roi_entries
               << ",\"queue_capacity\":" << queue.capacity()
               << ",\"queue_depth\":" << queue.size()
               << ",\"dropped_frames\":" << queue.dropped_count()
@@ -383,21 +394,26 @@ void emit_metric(std::uint64_t processed, std::uint64_t detections, std::uint64_
               << ",\"process_rss_kb\":" << read_rss_kb() << "}\n" << std::flush;
 }
 
-std::string event_json(const edge::TrackedDetection& track, std::uint64_t frame_sequence,
+std::string event_json(const edge::RoiEventTransition& event, std::uint64_t frame_sequence,
                        double pts_ms, const std::string& evidence, const std::string& model,
                        const std::string& event_id, const std::string& timestamp) {
-    const auto& d = track.detection;
+    const auto& d = event.detection;
     std::ostringstream out;
     out << std::fixed << std::setprecision(4)
         << "{\"type\":\"event\",\"schema_version\":1,\"event_id\":\""
-        << json_escape(event_id) << "\",\"event_type\":\"enter\",\"state\":\"active\",\"timestamp_utc\":\""
+        << json_escape(event_id) << "\",\"event_type\":\"" << edge::roi_event_type_name(event.type)
+        << "\",\"state\":\"" << edge::roi_event_state_name(event.type)
+        << "\",\"transition_reason\":\"" << edge::roi_event_reason(event.type)
+        << "\",\"timestamp_utc\":\""
         << json_escape(timestamp) << "\",\"source_id\":\"local-file\",\"frame_sequence\":"
         << frame_sequence << ",\"source_pts_ms\":" << pts_ms
-        << ",\"track_id\":" << track.track_id << ",\"class_id\":" << d.class_id
+        << ",\"track_id\":" << event.track_id << ",\"class_id\":" << d.class_id
         << ",\"label\":\"" << json_escape(d.label ? d.label : "unknown")
         << "\",\"confidence\":" << d.confidence << ",\"box\":["
         << d.left << ',' << d.top << ',' << d.right << ',' << d.bottom
-        << "],\"roi\":\"configured\",\"model\":\"" << json_escape(model)
+        << "],\"roi\":\"configured\",\"roi_occupancy_count\":" << event.occupancy_count
+        << ",\"cumulative_roi_entries\":" << event.cumulative_entries
+        << ",\"model\":\"" << json_escape(model)
         << "\",\"evidence\":\"" << json_escape(evidence) << "\"}";
     return out.str();
 }
@@ -440,12 +456,25 @@ int main(int argc, char** argv) {
                               << " pacing=" << (pace_source ? "media-rate" : "disabled") << '\n';
                     cv::Mat frame;
                     std::uint64_t sequence = 0;
+                    double last_pts_ms = -1.0;
                     while (capture.read(frame)) {
                         if (frame.empty()) continue;
+                        ++sequence;
+                        double pts_ms = capture.get(cv::CAP_PROP_POS_MSEC);
+                        if (!std::isfinite(pts_ms) || pts_ms < 0.0 ||
+                            (sequence > 1 && pts_ms <= last_pts_ms)) {
+                            pts_ms = pace_source
+                                ? static_cast<double>(sequence - 1) * 1000.0 / source_fps
+                                : milliseconds(Clock::now() - started);
+                        }
+                        if (sequence > 1 && pts_ms <= last_pts_ms) {
+                            pts_ms = last_pts_ms + (pace_source ? 1000.0 / source_fps : 1.0);
+                        }
                         Frame item;
                         item.image = frame.clone();
-                        item.sequence = ++sequence;
-                        item.pts_ms = capture.get(cv::CAP_PROP_POS_MSEC);
+                        item.sequence = sequence;
+                        item.pts_ms = pts_ms;
+                        last_pts_ms = pts_ms;
                         item.decoded_at = Clock::now();
                         if (!queue.push(std::move(item))) break;
                         decoded.store(sequence);
@@ -467,11 +496,15 @@ int main(int argc, char** argv) {
             });
 
             edge::IoUTracker tracker;
-            std::map<std::uint64_t, bool> inside_roi;
+            edge::RoiEventMachine roi_event_machine(options.dwell_threshold,
+                                                    options.roi_debounce_frames);
             std::deque<double> latency_window;
             std::uint64_t processed = 0;
             std::uint64_t detection_total = 0;
             std::uint64_t event_total = 0;
+            std::size_t roi_occupancy_count = 0;
+            std::uint64_t cumulative_roi_entries = 0;
+            double roi_timeline_ms = -1.0;
             double last_preprocess = 0.0, last_inference = 0.0, last_postprocess = 0.0;
             double last_queue_wait = 0.0, last_e2e = 0.0;
             Frame frame;
@@ -486,13 +519,13 @@ int main(int argc, char** argv) {
                     detection_total += result.detections.size();
                     const auto tracked = tracker.update(result.detections);
                     cv::Mat annotated = frame.image.clone();
-                    std::vector<std::pair<edge::TrackedDetection, std::string>> pending_events;
+                    std::vector<edge::RoiObservation> observations;
+                    observations.reserve(tracked.size());
 
                     for (const auto& item : tracked) {
                         const auto& d = item.detection;
                         const bool inside = options.roi.contains(d, frame.image.cols, frame.image.rows);
-                        const bool was_inside = inside_roi[item.track_id];
-                        inside_roi[item.track_id] = inside;
+                        observations.push_back({item.track_id, d, inside});
                         cv::rectangle(annotated, cv::Point(d.left, d.top), cv::Point(d.right, d.bottom),
                                       cv::Scalar(40, 220, 40), 2);
                         std::ostringstream label;
@@ -500,20 +533,32 @@ int main(int argc, char** argv) {
                               << d.confidence << " T" << item.track_id;
                         cv::putText(annotated, label.str(), cv::Point(std::max(0, d.left), std::max(18, d.top - 4)),
                                     cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(40, 220, 40), 1);
-                        if (inside && !was_inside) {
-                            const auto now = std::chrono::system_clock::now();
-                            const auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                now.time_since_epoch()).count();
-                            const std::string event_id = "evt-" + std::to_string(now_ms) + "-" +
-                                                         std::to_string(frame.sequence) + "-" +
-                                                         std::to_string(item.track_id);
-                            pending_events.emplace_back(item, event_id);
-                        }
                     }
                     const auto active = tracker.active_ids();
-                    for (auto it = inside_roi.begin(); it != inside_roi.end();) {
-                        if (active.count(it->first) == 0) it = inside_roi.erase(it);
-                        else ++it;
+                    double event_time_ms = frame.pts_ms;
+                    if (!std::isfinite(event_time_ms) || event_time_ms < 0.0 ||
+                        event_time_ms <= roi_timeline_ms) {
+                        event_time_ms = milliseconds(frame.decoded_at - started);
+                    }
+                    event_time_ms = std::max(event_time_ms, roi_timeline_ms);
+                    roi_timeline_ms = event_time_ms;
+                    const auto event_time = Clock::time_point{} +
+                        std::chrono::duration_cast<Clock::duration>(
+                            std::chrono::duration<double, std::milli>(event_time_ms));
+                    auto transitions = roi_event_machine.update(observations, active, event_time);
+                    roi_occupancy_count = roi_event_machine.occupancy_count();
+                    cumulative_roi_entries = roi_event_machine.cumulative_entries();
+                    std::vector<std::pair<edge::RoiEventTransition, std::string>> pending_events;
+                    pending_events.reserve(transitions.size());
+                    for (const auto& event : transitions) {
+                        const auto now = std::chrono::system_clock::now();
+                        const auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                            now.time_since_epoch()).count();
+                        const std::string event_id = "evt-" + std::to_string(now_ms) + "-" +
+                                                     std::to_string(frame.sequence) + "-" +
+                                                     std::to_string(event.track_id) + "-" +
+                                                     edge::roi_event_type_name(event.type);
+                        pending_events.emplace_back(event, event_id);
                     }
 
                     if (!pending_events.empty()) {
@@ -541,7 +586,8 @@ int main(int argc, char** argv) {
                     if (processed == 1 || processed % 30 == 0) {
                         emit_metric(processed, detection_total, decoded.load(), queue, started,
                                     last_preprocess, last_inference, last_postprocess,
-                                    last_queue_wait, last_e2e, latency_window, "running");
+                                    last_queue_wait, last_e2e, latency_window,
+                                    roi_occupancy_count, cumulative_roi_entries, "running");
                     }
                 } catch (const std::exception& error) {
                     std::cerr << "frame processing failed at sequence " << frame.sequence
@@ -562,6 +608,7 @@ int main(int argc, char** argv) {
             emit_metric(processed, detection_total, decoded.load(), queue, started,
                         last_preprocess, last_inference, last_postprocess,
                         last_queue_wait, last_e2e, latency_window,
+                        roi_occupancy_count, cumulative_roi_entries,
                         exit_code == 0 ? "completed" : "error");
             std::cerr << "worker completed: decoded=" << decoded.load()
                       << " processed=" << processed << " detections=" << detection_total

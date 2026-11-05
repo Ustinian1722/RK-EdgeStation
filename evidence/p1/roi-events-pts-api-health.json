@@ -1,0 +1,31 @@
+{
+  "status": "completed",
+  "worker_pid": 14319,
+  "worker_exit_code": 0,
+  "model": "yolov8n-rk3576-fp.rknn",
+  "source": "vtest-first150-10fps.mp4",
+  "uptime_seconds": 20.194,
+  "event_count": 28,
+  "metrics": {
+    "type": "metric",
+    "status": "completed",
+    "processed_frames": 150,
+    "decoded_frames": 150,
+    "detections": 1194,
+    "roi_occupancy_count": 3,
+    "cumulative_roi_entries": 17,
+    "queue_capacity": 150,
+    "queue_depth": 0,
+    "dropped_frames": 0,
+    "throughput_fps": 7.784,
+    "last_preprocess_ms": 6.032,
+    "last_inference_ms": 76.605,
+    "last_postprocess_ms": 2.56,
+    "last_queue_wait_ms": 4233.939,
+    "last_end_to_end_ms": 4356.857,
+    "p50_end_to_end_ms": 2299.603,
+    "p95_end_to_end_ms": 4127.691,
+    "latency_window_frames": 150,
+    "process_rss_kb": 154080
+  }
+}

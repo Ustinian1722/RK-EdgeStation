@@ -2,7 +2,7 @@
 
 RK-EdgeStation is an independent, single-board RK3576 edge-vision project. Its target is a maintainable industrial vision terminal that accepts local video or RTSP, runs a Rockchip NPU model, tracks objects, emits evidence-backed events, and exposes a local management interface. It has no Jetson dependency or second compute board.
 
-The project has completed **P0** and reached **P1 board-side still and moving-video detection-to-event/API runs**. The official RK3576 MobileNet C++ sample and the project YOLOv8n worker both ran through the board's RKNN Runtime. After a motion-predicted tracker refinement, a 150-frame moving sample completed with 129 frames processed, 21 dropped, 1,021 detections, 29 persisted events, and HTTP 200 from health/metrics/events. A separate three-run full-frame comparison emitted 33 entry events with the original tracker and 29 with the candidate on each run; this suggests fewer track splits but has no ground-truth identity labels, so it is not an accuracy result. Two low-confidence `skis` predictions remain. Full P1 acceptance is open. See the [P0 report](P0_ACCEPTANCE_REPORT.md) and [P1 report](P1_ACCEPTANCE_REPORT.md).
+The project has completed **P0** and reached **P1 board-side still and moving-video detection-to-event/API runs**. The official RK3576 MobileNet C++ sample and project YOLOv8n worker both ran through the board's RKNN Runtime. A motion-predicted tracker refinement completed a 150-frame moving sample with 129 processed frames, 21 dropped, 1,021 detections, and 29 persisted events. The ROI layer now debounces enter/leave transitions, emits one dwell event per confirmed visit, and reports current occupancy plus cumulative entries. A 150-frame board run produced 17 enters, 4 leaves, and 7 dwells; each dwell followed its enter by the configured 1.2 seconds of media time. This validates event plumbing, not labeled detection or identity accuracy. The same-frame tracker comparison remains exploratory, and two low-confidence `skis` predictions remain. Full P1 acceptance is open. See the [P0 report](P0_ACCEPTANCE_REPORT.md) and [P1 report](P1_ACCEPTANCE_REPORT.md).
 
 ## Current target and findings
 
@@ -28,14 +28,14 @@ The planned product has six cooperating subsystems:
 
 The staged requirements and architecture are in [REQUIREMENTS.md](REQUIREMENTS.md) and [ARCHITECTURE.md](ARCHITECTURE.md). The implementation will not call a pipeline zero-copy until buffer ownership and DMA-BUF import are demonstrated on this board.
 
-The P1 prototype includes a native RKNN YOLO worker, bounded latest-frame queue, class-gated motion-predicted IoU/center tracker, ROI entry events with saved frame evidence, SQLite persistence, and a loopback-only HTTP dashboard. The non-quantized (`fp`) YOLOv8n model was converted in WSL and run on RK3576. The controlled tracker comparison used a 150-frame queue to preserve the same frames, but p95 end-to-end delay reached 3.5–4.6 seconds; the live path uses capacity 1 and drops stale frames. Ground-truth ID continuity, leave/dwell/count events, model-vs-ONNX comparison, labeled accuracy, per-core NPU utilization, and product performance remain open.
+The P1 prototype includes a native RKNN YOLO worker, bounded latest-frame queue, class-gated motion-predicted IoU/center tracker, debounced ROI enter/leave/dwell events, occupancy and cumulative-entry metrics, saved frame evidence, SQLite persistence, and a loopback-only HTTP dashboard. Dwell uses monotonicized media timestamps, with nominal-FPS or decode-time fallback when source timestamps are invalid. Confirmed exits require consecutive outside observations; a track that expires while still inside is removed from occupancy without a synthetic leave event. The non-quantized (`fp`) YOLOv8n model was converted in WSL and run on RK3576. The controlled tracker/event comparison used a 150-frame queue to preserve every frame, but p95 end-to-end delay reached 3.5–4.6 seconds; the live freshness path uses capacity 1. Ground-truth ID continuity, labeled accuracy, model-vs-ONNX comparison, per-core NPU utilization, and product performance remain open.
 
 ## Phases
 
 | Phase | Scope | State |
 |---|---|---|
 | P0 | Hardware audit, open-source/license review, requirements, architecture, official RKNN demo | Complete; official RK3576 C API smoke test passed |
-| P1 | Single-stream detection-to-event loop and minimum local web UI | Still and moving-video API loops pass; tracker association is under evaluation; leave/dwell/count events and labeled accuracy remain open |
+| P1 | Single-stream detection-to-event loop and minimum local web UI | Still/moving API loops and ROI enter/leave/dwell/count plumbing pass; tracker identity, labeled accuracy, and model comparison remain open |
 | P2 | MPP/RGA pipeline, quantization comparison, scheduling and profiling | Not started |
 | P3 | Device management, failure/reliability testing, 24-hour run, release package | Not started |
 

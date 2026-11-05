@@ -21,14 +21,15 @@
   <div id="summary" class="muted">Connecting to the local board service…</div>
   <section id="metrics" class="grid"></section>
   <h2>Recent ROI events</h2>
-  <div class="card"><table><thead><tr><th>Time (UTC)</th><th>Object</th><th>Track</th><th>Confidence</th><th>Evidence</th></tr></thead>
-    <tbody id="events"><tr><td colspan="5">Waiting for events</td></tr></tbody></table></div>
+  <div class="card"><table><thead><tr><th>Time (UTC)</th><th>Object / type</th><th>State</th><th>Track</th><th>Confidence</th><th>ROI occupancy</th><th>Evidence</th></tr></thead>
+    <tbody id="events"><tr><td colspan="7">Waiting for events</td></tr></tbody></table></div>
   <p class="muted">This service binds to loopback. Metrics describe this local-file run and its configured queue.</p>
   <script>
     const metricKeys = [
       ["status", "Worker"], ["throughput_fps", "Processed FPS"],
       ["last_inference_ms", "Last inference ms"], ["p95_end_to_end_ms", "P95 end-to-end ms"],
-      ["dropped_frames", "Dropped frames"], ["process_rss_kb", "Process RSS kB"]
+      ["dropped_frames", "Dropped frames"], ["process_rss_kb", "Process RSS kB"],
+      ["roi_occupancy_count", "Objects inside ROI"], ["cumulative_roi_entries", "Total entries"]
     ];
     async function refresh() {
       try {
@@ -48,10 +49,11 @@
           card.append(value, caption); return card;
         }));
         const body = document.getElementById('events'); body.replaceChildren();
-        if (!eventData.events.length) { const row = body.insertRow(); const cell = row.insertCell(); cell.colSpan = 5; cell.textContent = 'No events yet'; }
+        if (!eventData.events.length) { const row = body.insertRow(); const cell = row.insertCell(); cell.colSpan = 7; cell.textContent = 'No events yet'; }
         for (const event of eventData.events) {
           const row = body.insertRow();
-          for (const value of [event.timestamp_utc, `${event.label} · ${event.event_type}`, event.track_id, Number(event.confidence).toFixed(3)]) {
+          for (const value of [event.timestamp_utc, `${event.label} · ${event.event_type}`, event.state ?? '—',
+            event.track_id, Number(event.confidence).toFixed(3), event.roi_occupancy_count ?? '—']) {
             row.insertCell().textContent = value;
           }
           const cell = row.insertCell();

@@ -17,6 +17,10 @@ class EventStoreTests(unittest.TestCase):
                 "track_id": 2,
                 "label": "person",
                 "confidence": 0.91,
+                "state": "active",
+                "transition_reason": "roi_enter",
+                "roi_occupancy_count": 1,
+                "cumulative_roi_entries": 1,
                 "evidence": "state/evidence/frame-4.jpg",
             }
             store.add_event(event)

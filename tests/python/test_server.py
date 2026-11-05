@@ -19,11 +19,15 @@ class LocalApiTests(unittest.TestCase):
                 {
                     "event_id": "evt-api-1",
                     "timestamp_utc": "2026-11-05T00:00:00.000Z",
-                    "event_type": "enter",
+                    "event_type": "leave",
                     "frame_sequence": 1,
                     "track_id": 3,
                     "label": "person",
                     "confidence": 0.88,
+                    "state": "closed",
+                    "transition_reason": "roi_exit",
+                    "roi_occupancy_count": 0,
+                    "cumulative_roi_entries": 2,
                     "evidence": "evidence/frame-1.jpg",
                 }
             )
@@ -42,10 +46,17 @@ class LocalApiTests(unittest.TestCase):
                 with urlopen(base + "/api/events?limit=5", timeout=3) as response:
                     events = json.load(response)["events"]
                 self.assertEqual(events[0]["track_id"], 3)
+                self.assertEqual(events[0]["event_type"], "leave")
+                self.assertEqual(events[0]["state"], "closed")
+                self.assertEqual(events[0]["transition_reason"], "roi_exit")
+                self.assertEqual(events[0]["roi_occupancy_count"], 0)
+                self.assertEqual(events[0]["cumulative_roi_entries"], 2)
 
                 with urlopen(base + "/", timeout=3) as response:
                     page = response.read().decode("utf-8")
                 self.assertIn("RK-EdgeStation", page)
+                self.assertIn("ROI occupancy", page)
+                self.assertIn("event.state", page)
             finally:
                 server.shutdown()
                 server.server_close()

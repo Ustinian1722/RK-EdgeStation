@@ -1,6 +1,8 @@
 #include "bounded_queue.hpp"
+#include "roi_events.hpp"
 #include "tracker.hpp"
 
+#include <chrono>
 #include <iostream>
 
 #define CHECK(condition)                                                        \
@@ -74,6 +76,49 @@ int main() {
         tracker.update({person});
         const auto result = tracker.update({car});
         CHECK(result.size() == 1 && result[0].created && result[0].track_id == 2);
+    }
+    {
+        using namespace std::chrono_literals;
+        edge::RoiEventMachine events(5000ms, 2);
+        const auto start = edge::RoiEventMachine::Clock::time_point{};
+        const std::set<std::uint64_t> active{7};
+        const edge::Detection detection{0, 0.9F, 10, 20, 50, 100, "person"};
+        const edge::RoiObservation inside{7, detection, true};
+        const edge::RoiObservation outside{7, detection, false};
+
+        CHECK(events.update({inside}, active, start).empty());
+        CHECK(events.occupancy_count() == 0);
+        auto transitions = events.update({inside}, active, start + 100ms);
+        CHECK(transitions.size() == 1 && transitions[0].type == edge::RoiEventType::Enter);
+        CHECK(transitions[0].occupancy_count == 1 && transitions[0].cumulative_entries == 1);
+
+        CHECK(events.update({outside}, active, start + 200ms).empty());
+        CHECK(events.update({inside}, active, start + 300ms).empty());
+        CHECK(events.occupancy_count() == 1);
+        CHECK(events.update({inside}, active, start + 4s).empty());
+        transitions = events.update({inside}, active, start + 5100ms);
+        CHECK(transitions.size() == 1 && transitions[0].type == edge::RoiEventType::Dwell);
+        CHECK(transitions[0].cumulative_entries == 1 && transitions[0].occupancy_count == 1);
+
+        CHECK(events.update({outside}, active, start + 5200ms).empty());
+        transitions = events.update({outside}, active, start + 5300ms);
+        CHECK(transitions.size() == 1 && transitions[0].type == edge::RoiEventType::Leave);
+        CHECK(transitions[0].occupancy_count == 0 && transitions[0].cumulative_entries == 1);
+        CHECK(events.cumulative_entries() == 1);
+    }
+    {
+        using namespace std::chrono_literals;
+        edge::RoiEventMachine events(1000ms, 2);
+        const auto start = edge::RoiEventMachine::Clock::time_point{};
+        const std::set<std::uint64_t> active{1};
+        const edge::Detection detection{0, 0.9F, 0, 0, 20, 80, "person"};
+        const edge::RoiObservation inside{1, detection, true};
+        CHECK(events.update({inside}, active, start).empty());
+        CHECK(events.update({inside}, active, start + 10ms).size() == 1);
+        CHECK(events.update({}, active, start + 20ms).empty());
+        CHECK(events.occupancy_count() == 1);
+        CHECK(events.update({}, {}, start + 30ms).empty());
+        CHECK(events.occupancy_count() == 0);
     }
     std::cout << "core tests passed\n";
     return 0;

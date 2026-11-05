@@ -1,0 +1,25 @@
+ROI event state machine — RK3576 board run
+Date: 2026-11-05
+Board: KICKPI K7 / RK3576 / Ubuntu 24.04.3 aarch64
+Model: YOLOv8n RKNN fp; SHA-256 2162e0cf6a71270c092353d94abb391ac111910ce178547ef80dd89b225dab0b
+Input: first 150 frames of OpenCV vtest.avi, 768x576, 10 FPS; MP4 SHA-256 AED460C93874B0BFF1439DF89EC6EA741F3DF1128B061A3D29B97D4445CE4D49
+
+Configuration
+- Normalized ROI: x=0.40, y=0.25, width=0.30, height=0.40; membership uses detection-box center.
+- Queue capacity: 150 to preserve every frame for this functional comparison.
+- ROI debounce: 2 processed frames for entry and exit.
+- Dwell threshold: 1,200 ms.
+- Dwell clock: increasing media PTS; the implementation falls back to nominal-FPS frame time or decode elapsed time if PTS is invalid or regresses.
+
+Result
+- Worker completed with exit code 0; health, metrics, and events APIs returned HTTP 200.
+- 150/150 frames processed; 1,194 detections; 0 dropped frames.
+- 17 enter, 4 explicit leave, and 7 dwell events across 16 track IDs; 28 unique event IDs.
+- All 7 dwell records occurred exactly 1,200 ms of event media time after their corresponding entry.
+- Final metrics: ROI occupancy 3, cumulative entries 17, throughput 7.784 FPS, p50 end-to-end 2,299.603 ms, p95 end-to-end 4,127.691 ms, RSS 154,080 kB.
+- The event payload includes event type, active/closed state, transition reason, frame sequence, source PTS, occupancy, cumulative entries, and evidence path.
+
+Limits
+- The clip ends with 3 tracked objects still inside the ROI. A track that expires while inside is removed from occupancy without an inferred leave event.
+- This queue-150 run validates event plumbing and media-time behavior; its multi-second backlog latency is not the live capacity-1 profile.
+- No ground-truth labels were available, so event precision, detector accuracy, and identity continuity are not established.
