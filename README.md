@@ -51,6 +51,7 @@ The P1 prototype includes a native RKNN YOLO worker, a bounded queue with select
 - [Benchmark protocol](BENCHMARK_PROTOCOL.md)
 - [Optimization report](OPTIMIZATION_REPORT.md)
 - [Test plan](TEST_PLAN.md) and [results](TEST_RESULTS.md)
+- [P3 reliability and release acceptance](P3_ACCEPTANCE_REPORT.md)
 - [Open-source references](OPEN_SOURCE_REFERENCES.md)
 - [Interview guide](INTERVIEW_GUIDE.md)
 

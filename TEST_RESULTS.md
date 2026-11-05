@@ -1,6 +1,6 @@
 # Test results
 
-Status: P0 passed. P1 board build and detection/event/API smokes pass; tracker identity, labeled accuracy, and broad model equivalence remain open. P2 includes board FP/INT8 and latest/FIFO comparisons, failure probes, SQLite outage/write-recovery simulations, and isolated MPP/RGA stages. INT8 remains experimental and no MPP/RGA end-to-end gain is accepted. P3 manual restart, synthetic RTSP reconnect, and temporary systemd user-service recovery pass; the 24-hour RK3576 run is still in progress. Actual filesystem exhaustion, boot-time activation, release handoff, and direct NPU-utilization validation remain open. Updated 2026-11-05.
+Status: P0 passed. P1 board build and detection/event/API smokes pass; tracker identity, labeled accuracy, and broad model equivalence remain open. P2 includes board FP/INT8 and latest/FIFO comparisons, failure probes, SQLite outage/write-recovery simulations, and isolated MPP/RGA stages. INT8 remains experimental and no MPP/RGA end-to-end gain is accepted. P3 manual restart, synthetic RTSP reconnect, and temporary systemd user-service recovery pass; the 24-hour RK3576 run for source commit 640d6f3 is still in progress; pushed commit 637441b has short integration checks but no 24-hour validation yet. Actual filesystem exhaustion, boot-time activation, release handoff, and direct NPU-utilization validation remain open. Updated 2026-11-05.
 
 | Check | Result | Evidence |
 |---|---|---|
