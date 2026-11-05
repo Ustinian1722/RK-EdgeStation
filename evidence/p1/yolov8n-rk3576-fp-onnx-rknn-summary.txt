@@ -8,32 +8,38 @@ Scope and setup
 - ONNX Runtime CPU: 1.16.0 in the isolated Toolkit2 WSL environment.
 - Both runtimes received the same saved post-letterbox RGB uint8 NHWC tensor. ONNX input was converted to float32, divided by 255, and transposed to NCHW.
 - RKNN output tensor attributes report FP16; rknn_outputs_get(want_float=1) returned the dumped tensors as float32.
-- Confidence threshold 0.25; NMS threshold 0.45; class-aware greedy detection matching threshold IoU 0.50.
+- Default confidence threshold 0.25; NMS threshold 0.45; class-aware greedy detection matching threshold IoU 0.50. A separate confidence sweep used 0.25, 0.34, 0.345, 0.35, 0.40, and 0.50 on the saved tensors.
 - The board worker received a 16-frame repeated-still clip for each source image; only the first processed inference output from each run was captured and compared. No frame averaging was used. This is not a labeled accuracy test.
 
 Results
 | Input | ONNX detections | RKNN detections | Matched | Mean box IoU | Mean absolute confidence delta | Set agreement F1 |
 |---|---:|---:|---:|---:|---:|---:|
 | Model Zoo bus still, 640x640 | 5 | 5 | 5/5 | 0.999324 | 0.002519 | 1.000 |
+| OpenCV vtest frame 015, 768x576 | 7 | 7 | 7/7 | 0.996240 | 0.002180 | 1.000 |
+| OpenCV vtest frame 045, 768x576 | 7 | 7 | 7/7 | 1.000000 | 0.001870 | 1.000 |
+| OpenCV vtest frame 075, 768x576 | 7 | 7 | 7/7 | 0.998240 | 0.002170 | 1.000 |
 | OpenCV vtest frame 100, 768x576 | 8 | 8 | 8/8 | 1.000000 | 0.002329 | 1.000 |
+| OpenCV vtest frame 125, 768x576 | 9 | 9 | 9/9 | 0.998710 | 0.002560 | 1.000 |
 
 Raw output comparison
-- The three box-regression tensors had cosine similarity 0.9999930-0.9999964 and range-normalized RMSE 0.000302-0.000672 on these two inputs.
-- Class-score tensors differed more in low-score regions. RKNN class outputs had a minimum value of 0.001831 on these samples, while ONNX outputs included exact zeros.
+- The three box-regression tensors had cosine similarity 0.9999925-0.9999964 and range-normalized RMSE 0.000302-0.000672 across these six inputs.
+- Class-score tensors differed more in low-score regions. RKNN class outputs had a minimum value of 0.001831 on all samples, while ONNX outputs included exact zeros.
 - The ReduceSum score-sum tensors had mean absolute errors of 0.1455-0.1462. The observed class-score floor contributes to this gap; its exact runtime/compiler cause has not been isolated.
-- Despite raw low-score differences, the thresholded, post-NMS detection sets matched on both frames. This does not establish equivalence on other inputs or behavior near the confidence threshold.
-- Independent Python decoding of the RKNN tensors matched the C++ detections for 5/5 bus detections at IoU 0.90 (mean IoU 1.000) and 8/8 vtest detections at IoU 0.90 (mean IoU 0.950). Confidence differences were below 0.00000004; the vtest coordinates differed by about one pixel from floating-point DFL/postprocess rounding.
+- At confidence 0.25, all six thresholded post-NMS detection sets matched. At confidence 0.345, the bus sample diverged: ONNX retained 4 detections and RKNN retained 5 (set-agreement F1 0.889); the extra RKNN detection had confidence 0.345215 versus 0.341804 in ONNX. The five vtest samples still matched across all six tested thresholds.
+- Independent Python decoding was close to the C++ postprocessor. It matched all 5 bus detections at IoU 0.90 and most vtest detections; vtest frame 125 matched 8/9 at IoU 0.90 because one small box shifted by one pixel. Confidence differences among matched boxes were below 0.00000004. These pixel-sensitive differences reflect floating-point DFL/postprocess rounding and need consideration when setting an exact-box parity tolerance.
 
 Evidence files
 - yolov8n-rk3576-fp-onnx-rknn-bus.json
+- yolov8n-rk3576-fp-onnx-rknn-vtest015.json, -vtest045.json, and -vtest075.json
 - yolov8n-rk3576-fp-onnx-rknn-vtest100.json
+- yolov8n-rk3576-fp-onnx-rknn-vtest125.json
 - yolov8n-rk3576-fp-onnx-rknn-bus-board.stdout.jsonl and -bus-board.stderr.log
-- yolov8n-rk3576-fp-onnx-rknn-vtest100-board.stdout.jsonl and -vtest100-board.stderr.log
+- yolov8n-rk3576-fp-onnx-rknn-vtest015/045/075/100/125-board.stdout.jsonl and corresponding stderr logs
 - yolov8n-rk3576-fp-debug-dump-board-build-test.log
 - yolov8n-rk3576-fp-commit-c1ef9d4-post-sync-board-check.log
 
 Limits
-- Only two single-frame inputs were compared; the vtest frame came from a public sample clip and was repeated only to run through the existing worker pipeline.
+- Only six single-frame inputs were compared: five frames from one public vtest clip plus the Model Zoo bus still. The vtest frames were repeated only to run through the existing worker pipeline.
 - No ground-truth labels were used. These results are limited to numerical and thresholded detection-set observations, not detector accuracy, model equivalence, or product acceptance.
-- The low-score class and score-sum discrepancies need investigation with a larger representative set and confidence-boundary cases before accepting numerical alignment.
+- The confidence sweep already shows a bus detection-set difference at threshold 0.345. Low-score class and score-sum discrepancies need investigation on a larger representative set before accepting numerical alignment.
 - Raw input/output dumps and model weights remain in ignored .work directories and are not committed.

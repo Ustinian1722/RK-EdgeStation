@@ -457,5 +457,103 @@
         94
       ]
     }
+  ],
+  "confidence_sweep": [
+    {
+      "confidence_threshold": 0.25,
+      "onnx_detection_count": 8,
+      "rknn_detection_count": 8,
+      "detection_agreement": {
+        "iou_threshold": 0.5,
+        "first_count": 8,
+        "second_count": 8,
+        "matched_count": 8,
+        "unmatched_first_count": 0,
+        "unmatched_second_count": 0,
+        "set_f1_agreement": 1.0,
+        "matched_mean_iou": 1.0,
+        "matched_mean_absolute_confidence_delta": 0.0023285895586013794
+      }
+    },
+    {
+      "confidence_threshold": 0.34,
+      "onnx_detection_count": 8,
+      "rknn_detection_count": 8,
+      "detection_agreement": {
+        "iou_threshold": 0.5,
+        "first_count": 8,
+        "second_count": 8,
+        "matched_count": 8,
+        "unmatched_first_count": 0,
+        "unmatched_second_count": 0,
+        "set_f1_agreement": 1.0,
+        "matched_mean_iou": 1.0,
+        "matched_mean_absolute_confidence_delta": 0.0023285895586013794
+      }
+    },
+    {
+      "confidence_threshold": 0.345,
+      "onnx_detection_count": 8,
+      "rknn_detection_count": 8,
+      "detection_agreement": {
+        "iou_threshold": 0.5,
+        "first_count": 8,
+        "second_count": 8,
+        "matched_count": 8,
+        "unmatched_first_count": 0,
+        "unmatched_second_count": 0,
+        "set_f1_agreement": 1.0,
+        "matched_mean_iou": 1.0,
+        "matched_mean_absolute_confidence_delta": 0.0023285895586013794
+      }
+    },
+    {
+      "confidence_threshold": 0.35,
+      "onnx_detection_count": 8,
+      "rknn_detection_count": 8,
+      "detection_agreement": {
+        "iou_threshold": 0.5,
+        "first_count": 8,
+        "second_count": 8,
+        "matched_count": 8,
+        "unmatched_first_count": 0,
+        "unmatched_second_count": 0,
+        "set_f1_agreement": 1.0,
+        "matched_mean_iou": 1.0,
+        "matched_mean_absolute_confidence_delta": 0.0023285895586013794
+      }
+    },
+    {
+      "confidence_threshold": 0.4,
+      "onnx_detection_count": 8,
+      "rknn_detection_count": 8,
+      "detection_agreement": {
+        "iou_threshold": 0.5,
+        "first_count": 8,
+        "second_count": 8,
+        "matched_count": 8,
+        "unmatched_first_count": 0,
+        "unmatched_second_count": 0,
+        "set_f1_agreement": 1.0,
+        "matched_mean_iou": 1.0,
+        "matched_mean_absolute_confidence_delta": 0.0023285895586013794
+      }
+    },
+    {
+      "confidence_threshold": 0.5,
+      "onnx_detection_count": 8,
+      "rknn_detection_count": 8,
+      "detection_agreement": {
+        "iou_threshold": 0.5,
+        "first_count": 8,
+        "second_count": 8,
+        "matched_count": 8,
+        "unmatched_first_count": 0,
+        "unmatched_second_count": 0,
+        "set_f1_agreement": 1.0,
+        "matched_mean_iou": 1.0,
+        "matched_mean_absolute_confidence_delta": 0.0023285895586013794
+      }
+    }
   ]
 }

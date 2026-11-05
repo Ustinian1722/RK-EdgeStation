@@ -216,6 +216,8 @@ def main() -> int:
     parser.add_argument("--confidence", type=float, default=0.25)
     parser.add_argument("--nms-threshold", type=float, default=0.45)
     parser.add_argument("--match-iou", type=float, default=0.50)
+    parser.add_argument("--confidence-sweep", type=str,
+                        help="optional comma-separated confidence thresholds to compare")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
@@ -263,6 +265,26 @@ def main() -> int:
         report["rknn_python_vs_cpp_postprocess"] = detection_agreement(
             cpp_detections, rknn_detections, 0.90)
         report["cpp_detections"] = cpp_detections
+
+    if args.confidence_sweep:
+        thresholds = [float(value.strip()) for value in args.confidence_sweep.split(",")
+                      if value.strip()]
+        if not thresholds or any(not np.isfinite(value) or value < 0.0 or value > 1.0
+                                 for value in thresholds):
+            raise ValueError("confidence sweep values must be finite numbers between 0 and 1")
+        report["confidence_sweep"] = []
+        for threshold in thresholds:
+            onnx_at_threshold = decode_detections(onnx_outputs, manifest, threshold,
+                                                  args.nms_threshold)
+            rknn_at_threshold = decode_detections(rknn_outputs, manifest, threshold,
+                                                  args.nms_threshold)
+            report["confidence_sweep"].append({
+                "confidence_threshold": threshold,
+                "onnx_detection_count": len(onnx_at_threshold),
+                "rknn_detection_count": len(rknn_at_threshold),
+                "detection_agreement": detection_agreement(
+                    onnx_at_threshold, rknn_at_threshold, args.match_iou),
+            })
 
     output_path = args.output or root / "onnx-rknn-comparison.json"
     output_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
