@@ -30,6 +30,7 @@ Evidence files
 - yolov8n-rk3576-fp-onnx-rknn-bus-board.stdout.jsonl and -bus-board.stderr.log
 - yolov8n-rk3576-fp-onnx-rknn-vtest100-board.stdout.jsonl and -vtest100-board.stderr.log
 - yolov8n-rk3576-fp-debug-dump-board-build-test.log
+- yolov8n-rk3576-fp-commit-c1ef9d4-post-sync-board-check.log
 
 Limits
 - Only two single-frame inputs were compared; the vtest frame came from a public sample clip and was repeated only to run through the existing worker pipeline.
