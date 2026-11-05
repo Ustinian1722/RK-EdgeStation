@@ -1,0 +1,8 @@
+case=invalid_model timeout_seconds=30
+model_sha256=f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b
+video_sha256=1ea4d10fac31c3b07be95117b3fc6e34e6f79daf9f3cddb3d25f7c4187e3ab98
+model_bytes=64
+video_bytes=2031472
+start_utc=2026-11-05T13:14:43Z
+exit_status=1
+end_utc=2026-11-05T13:14:44Z

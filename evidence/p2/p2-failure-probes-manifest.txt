@@ -1,0 +1,8 @@
+Board: KICKPI K7 / RK3576 / Ubuntu 24.04.3 aarch64
+Worker source/build: b73e3da queue-policy worker; build passed on board before the probes. Commit 275142b added documentation/evidence only.
+Reusable probe runner SHA-256: ffc7ea9021aaca5c5db03ebcbed2b1b148e8ab5d2cf1926eb20e4540e1a32021 (local and board /tmp copies match).
+Command: bash /tmp/probe_worker_failure_paths.sh .work/p1-yolov8n-rk3576-fp/yolov8n-rk3576-fp.rknn .work/p2-mpp-test/vtest-150f-h264.mp4 .work/p2-failure-probes-script
+Safety: all malformed assets were created under ignored .work/p2-failure-probes; each worker invocation had a 30-second timeout. No system configuration or services were changed.
+Cases: 1,024-byte truncated MP4; zero-byte MP4; 64-byte zero-filled invalid RKNN model.
+Result: all three exited nonzero before timeout. Truncated/empty video returned status=error with zero decoded/processed/detections/events; invalid model returned rknn_init error -6.
+The malformed media/model binaries remain in .work; hashes, sizes, stdout/stderr and exit statuses are committed as evidence.

@@ -24,9 +24,9 @@ Status: requirements-derived plan. Current completed checks and limits are recor
 
 ## Failure and recovery tests
 
+- Passed on RK3576 using [the reusable failure-path probe](scripts/probe_worker_failure_paths.sh): truncated MP4, empty MP4, and malformed RKNN model all returned nonzero within 30 seconds. The media cases exposed `status=error` with zero processed frames/events; invalid model reported `rknn_init` failure. Raw evidence is in [P2_ACCEPTANCE_REPORT.md](P2_ACCEPTANCE_REPORT.md).
 - RTSP disconnect/reconnect and authentication/network failure.
-- Corrupt, truncated, unsupported-codec, and empty media input.
-- Missing or incompatible model, permission denial, runtime initialization failure, and failed inference call.
+- Unsupported codec, missing input/model, permission denial, and runtime initialization/inference failure.
 - Simulated inference-worker exception; verify worker status, event suppression, and clean shutdown.
 - Queue overload, expired frame, deadline timeout, SQLite unavailable, low disk, and normal process/service restart.
 - Check file descriptors, thread count, memory, DB integrity, and current-event state before/after each recovery test.

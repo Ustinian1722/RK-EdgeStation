@@ -1,0 +1,8 @@
+load lable ./model/coco_80_labels_list.txt
+RKNN model=yolov8n-rk3576-fp.rknn input=640x640 channels=3 outputs=9 quantized=false
+[mov,mp4,m4a,3gp,3g2,mj2 @ 0x7f80001320] moov atom not found
+[ WARN:0@0.084] global ./modules/videoio/src/cap_gstreamer.cpp (2401) handleMessage OpenCV | GStreamer warning: Embedded video playback halted; module typefind reported: Stream contains no data.
+[ WARN:0@0.084] global ./modules/videoio/src/cap_gstreamer.cpp (1356) open OpenCV | GStreamer warning: unable to start pipeline
+[ WARN:0@0.085] global ./modules/videoio/src/cap_gstreamer.cpp (862) isPipelinePlaying OpenCV | GStreamer warning: GStreamer: pipeline have not been created
+video input failed: OpenCV could not open the video source
+worker completed: decoded=0 processed=0 detections=0 events=0 dropped=0

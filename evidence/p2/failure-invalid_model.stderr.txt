@@ -1,0 +1,5 @@
+load lable ./model/coco_80_labels_list.txt
+E RKNN: [13:14:44.254] parseRKNN: rknn model is too small!
+E RKNN: [13:14:44.254] parseRKNN from buffer: Invalid RKNN format!
+E RKNN: [13:14:44.254] rknn_init, load model failed!
+fatal: rknn_init failed with code -6

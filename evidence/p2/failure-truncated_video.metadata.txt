@@ -1,0 +1,8 @@
+case=truncated_video timeout_seconds=30
+model_sha256=2162e0cf6a71270c092353d94abb391ac111910ce178547ef80dd89b225dab0b
+video_sha256=5de1470c62fb9564998f9c528e8a015857f93c55ad6ebd0400bf68ccdb2b396b
+model_bytes=8317332
+video_bytes=1024
+start_utc=2026-11-05T13:14:42Z
+exit_status=2
+end_utc=2026-11-05T13:14:43Z
