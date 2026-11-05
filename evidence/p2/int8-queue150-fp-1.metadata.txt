@@ -1,0 +1,2 @@
+run=fp-1 model=.work/p1-yolov8n-rk3576-fp/yolov8n-rk3576-fp.rknn start=2026-11-05T12:21:07+00:00 temp=26846
+end=2026-11-05T12:21:27+00:00 temp=27769

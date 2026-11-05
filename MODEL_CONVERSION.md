@@ -31,6 +31,22 @@ The RKNN Toolkit license is a Rockchip SDK agreement: using the SDK implies acce
 
 Raw board build, run, API, stress, frequency, and dynamic-video evidence is under `evidence/p1/`. The same-input ONNX CPU vs board RKNN comparison covers six frames, with no labels, so it does not validate detection or tracking accuracy.
 
+## INT8 conversion and RK3576 worker A/B
+
+The INT8 candidate was converted from the exact same YOLOv8n ONNX SHA-256 listed above, with Toolkit2 `2.0.0b0+9bab5682`, `target_platform=rk3576`, and the same zero mean / 255 standard deviation. The conversion helper is [convert_onnx_to_rknn.py](scripts/convert_onnx_to_rknn.py); from the pinned WSL distro, the recorded invocation was:
+
+```bash
+rknn-python /mnt/d/RK-EdgeStation/scripts/convert_onnx_to_rknn.py \
+  --onnx-model /mnt/d/RK-EdgeStation/.work/models/yolov8n-model-zoo-v2.0.0.onnx \
+  --output /mnt/d/RK-EdgeStation/.work/p2-int8/yolov8n-rk3576-int8.rknn \
+  --target-platform rk3576 --dtype int8 \
+  --dataset /mnt/d/RK-EdgeStation/.work/p2-int8/calibration/calibration_dataset.txt
+```
+
+The manifest contains 20 unique images sampled at 2 FPS from the first 10 seconds of the 150-frame clip; ten later frame indices were reserved for holdout comparison. The calibration manifest and per-image SHA-256 values are recorded in [the INT8 calibration record](evidence/p2/int8-calibration-manifest.txt). The converter reported the source ONNX opset 12 versus its recommended 19, weight outliers, and changed model input/output dtypes to INT8. It completed successfully, but the warnings and the small single-scene sample remain material limitations. The resulting file is 5,118,678 bytes (SHA-256 `18d1c195294b6590c24d931c6fe01d1032d9a07ee75df08c6c0023e6e777c2ac`), about 38.5% smaller than the 8,317,332-byte FP file. Both model binaries and calibration images stay under ignored `.work`.
+
+The board-side [two-model comparator](scripts/compare_rknn_models.cpp) used the same 640×640 preprocessed UINT8 NHWC input for both models, asked RKNN Runtime to dequantize both output sets to FP32 (`want_float=1`), and used the Model Zoo v2.0.0 C++ postprocessor. This is an output-consistency diagnostic, not the worker's native INT8 postprocess branch. Ten held-out frames matched at confidence 0.345; one detection-set difference appeared at each of thresholds 0.25 (frame 105) and 0.50 (frame 140). There are no labels. The actual worker's native quantized path was exercised separately in the three-repeat, interleaved board A/B at queue capacities 1 and 150. Results, including end-to-end p95, drops, inference intervals, memory, and temperatures, are in [P2_ACCEPTANCE_REPORT.md](P2_ACCEPTANCE_REPORT.md) and raw run logs under `evidence/p2/int8-queue1-*` and `evidence/p2/int8-queue150-*`. The INT8 candidate remains experimental; FP stays the default pending representative calibration and labeled detection/event evaluation.
+
 ## Exploratory same-input numerical comparison
 
 The comparison used saved post-letterbox RGB uint8 NHWC tensors captured from the RK3576 worker. It covered the Model Zoo bus still and five frames (15, 45, 75, 100, 125) from the OpenCV `vtest` sample. ONNX Runtime 1.16.0 consumed each same image as float32 RGB `/255`, transposed to NCHW. RKNN output attributes reported FP16, while `rknn_outputs_get(want_float=1)` returned float32 buffers for analysis. Default decoding used confidence 0.25 and NMS 0.45; saved tensors were also swept at confidence 0.25, 0.34, 0.345, 0.35, 0.40, and 0.50.

@@ -1,6 +1,6 @@
 # Optimization report
 
-Status: no video-pipeline or compute-speed optimization has been accepted. P1 baselines and P2 MPP/RGA stage probes were recorded on 2026-11-05; the P2 measurements do not establish a product-speed gain.
+Status: no optimization has been promoted as the product default. P2 now has a three-repeat RK3576 worker A/B for an INT8 candidate, alongside MPP/RGA stage probes. INT8 was faster on the tested sample, but the limited single-scene calibration and lack of labeled evaluation leave output quality unverified.
 
 ## P0 constraints discovered
 
@@ -27,7 +27,27 @@ The 1,500-frame H.264 sample was decoded by GStreamer `mppvideodec` to NV12 at a
 
 For the worker's 640×640 letterbox on a 768×576 frame, RGA measured 2.342 ms/frame median versus 2.810 ms/frame for the OpenCV path across three batches of 1,000 operations after 30 warmups (about 1.20× at preprocessing only). The RGA process held `/dev/rga`; calls used synchronous `improcess` with CPU virtual-address input/output and a CPU-filled 114 padding canvas. No zero-copy path was tested. Mean pixel difference over six frames was 0.148–0.202, maximum 6–7. Same-model RKNN comparisons matched detection sets on six sampled frames at confidence 0.345 and 0.50. At confidence 0.25, frame 125 differed by one detection (10 CPU, 11 RGA; 10 matched at IoU 0.50). No ground truth is available, so the extra output cannot be classified as correct or incorrect.
 
-These stage measurements do not establish an end-to-end gain. The worker remains on the OpenCV CPU decode/preprocess path by default; MPP/RGA integration, quantization, asynchronous inference, and DMA-BUF still require controlled end-to-end comparisons. See [P2_ACCEPTANCE_REPORT.md](P2_ACCEPTANCE_REPORT.md) and the raw files in [evidence/p2](evidence/p2/).
+### INT8 model candidate A/B (2026-11-05)
+
+The same YOLOv8n graph was converted to INT8 with 20 calibration images from the first ten seconds of the sample video. Ten later frames were held out. The model file is 38.5% smaller than FP. Toolkit2 reported an opset 12/19 recommendation mismatch, weight outliers and INT8 input/output dtypes. The ten-frame board output comparison matched detection sets 9/10 at confidence 0.25, 10/10 at 0.345 and 9/10 at 0.50. This is consistency evidence on one scene, without labels.
+
+The actual worker was run three interleaved times per model on the 150-frame, 10-FPS H.264 clip at confidence 0.25:
+
+| Queue mode | Metric | FP median | INT8 median | Change |
+|---|---|---:|---:|---:|
+| Capacity 1, latest-frame | Throughput | 7.602 FPS | 9.986 FPS | +31.4% |
+| Capacity 1, latest-frame | Processed / dropped | 115 / 35 | 150 / 0 | INT8 kept pace with the input in all three runs |
+| Capacity 1, latest-frame | Inference interval (`rknn_run` + output fetch) | 71.370 ms | 54.577 ms | −23.5% |
+| Capacity 1, latest-frame | End-to-end p95 | 236.099 ms | 115.343 ms | −51.2% |
+| Capacity 150, preserve-all | Throughput | 7.965 FPS | 9.984 FPS | +25.4% |
+| Capacity 150, preserve-all | Inference interval (`rknn_run` + output fetch) | 75.379 ms | 46.414 ms | −38.4% |
+| Capacity 150, preserve-all | End-to-end p95 | 3,723.155 ms | 107.494 ms | FP accumulated a large offline queue backlog |
+
+Median RSS was about 20% lower with INT8 (119,444 kB vs 149,268 kB) in the preserve-all mode. The worker's event and detection counts differed; queue-1 runs processed different frames, and no ground truth exists. Therefore this is a real measured speed/memory candidate result on one workload, not evidence of preserved accuracy or a default-setting decision. Keep FP as default pending representative calibration plus labeled detection and event evaluation. The comparator, conversion log, model/calibration hashes and per-run raw evidence are linked in [P2_ACCEPTANCE_REPORT.md](P2_ACCEPTANCE_REPORT.md).
+
+The inference-interval medians are calculated from each run's final `last_inference_ms` sample (three run-level values per model/mode), not from a per-frame latency distribution. Throughput and RSS are summarized across runs; the end-to-end p95 is computed per run from processed frame latencies and then summarized across runs.
+
+MPP and RGA remain isolated stage probes and do not establish an end-to-end gain. The worker's decode and preprocessing defaults remain OpenCV CPU. See [P2_ACCEPTANCE_REPORT.md](P2_ACCEPTANCE_REPORT.md) and the raw files in [evidence/p2](evidence/p2/).
 
 ## Planned baseline matrix
 
@@ -35,7 +55,7 @@ These stage measurements do not establish an end-to-end gain. The worker remains
 |---|---|---|---|
 | Video decode | OpenCV/CPU decode | GStreamer MPP decode | Stage probe completed; MPP NV12 is high-throughput, while the measured MPP+BGR path is slower than OpenCV FFmpeg. Full worker A/B remains open |
 | Resize/color | OpenCV CPU | RGA | Worker-matched stage probe completed at about 1.20×; six-frame tensor/detection sensitivity recorded. Full worker A/B and labeled accuracy remain open |
-| Inference | RKNN C API single path | INT8 or asynchronous path | Matching outputs, NPU-only duration, end-to-end effect, memory and errors |
+| Inference | RKNN C API non-quantized worker path | INT8 | Three-repeat worker A/B on one sample recorded throughput, drops, inference interval, end-to-end latency and RSS; representative calibration, labeled accuracy/event comparison and broader inputs remain open |
 | Buffer transport | explicit CPU copy | imported DMA-BUF if compatible | fd/allocator ownership, cache sync, copy count, correctness and measured impact |
 | Scheduling | FIFO | latest-frame policy | queue wait, frame age, drops, event freshness and bounded RSS |
 

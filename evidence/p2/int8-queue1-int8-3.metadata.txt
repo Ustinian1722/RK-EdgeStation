@@ -1,0 +1,2 @@
+run=int8-3 model=.work/p2-int8/yolov8n-rk3576-int8.rknn queue_capacity=1 start=2026-11-05T12:26:12+00:00 temp=28692
+end=2026-11-05T12:26:28+00:00 temp=27769

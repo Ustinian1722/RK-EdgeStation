@@ -30,6 +30,14 @@ For each stable model/source configuration: 30 warmup frames, 1,000 measured fra
 - RGA preprocessing: use the same decoded BGR frame for both paths; compare the worker's 640×640 letterbox, fill value 114, and RGB order. Run 30 warmups and 1,000 timed calls per repetition, three repetitions. Include CPU fill of the RGA destination padding canvas in candidate time. Record image differences and keep input/output memory type explicit. A stage-only improvement is not an end-to-end gain.
 - Model sensitivity: run CPU and RGA uint8 inputs sequentially through the same FP RKNN model/context for each sampled frame. Compare all nine tensors and postprocessed detections at more than one confidence threshold. A matching detection set is consistency evidence only; without labels it is not accuracy evidence.
 
+### P2 FP/INT8 model comparison
+
+- Convert the same ONNX graph with the pinned Toolkit2 version and target `rk3576`. Record the exact calibration manifest, image hashes, conversion log, model hashes, Toolkit warnings, and artifact sizes. Keep calibration images and model binaries outside Git.
+- Keep calibration and holdout frames disjoint. For exploratory single-scene checks, report the scene and frame indices and do not call the result representative accuracy.
+- For tensor/detection diagnostics, feed both board models byte-identical preprocessed RGB UINT8 NHWC inputs. State whether Runtime returns dequantized floats or native integer outputs. Report per-threshold detection agreement separately from labeled accuracy. Single-run diagnostic timings are not latency distributions.
+- For the real worker A/B, use the same video, confidence, queue mode and scheduling conditions; interleave at least three repetitions per model. Report processed/dropped frames, throughput, worker inference interval (`rknn_run` plus output fetch), end-to-end p50/p95, memory, temperature and event/output counts. Capacity 1 represents latest-frame behavior; a large preserve-all queue measures backlog as well as throughput and must not be described as live latency.
+- Keep the FP model as the product default until representative calibration and a labeled evaluation establish acceptable detection and event behavior. A faster or smaller INT8 artifact by itself does not pass the accuracy gate.
+
 Use the same source, model, resolution, input path, queue policy, worker count, and power state for before/after comparisons. Warm the board to a recorded steady state; do not change clocks between paired runs. Report model inference and end-to-end changes separately.
 
 ## Overload and stability

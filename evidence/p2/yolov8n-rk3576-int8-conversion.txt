@@ -1,0 +1,77 @@
+I rknn-toolkit2 version: 2.0.0b0+9bab5682
+I It is recommended onnx opset 19, but your onnx model opset is 12!
+I Model converted from pytorch, 'opset_version' should be set 19 in torch.onnx.export for successful convert!
+toolkit_dtype=int8
+target_platform=rk3576
+onnx_model=/mnt/d/RK-EdgeStation/.work/models/yolov8n-model-zoo-v2.0.0.onnx
+output=/mnt/d/RK-EdgeStation/.work/p2-int8/yolov8n-rk3576-int8.rknn
+calibration_dataset=/mnt/d/RK-EdgeStation/.work/p2-int8/calibration/calibration_dataset.txt
+calibration_images=20
+--> Configure model
+--> Load ONNX
+
+I Loading :   0%|                                                           | 0/136 [00:00<?, ?it/s]
+I Loading : 100%|██████████████████████████████████████████████| 136/136 [00:00<00:00, 43798.01it/s]
+W build: found outlier value, this may affect quantization accuracy
+                        const name                        abs_mean    abs_std     outlier value
+                        model.0.conv.weight               2.44        2.47        -17.494
+                        model.22.cv3.2.1.conv.weight      0.09        0.14        -10.215
+                        model.22.cv3.1.1.conv.weight      0.12        0.19        13.361, 13.317
+                        model.22.cv3.0.1.conv.weight      0.18        0.20        -11.216
+--> Build RKNN
+
+I GraphPreparing :   0%|                                                    | 0/161 [00:00<?, ?it/s]
+I GraphPreparing : 100%|████████████████████████████████████████| 161/161 [00:00<00:00, 7046.68it/s]
+
+I Quantizating :   0%|                                                      | 0/161 [00:00<?, ?it/s]
+I Quantizating :   1%|▎                                             | 1/161 [00:00<01:10,  2.27it/s]
+I Quantizating :   1%|▌                                             | 2/161 [00:00<00:44,  3.58it/s]
+I Quantizating :   2%|█▏                                            | 4/161 [00:00<00:24,  6.39it/s]
+I Quantizating :   4%|█▋                                            | 6/161 [00:00<00:16,  9.32it/s]
+I Quantizating :   6%|██▌                                           | 9/161 [00:00<00:10, 13.83it/s]
+I Quantizating :   8%|███▋                                         | 13/161 [00:01<00:07, 19.38it/s]
+I Quantizating :  10%|████▍                                        | 16/161 [00:01<00:07, 18.80it/s]
+I Quantizating :  12%|█████▎                                       | 19/161 [00:01<00:06, 21.40it/s]
+I Quantizating :  15%|██████▋                                      | 24/161 [00:01<00:05, 27.40it/s]
+I Quantizating :  18%|████████                                     | 29/161 [00:01<00:04, 31.89it/s]
+I Quantizating :  20%|█████████▏                                   | 33/161 [00:01<00:03, 33.28it/s]
+I Quantizating :  23%|██████████▎                                  | 37/161 [00:01<00:03, 34.65it/s]
+I Quantizating :  28%|████████████▌                                | 45/161 [00:01<00:02, 46.26it/s]
+I Quantizating :  32%|██████████████▌                              | 52/161 [00:02<00:02, 48.31it/s]
+I Quantizating :  39%|█████████████████▌                           | 63/161 [00:02<00:01, 64.06it/s]
+I Quantizating :  46%|████████████████████▋                        | 74/161 [00:02<00:01, 76.53it/s]
+I Quantizating :  51%|██████████████████████▉                      | 82/161 [00:02<00:01, 69.42it/s]
+I Quantizating :  56%|█████████████████████████▏                   | 90/161 [00:02<00:01, 49.83it/s]
+I Quantizating :  60%|██████████████████████████▊                  | 96/161 [00:02<00:01, 44.87it/s]
+I Quantizating :  64%|████████████████████████████▏               | 103/161 [00:02<00:01, 48.50it/s]
+I Quantizating :  68%|██████████████████████████████              | 110/161 [00:03<00:00, 52.01it/s]
+I Quantizating :  75%|█████████████████████████████████           | 121/161 [00:03<00:00, 64.88it/s]
+I Quantizating :  84%|█████████████████████████████████████▏      | 136/161 [00:03<00:00, 77.96it/s]
+I Quantizating :  90%|███████████████████████████████████████▋    | 145/161 [00:03<00:00, 68.95it/s]
+I Quantizating :  95%|█████████████████████████████████████████▊  | 153/161 [00:03<00:00, 49.19it/s]
+I Quantizating :  99%|███████████████████████████████████████████▍| 159/161 [00:04<00:00, 33.25it/s]
+I Quantizating : 100%|████████████████████████████████████████████| 161/161 [00:04<00:00, 38.35it/s]
+W build: The default input dtype of 'images' is changed from 'float32' to 'int8' in rknn model for performance!
+                       Please take care of this change when deploy rknn model with Runtime API!
+W build: The default output dtype of '318' is changed from 'float32' to 'int8' in rknn model for performance!
+                      Please take care of this change when deploy rknn model with Runtime API!
+W build: The default output dtype of 'onnx::ReduceSum_326' is changed from 'float32' to 'int8' in rknn model for performance!
+                      Please take care of this change when deploy rknn model with Runtime API!
+W build: The default output dtype of '331' is changed from 'float32' to 'int8' in rknn model for performance!
+                      Please take care of this change when deploy rknn model with Runtime API!
+W build: The default output dtype of '338' is changed from 'float32' to 'int8' in rknn model for performance!
+                      Please take care of this change when deploy rknn model with Runtime API!
+W build: The default output dtype of 'onnx::ReduceSum_346' is changed from 'float32' to 'int8' in rknn model for performance!
+                      Please take care of this change when deploy rknn model with Runtime API!
+W build: The default output dtype of '350' is changed from 'float32' to 'int8' in rknn model for performance!
+                      Please take care of this change when deploy rknn model with Runtime API!
+W build: The default output dtype of '357' is changed from 'float32' to 'int8' in rknn model for performance!
+                      Please take care of this change when deploy rknn model with Runtime API!
+W build: The default output dtype of 'onnx::ReduceSum_365' is changed from 'float32' to 'int8' in rknn model for performance!
+                      Please take care of this change when deploy rknn model with Runtime API!
+W build: The default output dtype of '369' is changed from 'float32' to 'int8' in rknn model for performance!
+                      Please take care of this change when deploy rknn model with Runtime API!
+I rknn building ...
+I rknn buiding done.
+--> Export RKNN
+conversion_status=success

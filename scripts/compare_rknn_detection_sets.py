@@ -19,8 +19,10 @@ from compare_onnx_rknn_outputs import (
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--first", required=True, type=Path, help="CPU-preprocessed RKNN output directory")
-    parser.add_argument("--second", required=True, type=Path, help="RGA-preprocessed RKNN output directory")
+    parser.add_argument("--first", required=True, type=Path, help="first saved RKNN output directory")
+    parser.add_argument("--second", required=True, type=Path, help="second saved RKNN output directory")
+    parser.add_argument("--first-label", default="first")
+    parser.add_argument("--second-label", default="second")
     parser.add_argument("--confidence-sweep", default="0.25,0.345,0.50")
     parser.add_argument("--nms-threshold", type=float, default=0.45)
     parser.add_argument("--match-iou", type=float, default=0.50)
@@ -42,10 +44,10 @@ def main() -> int:
             "index": index,
             "name": first_manifest[f"output[{index}].name"],
             "shape": list(first.shape),
-            "cpu_min": float(np.min(first)),
-            "cpu_max": float(np.max(first)),
-            "rga_min": float(np.min(second)),
-            "rga_max": float(np.max(second)),
+            "first_min": float(np.min(first)),
+            "first_max": float(np.max(first)),
+            "second_min": float(np.min(second)),
+            "second_max": float(np.max(second)),
             "mean_absolute_difference": float(np.mean(np.abs(difference))),
             "rmse": float(np.sqrt(np.mean(np.square(difference)))),
             "max_absolute_difference": float(np.max(np.abs(difference))),
@@ -64,14 +66,14 @@ def main() -> int:
         detection_comparisons.append({
             "confidence_threshold": threshold,
             "agreement": detection_agreement(first_detections, second_detections, args.match_iou),
-            "cpu_detections": first_detections,
-            "rga_detections": second_detections,
+            "first_detections": first_detections,
+            "second_detections": second_detections,
         })
 
     report = {
-        "reference": "RKNN outputs from the current CPU OpenCV preprocessing",
-        "candidate": "RKNN outputs from RGA synchronous preprocessing",
-        "model": "same loaded RKNN model and context, sequential input runs",
+        "reference": args.first_label,
+        "candidate": args.second_label,
+        "model": "output tensors saved by the board-side RKNN comparison tool",
         "nms_threshold": args.nms_threshold,
         "detection_match_iou_threshold": args.match_iou,
         "tensor_comparison": tensor_comparison,

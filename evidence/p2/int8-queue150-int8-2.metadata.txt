@@ -1,0 +1,2 @@
+run=int8-2 model=.work/p2-int8/yolov8n-rk3576-int8.rknn start=2026-11-05T12:21:42+00:00 temp=27769
+end=2026-11-05T12:21:58+00:00 temp=27769
