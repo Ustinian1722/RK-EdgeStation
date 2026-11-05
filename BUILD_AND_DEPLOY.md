@@ -4,7 +4,7 @@ Status: native RK3576 build/tests and still/moving project-model detection-to-ev
 
 ## Current supported development path
 
-The board is aarch64 Ubuntu 24.04.3 with GCC/G++ 13.3 and CMake 3.28.3, so native C++17/CMake builds are available without adding a cross toolchain. The Windows host has no C++ compiler; the application is built on the board. Toolkit2 is only needed to create or convert a project model. The app's build and inference path uses the board's existing RKNN C runtime.
+The board is aarch64 Ubuntu 24.04.3 with GCC/G++ 13.3 and CMake 3.28.3, so native C++17/CMake builds are available without adding a cross toolchain. The Windows host has no C++ compiler; the application is built on the board. Toolkit2 is only needed to create or convert a project model. The app's build and inference path uses the board's existing RKNN C runtime. See [development environments](DEVELOPMENT_ENVIRONMENT.md) for the verified WSL setup, quick checks, and repair command.
 
 Board's dedicated project path is `/home/kickpi/projects/RK-EdgeStation`. It was created for this project without touching existing user project directories.
 
@@ -39,7 +39,7 @@ PYTHONPATH=python python3 scripts/run_stability_test.py \
   --source-commit "$SOURCE_COMMIT"
 ```
 
-Set `SOURCE_COMMIT` to the short commit hash synced and built on the board before running the command. The uncompressed static source is verified for exact frame count and identical decoded pixels; its SHA-256 is recorded in [the source manifest](evidence/p3/static-video-manifest.txt) and the soak manifest. A 45-second loop smoke passed. The 24-hour run has not yet been executed. Use a new output directory for every attempt and inspect `monitor/summary.json`, `monitor/samples.jsonl`, and `monitor/server.log` after completion.
+Set `SOURCE_COMMIT` to the short commit hash synced and built on the board before running the command. The uncompressed static source is verified for exact frame count and identical decoded pixels; its SHA-256 is recorded in [the source manifest](evidence/p3/static-video-manifest.txt) and the soak manifest. A 45-second loop smoke passed. The board run started at `2026-11-05T14:12:38Z` from source commit `640d6f3`, using state directory `.work/p3-soak-640d6f3-20261105`; its first sample showed the service and worker running. The 24-hour gate remains in progress until the requested duration completes and the final SQLite/evidence checks pass. The start snapshot is [recorded here](evidence/p3/24h-soak-start-20261105.txt). Use a new output directory for every attempt and inspect `monitor/summary.json`, `monitor/samples.jsonl`, and `monitor/server.log` after completion.
 
 The worker discovers board OpenCV and RKNN headers/libraries and links dynamically to those installed libraries. The current reference path uses OpenCV CPU decode/preprocessing and paces file input at its reported media rate when valid. The queue policy is included in worker metric JSON as `queue_policy`; queue capacity and `dropped_frames` are reported alongside it. P2 exercised MPP decode and RGA letterboxing as isolated board probes; full worker integration remains deferred pending controlled end-to-end and output checks. Python's standard library provides the local HTTP server and SQLite store.
 

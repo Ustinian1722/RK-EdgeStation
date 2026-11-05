@@ -11,7 +11,7 @@ The project has completed **P0** and reached **P1 board-side still and moving-vi
 - Present: GCC 13.3, CMake 3.28, OpenCV 4.6, MPP 1.5, RGA 2.2, GStreamer 1.24, RKNN Runtime 2.0.0b0.
 - MPP decoder and RGA device nodes are present. No connected camera sensor or USB camera was identified; `/dev/video0` cannot be opened.
 - The official RKNN C API sample and project YOLOv8n worker ran with Runtime 2.0.0b0 / driver 0.9.7. One repeated-still run recorded shared NPU/IOMMU interrupts +5,096 during the worker and 0 during a two-second idle check. A dynamic-run counter later read lower than its captured in-run value, so IRQ data remains exploratory; `/dev/rknpu*` nodes were not visible, per-core utilization is unavailable, and devfreq stayed at 300 MHz.
-- The board has about 44 GiB free on its root filesystem. Host conversion uses an isolated Ubuntu 22.04 x86-64 WSL2 distro and authorized Toolkit2 2.0.0b0. The host needs no Rockchip silicon or runtime: conversion is optional tooling, while native build and inference use the RK3576 board. The reproducible WSL setup is documented at `D:\WSL\RK-EdgeStation-bootstrap\README.md`.
+- The board has about 44 GiB free on its root filesystem. Host conversion uses an isolated Ubuntu 22.04 x86-64 WSL2 distro and authorized Toolkit2 2.0.0b0. The host needs no Rockchip silicon or runtime: conversion is optional tooling, while native build and inference use the RK3576 board. See [development environments](DEVELOPMENT_ENVIRONMENT.md) and the workstation bootstrap guide at `D:\WSL\RK-EdgeStation-bootstrap\README.md`.
 
 Evidence: [hardware audit](HARDWARE_AUDIT.md), [captured output](evidence/p0/hardware-audit.txt).
 
@@ -42,6 +42,7 @@ The P1 prototype includes a native RKNN YOLO worker, a bounded queue with select
 ## Documentation
 
 - [Build and deploy](BUILD_AND_DEPLOY.md)
+- [Development environments](DEVELOPMENT_ENVIRONMENT.md)
 - [Model conversion](MODEL_CONVERSION.md)
 - [P1 acceptance report](P1_ACCEPTANCE_REPORT.md)
 - [P3 stability runner and deployment controls](BUILD_AND_DEPLOY.md#p3-stability-run)

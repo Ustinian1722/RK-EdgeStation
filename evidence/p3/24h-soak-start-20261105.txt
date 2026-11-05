@@ -1,0 +1,22 @@
+RK3576 monitored soak start record
+Captured: 2026-11-05T14:12:40Z (UTC)
+Board: KICKPI K7, RK3576, Linux 6.1.75 aarch64, Python 3.12.3
+Source code commit synced and built on board: 640d6f3
+Requested duration: 86400 seconds
+Sample interval: 60 seconds
+Loopback service port: 18083
+State directory: /home/kickpi/projects/RK-EdgeStation/.work/p3-soak-640d6f3-20261105
+Runner PID at launch: 30036; service PID: 30041; worker PID: 30042
+Model SHA-256: 2162e0cf6a71270c092353d94abb391ac111910ce178547ef80dd89b225dab0b
+Static video SHA-256: 57fc5d026ecbdfe380a3c55975c3de3873741b917f1d7b458deb7d986bf72b5d
+Worker SHA-256: ae15c5aef5df76305817887e2315f18822c936635c3f46f5941039ae7594549f
+
+First monitor sample at elapsed 1.2 seconds:
+- Worker status running; decoded/processed 1/1; 0 dropped frames.
+- Throughput 7.913 FPS; last inference 74.278 ms; p95 end-to-end 117.203 ms.
+- Event count 3; storage failures 0; event write failures 0; metric write failures 0.
+- Worker RSS 114696 KiB; MemAvailable 7550574592 bytes.
+- Thermal zones reported 27.77 C; raw NPU-load telemetry unavailable.
+- Root filesystem free space 46659301376 bytes.
+
+Status at capture: the 24-hour run had started and the service and worker were running. This is a start snapshot; the duration gate, final SQLite integrity check, and evidence-reference check are pending.
