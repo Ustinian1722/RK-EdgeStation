@@ -1,6 +1,6 @@
 # 面向 Rockchip / RKNN / C++ / Linux 端侧 AI 岗位的项目讲解
 
-状态：P1 板端静态/动态视频闭环与一次跟踪关联试验的事实稿。动态测试已经打通 RKNN、ROI 进入事件、SQLite 与 API；标注精度、身份连续性、leave/dwell/count 规则和产品性能仍未验收。
+状态：RK3576 单路视频 demo 的板端闭环已打通，含 RKNN 推理、ROI/PPE/叉车风险事件、SQLite、REST API 和网页。YOLOX-S PPE 是实验候选，验证集指标和板端事件回放已记录；独立检测/事件准确率、跟踪身份连续性、物理摄像头行为和产品级性能仍未验证。
 
 ## 项目解决什么问题
 
@@ -29,6 +29,10 @@
 6. **如何处理队列过载和断流？** 队列限长、明确FIFO/丢旧帧策略、超时与流epoch；断流后关闭旧流资源，重连后拒绝旧epoch迟到结果。
 7. **有哪些实测成果？** 2026-11-05：Toolkit2 2.0.0b0 将 ONNX opset-12 YOLOv8n 转成 RK3576 `fp`/非量化模型；板端完成 16 帧静态图和 150 帧动态视频闭环。相同 150 帧、同一模型、queue=150 的 3 轮跟踪器对照中，基线每轮产生 33 个 `enter` 事件，速度预测候选每轮 29 个；两者都处理全部帧、0 丢帧、1,194 个检测输出。事件减少可能来自更少轨迹碎片，也可能来自错误合并，没有 GT 不能称精度提升。queue=150 的 p95 为 3.5–4.6 秒，不能代表实时模式。完整证据见 [P1 报告](P1_ACCEPTANCE_REPORT.md)。
 
-## 当前简历表述（限于已验证事实）
+## 三条可用于实习简历的项目描述
 
-“搭建 RK3576 单板边缘视觉原型：在隔离 WSL Toolkit2 环境转换 YOLOv8n，并在 KICKPI K7 上运行 C++/RKNN worker，打通动态 MP4、检测、ROI 事件、SQLite 与 loopback API；实现速度预测与全局一对一轻量关联，并在相同 150 帧输入上做三轮板端对照（33→29 个 enter 输出，未声称精度提升）。如实记录队列容量对新鲜度的影响、缺少身份标注、`/dev/rknpu*` 缺失及 NPU 利用率未证实。”
+1. **RK3576 端侧视觉系统：**基于 C++17、RKNN Runtime、OpenCV 与 Python REST/SQLite 服务，在 KICKPI K7 上打通 MP4/RTSP 输入、检测跟踪、区域事件留证和本地网页；实现有界 FIFO/latest 调度、事件历史与人工确认。
+2. **PPE 模型训练与部署：**审计 CC BY 4.0 Construction-PPE 数据集，在 RTX 5060 上使用 Apache-2.0 YOLOX-S 训练 12 类模型，导出 ONNX 并通过隔离 WSL Toolkit2 转为 RK3576 RKNN；最佳开发集 AP50:95 为 47.22%，板端完成 ONNX/RKNN 单输入一致性与正/安全固定帧事件回放。
+3. **板端实测与性能分析：**在 RK3576 上完成跟踪关联、FP/INT8、FIFO/latest、COCO/PPE 四组同输入对照；FIFO/latest 样本中 latest 将 p95 从 263.8 ms 降至 232.0 ms，PPE YOLOX-S 的三轮中位数为 4.40 FPS，对照 COCO YOLOv8n 的 8.27 FPS，并记录各阶段耗时、帧丢弃、CPU/RSS 与精度边界。
+
+面试中应主动说明：YOLOX-S 的 AP 来自 200 张开发验证集且没有独立测试集；正/安全事件只各测一个静态图像场景；FIFO/latest 与模型性能结果来自指定视频而非全场景保证。MPP/RGA 是独立阶段探针，没有证明完整 worker 提速或零拷贝。

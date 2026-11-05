@@ -1,6 +1,6 @@
 # Development environments
 
-Status: the Windows/WSL Toolkit2 setup and the native RK3576 build path were re-verified on 2026-11-05.
+Status: the Windows/WSL Toolkit2 setup and the native RK3576 build path were verified on 2026-11-05 and used for the PPE conversion and board run on 2026-11-06.
 
 ## Which machine does what
 
@@ -38,6 +38,8 @@ python3 scripts/rtsp_test_server.py --port 18554 --pattern ball --fps 10
 ```
 
 The board test used an SSH reverse tunnel bound to `127.0.0.1:18554` on the RK3576, then opened `rtsp://127.0.0.1:18554/test` from the worker. Keep the RTSP test server and tunnel confined to the test run; they are not part of deployment. The server produces a synthetic JPEG/RTP stream and does not validate a physical camera or alternate codecs.
+
+The YOLOX-S PPE model was trained on the Windows RTX 5060, exported to ONNX, converted in this isolated WSL Toolkit2 environment, and run on the board. The worker and inference do not depend on WSL. See [PPE training and acceptance](TRAINING_PPE.md) and the [PPE acceptance report](PPE_ACCEPTANCE_REPORT.md).
 
 ## Repair and preserve the distro
 

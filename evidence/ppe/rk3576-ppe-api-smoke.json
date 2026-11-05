@@ -1,0 +1,80 @@
+{
+  "date": "2026-11-06",
+  "board": {
+    "model": "KICKPI K7 / RK3576",
+    "architecture": "aarch64",
+    "rknn_runtime": "2.0.0b0",
+    "driver": "0.9.7"
+  },
+  "model": {
+    "family": "yolox-ppe",
+    "file": "yolox_s_construction_ppe_std1_fp.rknn",
+    "sha256": "64cc93f556816286f17c9e21f69cd2f818c3602ef13dbb2d13ed48616f74482b",
+    "input": "640x640 BGR uint8 NHWC; raw 0-255; mean 0; std 1; non-quantized build"
+  },
+  "scenarios": {
+    "positive": {
+      "source_validation_image_id": 90,
+      "video": "ppe-static-positive-150f-15fps.mp4",
+      "video_sha256": "a23d6d5c057f7c2eb52c79c883de1607d96b97f06eb645f06311b5f3bc6c439b",
+      "source_labels": ["helmet", "gloves", "no_boots x2", "goggles", "Person", "forklift", "no_vest"],
+      "health_status": "completed",
+      "worker_exit_code": 0,
+      "decoded_frames": 150,
+      "processed_frames": 47,
+      "dropped_frames": 103,
+      "detections": 558,
+      "throughput_fps": 4.553,
+      "end_to_end_p50_ms": 248.675,
+      "end_to_end_p95_ms": 293.293,
+      "storage_status": "available",
+      "event_write_failures": 0,
+      "ppe_violation_count": 1,
+      "danger_zone_intrusion_count": 2,
+      "forklift_person_cooccurrence_count": 1,
+      "ppe_person_status": {"compliant": 0, "violation": 1, "unknown": 0},
+      "sqlite_event_rows_by_type": {
+        "ppe_violation": 1,
+        "danger_zone_intrusion": 2,
+        "forklift_person_cooccurrence": 1,
+        "enter": 12,
+        "dwell": 12
+      },
+      "acknowledgement": {
+        "http_status": 200,
+        "acknowledged_by": "ppe-smoke-operator",
+        "acknowledged_at": "2026-11-05T19:37:29.253Z"
+      }
+    },
+    "negative": {
+      "source_validation_image_id": 200,
+      "video": "ppe-static-negative-safe-150f-15fps.mp4",
+      "video_sha256": "8a20ba2aefffa6eb9e06baa30e9c084b7c0872329ad67a31a6f48ce1b22fa63b",
+      "source_labels": ["Person", "helmet", "vest", "boots", "gloves"],
+      "health_status": "completed",
+      "worker_exit_code": 0,
+      "decoded_frames": 150,
+      "processed_frames": 47,
+      "dropped_frames": 103,
+      "detections": 376,
+      "throughput_fps": 4.616,
+      "end_to_end_p50_ms": 241.522,
+      "end_to_end_p95_ms": 288.341,
+      "storage_status": "available",
+      "event_write_failures": 0,
+      "ppe_violation_count": 0,
+      "danger_zone_intrusion_count": 1,
+      "forklift_person_cooccurrence_count": 0,
+      "ppe_person_status": {"compliant": 1, "violation": 0, "unknown": 0},
+      "sqlite_event_rows_by_type": {"danger_zone_intrusion": 1, "enter": 7, "dwell": 7},
+      "acknowledgement": null
+    }
+  },
+  "api_http_status": {
+    "GET /api/health": 200,
+    "GET /api/metrics": 200,
+    "GET /api/events?limit=100": 200,
+    "POST /api/events/{ppe_violation_id}/ack": 200
+  },
+  "scope_limit": "Each video repeats one image from the 200-image development validation split. These two scripted replays verify event plumbing and selected rules only; they are not temporal event ground truth or an independent accuracy estimate."
+}

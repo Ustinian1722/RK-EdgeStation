@@ -1,6 +1,6 @@
 # Optimization report
 
-Status: no optimization has been promoted as the product default. P2 includes three-repeat RK3576 worker A/Bs for the INT8 model and latest/FIFO queue policies, alongside MPP/RGA stage probes. INT8 was faster on the tested sample, but limited single-scene calibration and no labeled evaluation leave output quality unverified. Latest reduced end-to-end p95 versus FIFO in the measured overload run; wider inputs remain open.
+Status: no optimization has been promoted as the product default. P2 includes three-repeat RK3576 worker A/Bs for the INT8 model and latest/FIFO queue policies, alongside MPP/RGA stage probes. INT8 was faster on the tested sample, but limited single-scene calibration and no labeled evaluation leave output quality unverified. Latest reduced end-to-end p95 versus FIFO in the measured overload run. The fourth end-to-end workload comparison, COCO YOLOv8n versus PPE YOLOX-S, is summarized in the [four-group comparison report](PERFORMANCE_COMPARISON_REPORT.md); PPE YOLOX-S is materially slower and remains task-specific.
 
 ## P0 constraints discovered
 
@@ -52,6 +52,10 @@ The inference-interval medians are calculated from each run's final `last_infere
 The same FP worker, 150-frame/10-FPS H.264 clip, confidence 0.25 and queue capacity 1 were run in three interleaved repetitions per queue policy with the [queue A/B runner](scripts/benchmark_queue_policy_ab.sh). `latest` replaces the oldest pending frame; `fifo` preserves pending order and drops new frames while full. Latest medians were 119 processed / 31 dropped, 7.892 FPS, 172.878 ms p50 and 232.028 ms p95. FIFO medians were 119 / 31, 7.859 FPS, 199.284 ms p50 and 263.793 ms p95. Each run decoded 150 frames. Latest had 26.406 ms lower p50 and 31.765 ms lower p95 (12.0% relative to FIFO); throughput was nearly identical. Temperatures ranged 26.846–28.692°C. The tests verify queue semantics and policy propagation, but processed frames differ and there are no labels, so event counts are not comparable accuracy evidence. Keep latest as the default for freshness; FIFO is available where preserving the order of already queued frames is preferred. Raw data is in [queue-policy-ab-summary.jsonl](evidence/p2/queue-policy-ab-summary.jsonl), [the run manifest](evidence/p2/queue-policy-ab-manifest.txt), and per-run logs in `evidence/p2/queue-policy-*`.
 
 MPP and RGA remain isolated stage probes and do not establish an end-to-end gain. The worker's decode and preprocessing defaults remain OpenCV CPU. See [P2_ACCEPTANCE_REPORT.md](P2_ACCEPTANCE_REPORT.md) and the raw files in [evidence/p2](evidence/p2/).
+
+### PPE/COCO worker comparison (2026-11-06)
+
+Three interleaved RK3576 pairs used the same C++ worker, positive PPE video, queue capacity 1/latest, confidence 0.25, and zone/event settings. Median throughput was 8.271 FPS for YOLOv8n COCO and 4.403 FPS for YOLOX-S PPE. Median decode-to-result p95 was 188.988 ms vs 312.263 ms; median inference interval was 57.602 ms vs 164.426 ms. `/proc` process CPU/RSS, stage timing, drops, event counts, and hashes are in [the raw comparison](evidence/ppe/rk3576-yolov8-coco-vs-yolox-ppe.json). The models have different classes and postprocessing, so this is an end-to-end workload comparison, not model accuracy/equivalence. Keep COCO as the fast baseline and use PPE YOLOX-S where its classes are needed.
 
 ## Planned baseline matrix
 

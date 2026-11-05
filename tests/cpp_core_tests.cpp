@@ -1,4 +1,5 @@
 #include "bounded_queue.hpp"
+#include "ppe_events.hpp"
 #include "roi_events.hpp"
 #include "tracker.hpp"
 
@@ -148,6 +149,94 @@ int main() {
         CHECK(events.occupancy_count() == 1);
         CHECK(events.update({}, {}, start + 30ms).empty());
         CHECK(events.occupancy_count() == 0);
+    }
+    {
+        using namespace std::chrono_literals;
+        edge::PPEEventConfig config;
+        config.danger_zone = {0.4, 0.0, 0.6, 1.0};
+        config.conflict_zone = {0.4, 0.0, 0.6, 1.0};
+        config.confirmation_frames = 2;
+        config.cooldown = 1000ms;
+        config.conflict_dwell = 500ms;
+        edge::PPEEventMachine events(config);
+        const auto start = edge::PPEEventMachine::Clock::time_point{};
+        const edge::Detection person_detection{5, 0.95F, 40, 10, 75, 95, "Person"};
+        const edge::Detection forklift_detection{10, 0.91F, 65, 25, 99, 90, "forklift"};
+        const edge::Detection violation_detection{6, 0.87F, 50, 13, 60, 27, "no_helmet"};
+        const std::vector<edge::TrackedDetection> detections{
+            {11, person_detection, true},
+            {22, forklift_detection, true},
+            {33, violation_detection, true},
+        };
+        const std::set<std::uint64_t> active{11, 22, 33};
+
+        CHECK(events.update(detections, active, 100, 100, start).empty());
+        auto transitions = events.update(detections, active, 100, 100, start + 100ms);
+        CHECK(transitions.size() == 3);
+        bool found_violation = false;
+        for (const auto& event : transitions) {
+            if (event.event_type == "ppe_violation") {
+                found_violation = true;
+                CHECK(event.track_id == 33);
+                CHECK(event.related_track_id == std::optional<std::uint64_t>(11));
+                CHECK(event.person_association == "matched");
+                CHECK(event.ppe_status == "violation");
+                CHECK(event.detection.label == std::string("no_helmet"));
+            }
+        }
+        CHECK(found_violation);
+        CHECK(events.ppe_violations() == 1);
+        CHECK(events.danger_zone_intrusions() == 2);
+        CHECK(events.forklift_person_cooccurrences() == 0);
+
+        transitions = events.update(detections, active, 100, 100, start + 600ms);
+        CHECK(transitions.size() == 1);
+        CHECK(transitions[0].event_type == "forklift_person_cooccurrence");
+        CHECK(transitions[0].track_id == 22);
+        CHECK(transitions[0].related_track_id == std::optional<std::uint64_t>(11));
+        CHECK(transitions[0].reason.find("share_configured_conflict_zone") != std::string::npos);
+        CHECK(events.forklift_person_cooccurrences() == 1);
+
+        events.reset_stream();
+        CHECK(events.total_events() == 4);
+    }
+    {
+        using namespace std::chrono_literals;
+        edge::PPEEventConfig config;
+        config.confirmation_frames = 2;
+        edge::PPEEventMachine events(config);
+        const auto start = edge::PPEEventMachine::Clock::time_point{};
+        const edge::Detection person{5, 0.95F, 0, 0, 100, 120, "Person"};
+        const edge::Detection helmet{0, 0.91F, 35, 8, 65, 35, "helmet"};
+        const edge::Detection vest{2, 0.92F, 25, 40, 75, 95, "vest"};
+        const edge::Detection out_of_scope_no_goggle{7, 0.91F, 38, 36, 62, 50, "no_goggle"};
+        const std::set<std::uint64_t> safe_active{1, 2, 3, 4};
+        const std::vector<edge::TrackedDetection> safe{
+            {1, person, true}, {2, helmet, true}, {3, vest, true},
+            {4, out_of_scope_no_goggle, true},
+        };
+        CHECK(events.update(safe, safe_active, 100, 120, start).empty());
+        CHECK(events.person_status_counts().compliant_people == 0);
+        CHECK(events.update(safe, safe_active, 100, 120, start + 100ms).empty());
+        CHECK(events.person_status_counts().compliant_people == 1);
+        CHECK(events.person_status_counts().unknown_people == 0);
+
+        const std::vector<edge::TrackedDetection> partial{{1, person, true}, {2, helmet, true}};
+        const std::set<std::uint64_t> partial_active{1, 2};
+        events.update(partial, partial_active, 100, 120, start + 200ms);
+        CHECK(events.person_status_counts().unknown_people == 0);
+        events.update(partial, partial_active, 100, 120, start + 300ms);
+        CHECK(events.person_status_counts().unknown_people == 1);
+        CHECK(events.person_status_counts().compliant_people == 0);
+
+        const edge::Detection no_helmet{6, 0.90F, 35, 8, 65, 35, "no_helmet"};
+        const std::vector<edge::TrackedDetection> violation{{1, person, true}, {2, no_helmet, true}};
+        const std::set<std::uint64_t> violation_active{1, 2};
+        events.update(violation, violation_active, 100, 120, start + 400ms);
+        CHECK(events.person_status_counts().violation_people == 0);
+        events.update(violation, violation_active, 100, 120, start + 500ms);
+        CHECK(events.person_status_counts().violation_people == 1);
+        CHECK(events.person_status_counts().unknown_people == 0);
     }
     std::cout << "core tests passed\n";
     return 0;

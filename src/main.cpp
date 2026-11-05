@@ -1,7 +1,9 @@
 #include "bounded_queue.hpp"
+#include "ppe_events.hpp"
 #include "roi_events.hpp"
 #include "tracker.hpp"
 #include "yolov8.h"
+#include "yolox_ppe_postprocess.hpp"
 
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
@@ -91,6 +93,8 @@ struct InferenceResult {
     double postprocess_ms = 0.0;
 };
 
+enum class ModelFamily { YoloV8Coco, YoloXPpe };
+
 std::string json_escape(const std::string& value) {
     std::ostringstream out;
     for (unsigned char ch : value) {
@@ -167,8 +171,9 @@ std::vector<std::uint8_t> read_file(const std::string& path) {
 
 class RknnYoloEngine {
 public:
-    explicit RknnYoloEngine(const std::string& model_path, std::string raw_dump_dir)
-        : raw_dump_dir_(std::move(raw_dump_dir)) {
+    explicit RknnYoloEngine(const std::string& model_path, std::string raw_dump_dir,
+                            ModelFamily model_family)
+        : raw_dump_dir_(std::move(raw_dump_dir)), model_family_(model_family) {
         try {
             auto model = read_file(model_path);
             int ret = rknn_init(&context_.rknn_ctx, model.data(),
@@ -179,7 +184,8 @@ public:
 
             ret = rknn_query(context_.rknn_ctx, RKNN_QUERY_IN_OUT_NUM,
                              &context_.io_num, sizeof(context_.io_num));
-            if (ret != RKNN_SUCC || context_.io_num.n_input != 1 || context_.io_num.n_output == 0) {
+            if (ret != RKNN_SUCC || context_.io_num.n_input != 1 || context_.io_num.n_output == 0 ||
+                (model_family_ == ModelFamily::YoloXPpe && context_.io_num.n_output != 3)) {
                 throw std::runtime_error("unsupported RKNN input/output contract");
             }
 
@@ -201,6 +207,16 @@ public:
                                  &output_attrs_[i], sizeof(rknn_tensor_attr));
                 if (ret != RKNN_SUCC) {
                     throw std::runtime_error("failed to query RKNN output tensor");
+                }
+                if (model_family_ == ModelFamily::YoloXPpe) {
+                    const auto& output = output_attrs_[i];
+                    const bool nchw = output.n_dims == 4 && output.dims[0] == 1 &&
+                                      output.dims[1] == 17 && output.fmt == RKNN_TENSOR_NCHW;
+                    const bool nhwc = output.n_dims == 4 && output.dims[0] == 1 &&
+                                      output.dims[3] == 17 && output.fmt == RKNN_TENSOR_NHWC;
+                    if (!nchw && !nhwc) {
+                        throw std::runtime_error("YOLOX-PPE requires three 17-channel NCHW/NHWC output maps");
+                    }
                 }
             }
 
@@ -226,7 +242,9 @@ public:
                       << " input=" << context_.model_width << 'x' << context_.model_height
                       << " channels=" << context_.model_channel
                       << " outputs=" << context_.io_num.n_output
-                      << " quantized=" << (context_.is_quant ? "true" : "false") << '\n';
+                      << " quantized=" << (context_.is_quant ? "true" : "false")
+                      << " family=" << (model_family_ == ModelFamily::YoloXPpe ? "yolox-ppe" : "yolov8-coco")
+                      << '\n';
         } catch (...) {
             if (context_.rknn_ctx != 0) {
                 rknn_destroy(context_.rknn_ctx);
@@ -264,7 +282,13 @@ public:
         cv::Mat padded(context_.model_height, context_.model_width, CV_8UC3, cv::Scalar(114, 114, 114));
         resized.copyTo(padded(cv::Rect(pad_x, pad_y, resized_width, resized_height)));
         cv::Mat rgb;
-        cv::cvtColor(padded, rgb, cv::COLOR_BGR2RGB);
+        const cv::Mat* model_input = &padded;
+        const char* input_channel_order = "BGR";
+        if (model_family_ == ModelFamily::YoloV8Coco) {
+            cv::cvtColor(padded, rgb, cv::COLOR_BGR2RGB);
+            model_input = &rgb;
+            input_channel_order = "RGB";
+        }
 
         letterbox_t letterbox{};
         letterbox.x_pad = pad_x;
@@ -276,8 +300,8 @@ public:
         input.index = 0;
         input.type = RKNN_TENSOR_UINT8;
         input.fmt = RKNN_TENSOR_NHWC;
-        input.size = static_cast<std::uint32_t>(rgb.total() * rgb.elemSize());
-        input.buf = rgb.data;
+        input.size = static_cast<std::uint32_t>(model_input->total() * model_input->elemSize());
+        input.buf = model_input->data;
         int ret = rknn_inputs_set(context_.rknn_ctx, context_.io_num.n_input, &input);
         if (ret != RKNN_SUCC) {
             throw std::runtime_error("rknn_inputs_set failed with code " + std::to_string(ret));
@@ -305,11 +329,17 @@ public:
             ~OutputRelease() { rknn_outputs_release(context, count, outputs); }
         } output_release{context_.rknn_ctx, context_.io_num.n_output, outputs.data()};
         result.inference_ms = milliseconds(Clock::now() - inference_start);
-        dump_first_outputs(rgb, outputs, bgr.cols, bgr.rows, letterbox);
+        dump_first_outputs(*model_input, outputs, bgr.cols, bgr.rows, letterbox,
+                           input_channel_order);
 
         const auto post_start = Clock::now();
         object_detect_result_list raw{};
-        ret = post_process(&context_, outputs.data(), &letterbox, confidence, NMS_THRESH, &raw);
+        if (model_family_ == ModelFamily::YoloXPpe) {
+            ret = post_process_yolox_ppe(&context_, outputs.data(), &letterbox, confidence,
+                                         NMS_THRESH, bgr.cols, bgr.rows, &raw);
+        } else {
+            ret = post_process(&context_, outputs.data(), &letterbox, confidence, NMS_THRESH, &raw);
+        }
         if (ret != 0) {
             throw std::runtime_error("YOLO postprocess failed with code " + std::to_string(ret));
         }
@@ -322,24 +352,29 @@ public:
             const int top = std::clamp(item.box.top, 0, bgr.rows);
             const int right = std::clamp(item.box.right, left, bgr.cols);
             const int bottom = std::clamp(item.box.bottom, top, bgr.rows);
-            result.detections.push_back({item.cls_id, item.prop, left, top, right, bottom,
-                                         coco_cls_to_name(item.cls_id)});
+            const char* label = model_family_ == ModelFamily::YoloXPpe
+                ? ppe_class_to_name(item.cls_id)
+                : coco_cls_to_name(item.cls_id);
+            result.detections.push_back({item.cls_id, item.prop, left, top, right, bottom, label});
         }
         dump_first_detections(result.detections);
         return result;
     }
 
 private:
-    void dump_first_outputs(const cv::Mat& rgb, const std::vector<rknn_output>& outputs,
-                            int source_width, int source_height, const letterbox_t& letterbox) {
+    void dump_first_outputs(const cv::Mat& model_input, const std::vector<rknn_output>& outputs,
+                            int source_width, int source_height, const letterbox_t& letterbox,
+                            const char* input_channel_order) {
         if (raw_dump_dir_.empty() || raw_dumped_) return;
         fs::create_directories(raw_dump_dir_);
 
         const fs::path root(raw_dump_dir_);
-        const fs::path input_path = root / "input-rgb-u8.bin";
+        const std::string input_filename = std::string("input-") +
+            (model_family_ == ModelFamily::YoloXPpe ? "bgr" : "rgb") + "-u8.bin";
+        const fs::path input_path = root / input_filename;
         std::ofstream input_file(input_path, std::ios::binary);
-        const auto input_bytes = rgb.total() * rgb.elemSize();
-        input_file.write(reinterpret_cast<const char*>(rgb.data),
+        const auto input_bytes = model_input.total() * model_input.elemSize();
+        input_file.write(reinterpret_cast<const char*>(model_input.data),
                          static_cast<std::streamsize>(input_bytes));
         if (!input_file) throw std::runtime_error("failed to write raw RKNN input tensor");
 
@@ -349,6 +384,7 @@ private:
                  << "input_layout=NHWC\ninput_type=uint8\ninput_shape="
                  << context_.model_height << ',' << context_.model_width << ','
                  << context_.model_channel << '\n'
+                 << "input_channel_order=" << input_channel_order << '\n'
                  << "input_file=" << input_path.filename().string() << '\n'
                  << "input_bytes=" << input_bytes << '\n'
                  << "source_width=" << source_width << '\n'
@@ -410,6 +446,7 @@ private:
     std::vector<rknn_tensor_attr> output_attrs_;
     std::string model_name_;
     std::string raw_dump_dir_;
+    ModelFamily model_family_;
     bool raw_dumped_ = false;
     bool detections_dumped_ = false;
 };
@@ -426,7 +463,24 @@ struct Options {
     std::chrono::milliseconds dwell_threshold{5000};
     std::size_t roi_debounce_frames = 2;
     std::string raw_dump_dir;
+    std::string model_family = "yolov8-coco";
+    edge::NormalizedZone danger_zone;
+    edge::NormalizedZone conflict_zone;
+    std::size_t ppe_confirmation_frames = 3;
+    std::chrono::milliseconds ppe_cooldown{30000};
+    std::chrono::milliseconds conflict_dwell{1000};
 };
+
+edge::NormalizedZone parse_zone(const std::string& value, const char* option_name) {
+    edge::NormalizedZone zone;
+    std::stringstream input(value);
+    char comma1 = 0, comma2 = 0, comma3 = 0;
+    if (!(input >> zone.x >> comma1 >> zone.y >> comma2 >> zone.width >> comma3 >> zone.height) ||
+        comma1 != ',' || comma2 != ',' || comma3 != ',') {
+        throw std::invalid_argument(std::string(option_name) + " must be x,y,width,height in normalized coordinates");
+    }
+    return zone;
+}
 
 Options parse_args(int argc, char** argv) {
     Options options;
@@ -437,7 +491,10 @@ Options parse_args(int argc, char** argv) {
             std::cout << "rk_edge_worker --model MODEL.rknn --video INPUT.mp4 "
                          "[--state-dir state] [--roi x,y,w,h] [--queue-capacity N] "
                          "[--queue-policy latest|fifo] [--loop-video] [--confidence X] "
-                         "[--dwell-ms N] [--roi-debounce-frames N] [--dump-first-rknn-output DIR]\n";
+                         "[--dwell-ms N] [--roi-debounce-frames N] [--dump-first-rknn-output DIR] "
+                         "[--model-family yolov8-coco|yolox-ppe] [--danger-zone x,y,w,h] "
+                         "[--conflict-zone x,y,w,h] [--ppe-confirm-frames N] "
+                         "[--ppe-cooldown-ms N] [--conflict-dwell-ms N]\n";
             std::exit(0);
         }
         if (key == "--loop-video") {
@@ -466,6 +523,12 @@ Options parse_args(int argc, char** argv) {
     if (args.count("--dwell-ms")) options.dwell_threshold = std::chrono::milliseconds(std::stoll(args.at("--dwell-ms")));
     if (args.count("--roi-debounce-frames")) options.roi_debounce_frames = std::stoul(args.at("--roi-debounce-frames"));
     if (args.count("--dump-first-rknn-output")) options.raw_dump_dir = args.at("--dump-first-rknn-output");
+    if (args.count("--model-family")) options.model_family = args.at("--model-family");
+    if (args.count("--danger-zone")) options.danger_zone = parse_zone(args.at("--danger-zone"), "--danger-zone");
+    if (args.count("--conflict-zone")) options.conflict_zone = parse_zone(args.at("--conflict-zone"), "--conflict-zone");
+    if (args.count("--ppe-confirm-frames")) options.ppe_confirmation_frames = std::stoul(args.at("--ppe-confirm-frames"));
+    if (args.count("--ppe-cooldown-ms")) options.ppe_cooldown = std::chrono::milliseconds(std::stoll(args.at("--ppe-cooldown-ms")));
+    if (args.count("--conflict-dwell-ms")) options.conflict_dwell = std::chrono::milliseconds(std::stoll(args.at("--conflict-dwell-ms")));
     if (args.count("--roi")) {
         std::stringstream input(args.at("--roi"));
         char comma1 = 0, comma2 = 0, comma3 = 0;
@@ -483,6 +546,13 @@ Options parse_args(int argc, char** argv) {
         options.roi.y + options.roi.height > 1.0) {
         throw std::invalid_argument("invalid queue, confidence, ROI, dwell, or debounce configuration");
     }
+    if (options.model_family != "yolov8-coco" && options.model_family != "yolox-ppe") {
+        throw std::invalid_argument("--model-family must be yolov8-coco or yolox-ppe");
+    }
+    if (options.ppe_confirmation_frames == 0 || options.ppe_confirmation_frames > 10000 ||
+        options.ppe_cooldown.count() < 0 || options.conflict_dwell.count() < 0) {
+        throw std::invalid_argument("PPE confirmation, cooldown, and conflict dwell settings are invalid");
+    }
     return options;
 }
 
@@ -491,6 +561,9 @@ void emit_metric(std::uint64_t processed, std::uint64_t detections, std::uint64_
                  double preprocess_ms, double inference_ms, double postprocess_ms,
                  double queue_wait_ms, double e2e_ms, const std::deque<double>& latency_window,
                  std::size_t roi_occupancy_count, std::uint64_t cumulative_roi_entries,
+                 std::uint64_t safety_event_count, std::uint64_t ppe_violation_count,
+                 std::uint64_t danger_zone_count, std::uint64_t conflict_count,
+                 const edge::PPEStatusCounts& ppe_status_counts,
                  std::uint64_t reconnect_attempts, std::uint64_t stream_epoch,
                  const char* source_type, const char* source_status, const char* status) {
     std::lock_guard<std::mutex> output_lock(stdout_mutex);
@@ -510,6 +583,13 @@ void emit_metric(std::uint64_t processed, std::uint64_t detections, std::uint64_
               << ",\"detections\":" << detections
               << ",\"roi_occupancy_count\":" << roi_occupancy_count
               << ",\"cumulative_roi_entries\":" << cumulative_roi_entries
+              << ",\"safety_event_count\":" << safety_event_count
+              << ",\"ppe_violation_count\":" << ppe_violation_count
+              << ",\"danger_zone_intrusion_count\":" << danger_zone_count
+              << ",\"forklift_person_cooccurrence_count\":" << conflict_count
+              << ",\"ppe_compliant_person_count\":" << ppe_status_counts.compliant_people
+              << ",\"ppe_violation_person_count\":" << ppe_status_counts.violation_people
+              << ",\"ppe_unknown_person_count\":" << ppe_status_counts.unknown_people
               << ",\"queue_capacity\":" << queue.capacity()
               << ",\"queue_policy\":\"" << edge::queue_policy_name(queue.policy()) << "\""
               << ",\"queue_depth\":" << queue.size()
@@ -564,6 +644,34 @@ std::string event_json(const edge::RoiEventTransition& event, std::uint64_t fram
     return out.str();
 }
 
+std::string safety_event_json(const edge::PPEEventTransition& event, std::uint64_t frame_sequence,
+                              double pts_ms, const std::string& evidence, const std::string& model,
+                              const std::string& event_id, const std::string& timestamp,
+                              const char* source_id) {
+    const auto& d = event.detection;
+    std::ostringstream out;
+    out << std::fixed << std::setprecision(4)
+        << "{\"type\":\"event\",\"schema_version\":1,\"event_id\":\""
+        << json_escape(event_id) << "\",\"event_type\":\"" << json_escape(event.event_type)
+        << "\",\"state\":\"active\",\"transition_reason\":\""
+        << json_escape(event.reason) << "\",\"severity\":\"" << json_escape(event.severity)
+        << "\",\"timestamp_utc\":\"" << json_escape(timestamp)
+        << "\",\"source_id\":\"" << source_id << "\",\"frame_sequence\":"
+        << frame_sequence << ",\"source_pts_ms\":" << pts_ms
+        << ",\"track_id\":" << event.track_id << ",\"related_track_id\":";
+    if (event.related_track_id.has_value()) out << *event.related_track_id;
+    else out << "null";
+    out << ",\"person_association\":\"" << json_escape(event.person_association)
+        << "\",\"ppe_status\":\"" << json_escape(event.ppe_status)
+        << "\",\"confirmation_frames\":" << event.confirmation_frames
+        << ",\"class_id\":" << d.class_id << ",\"label\":\""
+        << json_escape(d.label ? d.label : "unknown") << "\",\"confidence\":" << d.confidence
+        << ",\"box\":[" << d.left << ',' << d.top << ',' << d.right << ',' << d.bottom
+        << "],\"model\":\"" << json_escape(model)
+        << "\",\"evidence\":\"" << json_escape(evidence) << "\"}";
+    return out.str();
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -578,11 +686,22 @@ int main(int argc, char** argv) {
         }
         fs::create_directories(fs::path(options.state_dir) / "evidence");
 
-        if (init_post_process() != 0) throw std::runtime_error("failed to load COCO labels from ./model/coco_80_labels_list.txt");
+        const ModelFamily model_family = options.model_family == "yolox-ppe"
+            ? ModelFamily::YoloXPpe
+            : ModelFamily::YoloV8Coco;
+        if (model_family == ModelFamily::YoloV8Coco && init_post_process() != 0) {
+            throw std::runtime_error("failed to load COCO labels from ./model/coco_80_labels_list.txt");
+        }
         int exit_code = 0;
         {
-            RknnYoloEngine engine(options.model, options.raw_dump_dir);
+            RknnYoloEngine engine(options.model, options.raw_dump_dir, model_family);
             edge::BoundedQueue<Frame> queue(options.queue_capacity, options.queue_policy);
+            edge::PPEEventConfig ppe_event_config;
+            ppe_event_config.danger_zone = options.danger_zone;
+            ppe_event_config.conflict_zone = options.conflict_zone;
+            ppe_event_config.confirmation_frames = options.ppe_confirmation_frames;
+            ppe_event_config.cooldown = options.ppe_cooldown;
+            ppe_event_config.conflict_dwell = options.conflict_dwell;
             std::atomic<std::uint64_t> decoded{0};
             std::atomic<std::uint64_t> reconnect_attempts{0};
             std::atomic<std::uint64_t> stream_epoch{0};
@@ -738,6 +857,8 @@ int main(int argc, char** argv) {
             edge::IoUTracker tracker;
             edge::RoiEventMachine roi_event_machine(options.dwell_threshold,
                                                     options.roi_debounce_frames);
+            edge::PPEEventMachine ppe_event_machine(ppe_event_config);
+            edge::PPEStatusCounts ppe_status_counts;
             std::uint64_t processed_stream_epoch = 0;
             std::deque<double> latency_window;
             std::uint64_t processed = 0;
@@ -753,6 +874,7 @@ int main(int argc, char** argv) {
                 if (frame.stream_epoch != processed_stream_epoch) {
                     tracker.reset();
                     roi_event_machine.reset_stream();
+                    ppe_event_machine.reset_stream();
                     roi_occupancy_count = 0;
                     processed_stream_epoch = frame.stream_epoch;
                     std::cerr << "stream state reset epoch=" << processed_stream_epoch << '\n';
@@ -794,6 +916,12 @@ int main(int argc, char** argv) {
                         std::chrono::duration_cast<Clock::duration>(
                             std::chrono::duration<double, std::milli>(event_time_ms));
                     auto transitions = roi_event_machine.update(observations, active, event_time);
+                    std::vector<edge::PPEEventTransition> safety_transitions;
+                    if (model_family == ModelFamily::YoloXPpe) {
+                        safety_transitions = ppe_event_machine.update(
+                            tracked, active, frame.image.cols, frame.image.rows, event_time);
+                    }
+                    ppe_status_counts = ppe_event_machine.person_status_counts();
                     roi_occupancy_count = roi_event_machine.occupancy_count();
                     cumulative_roi_entries = roi_event_machine.cumulative_entries();
                     std::vector<std::pair<edge::RoiEventTransition, std::string>> pending_events;
@@ -808,8 +936,23 @@ int main(int argc, char** argv) {
                                                      edge::roi_event_type_name(event.type);
                         pending_events.emplace_back(event, event_id);
                     }
+                    std::vector<std::pair<edge::PPEEventTransition, std::string>> pending_safety_events;
+                    pending_safety_events.reserve(safety_transitions.size());
+                    for (const auto& event : safety_transitions) {
+                        const auto now = std::chrono::system_clock::now();
+                        const auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                            now.time_since_epoch()).count();
+                        const std::string related_id = event.related_track_id.has_value()
+                            ? std::to_string(*event.related_track_id)
+                            : "unknown";
+                        const std::string event_id = "evt-" + std::to_string(now_ms) + "-" +
+                                                     std::to_string(frame.sequence) + "-" +
+                                                     std::to_string(event.track_id) + "-" +
+                                                     related_id + "-" + event.event_type;
+                        pending_safety_events.emplace_back(event, event_id);
+                    }
 
-                    if (!pending_events.empty()) {
+                    if (!pending_events.empty() || !pending_safety_events.empty()) {
                         const std::string filename = "frame-" + std::to_string(run_started_ms) + "-" +
                                                      std::to_string(frame.sequence) + ".jpg";
                         const fs::path disk_path = fs::path(options.state_dir) / "evidence" / filename;
@@ -830,6 +973,18 @@ int main(int argc, char** argv) {
                             }
                             ++event_total;
                         }
+                        for (const auto& pending : pending_safety_events) {
+                            const auto timestamp = utc_timestamp(std::chrono::system_clock::now());
+                            const auto payload = safety_event_json(
+                                pending.first, frame.sequence, frame.pts_ms, evidence,
+                                basename(options.model), pending.second, timestamp,
+                                rtsp_source ? "rtsp" : "local-file");
+                            {
+                                std::lock_guard<std::mutex> output_lock(stdout_mutex);
+                                std::cout << payload << '\n' << std::flush;
+                            }
+                            ++event_total;
+                        }
                     }
 
                     ++processed;
@@ -841,6 +996,11 @@ int main(int argc, char** argv) {
                                     last_preprocess, last_inference, last_postprocess,
                                     last_queue_wait, last_e2e, latency_window,
                                     roi_occupancy_count, cumulative_roi_entries,
+                                    ppe_event_machine.total_events(),
+                                    ppe_event_machine.ppe_violations(),
+                                    ppe_event_machine.danger_zone_intrusions(),
+                                    ppe_event_machine.forklift_person_cooccurrences(),
+                                    ppe_status_counts,
                                     reconnect_attempts.load(), stream_epoch.load(),
                                     rtsp_source ? "rtsp" : "local-file",
                                     rtsp_source ? "connected" : "not-applicable", "running");
@@ -866,6 +1026,11 @@ int main(int argc, char** argv) {
                         last_preprocess, last_inference, last_postprocess,
                         last_queue_wait, last_e2e, latency_window,
                         roi_occupancy_count, cumulative_roi_entries,
+                        ppe_event_machine.total_events(),
+                        ppe_event_machine.ppe_violations(),
+                        ppe_event_machine.danger_zone_intrusions(),
+                        ppe_event_machine.forklift_person_cooccurrences(),
+                        ppe_status_counts,
                         reconnect_attempts.load(), stream_epoch.load(),
                         rtsp_source ? "rtsp" : "local-file",
                         rtsp_source ? "connected" : "not-applicable",

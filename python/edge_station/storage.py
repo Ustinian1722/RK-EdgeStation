@@ -24,7 +24,9 @@ class EventStore:
                     label TEXT NOT NULL,
                     confidence REAL NOT NULL,
                     evidence TEXT NOT NULL,
-                    payload_json TEXT NOT NULL
+                    payload_json TEXT NOT NULL,
+                    acknowledged_at TEXT,
+                    acknowledged_by TEXT
                 );
                 CREATE INDEX IF NOT EXISTS idx_events_time ON events(timestamp_utc DESC);
                 CREATE TABLE IF NOT EXISTS metrics (
@@ -34,6 +36,11 @@ class EventStore:
                 );
                 """
             )
+            columns = {row["name"] for row in connection.execute("PRAGMA table_info(events)")}
+            if "acknowledged_at" not in columns:
+                connection.execute("ALTER TABLE events ADD COLUMN acknowledged_at TEXT")
+            if "acknowledged_by" not in columns:
+                connection.execute("ALTER TABLE events ADD COLUMN acknowledged_by TEXT")
 
     @contextmanager
     def _connection(self) -> Iterator[sqlite3.Connection]:
@@ -79,9 +86,35 @@ class EventStore:
         limit = max(1, min(int(limit), 500))
         with self._connection() as connection:
             rows = connection.execute(
-                "SELECT payload_json FROM events ORDER BY timestamp_utc DESC LIMIT ?", (limit,)
+                "SELECT payload_json, acknowledged_at, acknowledged_by FROM events "
+                "ORDER BY timestamp_utc DESC LIMIT ?", (limit,)
             ).fetchall()
-        return [json.loads(row["payload_json"]) for row in rows]
+        events = []
+        for row in rows:
+            event = json.loads(row["payload_json"])
+            if row["acknowledged_at"] is not None:
+                event["acknowledged_at"] = row["acknowledged_at"]
+                event["acknowledged_by"] = row["acknowledged_by"]
+            events.append(event)
+        return events
+
+    def acknowledge_event(self, event_id: str, acknowledged_by: str = "operator") -> bool:
+        event_id = str(event_id).strip()
+        acknowledged_by = str(acknowledged_by).strip()
+        if not event_id or len(event_id) > 200:
+            raise ValueError("event_id must contain 1..200 characters")
+        if not acknowledged_by or len(acknowledged_by) > 128:
+            raise ValueError("acknowledged_by must contain 1..128 characters")
+        with self._connection() as connection:
+            cursor = connection.execute(
+                """UPDATE events
+                   SET acknowledged_at = COALESCE(acknowledged_at,
+                                                  strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+                       acknowledged_by = COALESCE(acknowledged_by, ?)
+                   WHERE event_id = ?""",
+                (acknowledged_by, event_id),
+            )
+            return cursor.rowcount > 0
 
     def latest_metric(self) -> dict[str, Any] | None:
         with self._connection() as connection:

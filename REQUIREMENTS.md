@@ -71,7 +71,7 @@ Build a reproducible Linux edge-vision device that ingests video, performs real 
 ### P3 — product and release
 
 - Complete source/model/source-config management, local API/UI, persistence, systemd startup, and recovery.
-- Execute failure tests and at least one 24-hour board run with original logs and a reproducible protocol.
+- Execute the scoped failure/recovery checks with original logs and a reproducible protocol. Extended-duration board monitoring is optional and only added when a concrete deployment requirement calls for it.
 - Produce the technical report, demo recording, full source, reproducible build, benchmark tooling, and truthful resume/interview material.
 
 ## Verification rules

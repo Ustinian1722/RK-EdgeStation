@@ -8,7 +8,7 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
 from urllib.error import HTTPError
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 try:
     import resource
@@ -61,6 +61,19 @@ class LocalApiTests(unittest.TestCase):
                 self.assertEqual(events[0]["transition_reason"], "roi_exit")
                 self.assertEqual(events[0]["roi_occupancy_count"], 0)
                 self.assertEqual(events[0]["cumulative_roi_entries"], 2)
+
+                request = Request(
+                    base + "/api/events/evt-api-1/ack",
+                    data=json.dumps({"acknowledged_by": "reviewer-1"}).encode("utf-8"),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urlopen(request, timeout=3) as response:
+                    self.assertTrue(json.load(response)["acknowledged"])
+                with urlopen(base + "/api/events?limit=5", timeout=3) as response:
+                    acknowledged = json.load(response)["events"][0]
+                self.assertEqual(acknowledged["acknowledged_by"], "reviewer-1")
+                self.assertTrue(acknowledged["acknowledged_at"])
 
                 with urlopen(base + "/", timeout=3) as response:
                     page = response.read().decode("utf-8")

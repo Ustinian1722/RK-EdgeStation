@@ -2,6 +2,23 @@
 
 Reviewed 2026-11-05. Commit IDs below were read from public Git refs or GitHub metadata on that date. Imported files retain their upstream attribution; exact paths and scope are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
+## Industrial safety / PPE review (2026-11-06)
+
+| Source | Revision / license | Findings | Project decision |
+|---|---|---|---|
+| [roboflow/supervision](https://github.com/roboflow/supervision) | MIT | Detection containers, tracking, zones, line counting, and evaluation patterns. | Read as a design reference; no Python runtime dependency is added to the RK3576 C++ application. |
+| [blakeblackshear/frigate](https://github.com/blakeblackshear/frigate) | MIT | Review/event and evidence workflows for video monitoring. | Use event-center concepts only; do not pull in the NVR stack. |
+| [saiayush/warehouse-safety-monitor](https://github.com/saiayush/warehouse-safety-monitor) | Apache-2.0 listed by repository metadata | Small warehouse-monitoring reference with limited implementation documentation. | Reference only until specific reusable components and dependencies are verified. |
+| [IlliaSator/industrial-safety-vision](https://github.com/IlliaSator/industrial-safety-vision) | No clear software license found at the repository root during review | Some dataset/content references are separately labeled, which does not grant software reuse rights. | Do not copy its code; conceptual inspection only. |
+| [Megvii-BaseDetection/YOLOX](https://github.com/Megvii-BaseDetection/YOLOX) | Apache-2.0 | COCO-pretrained YOLOX-S and custom COCO-format training workflow are available. | Candidate for a separate PPE model experiment; clone, weights, and outputs stay under ignored `.work`. |
+| [airockchip/rknn_model_zoo v2.0.0](https://github.com/airockchip/rknn_model_zoo/releases) | Apache-2.0; release notes add RK3576 | The YOLOX example describes optimized outputs as three raw maps; its example-specific platform list is narrower than the v2.0.0 release-level platform list. | The custom 12-class YOLOX head was exported and converted with Toolkit2 2.0.0b0 for RK3576, then run on the board. Retain the input-channel/scale contract and one-input output comparison in [PPE acceptance](PPE_ACCEPTANCE_REPORT.md). |
+
+The candidate data audit and training boundary are documented in
+[`TRAINING_PPE.md`](TRAINING_PPE.md). Dataset release metadata says human-collected
+and generated images are mixed but does not expose an image-level origin field;
+the synthetic fraction is therefore unknown. It has train/validation only, so
+validation scores are not independent deployment accuracy.
+
 | Source | Revision / license | Findings | Project decision |
 |---|---|---|---|
 | [airockchip/rknn_model_zoo](https://github.com/airockchip/rknn_model_zoo) | `v2.0.0` `9bed8a56de595046651d20fa6e107884f2011e65`; Apache-2.0 | Release 2.0.0 adds RK3576. Its C++/C API examples are the official first-demo source. YOLOv8 C++ postprocess/types are imported with original license headers retained. The local integration redirects diagnostic `printf` output to stderr so worker stdout remains JSONL. Current `v2.5.0` requires RKNPU2 SDK >=2.5.0. | Use the v2.0.0-compatible YOLOv8n output graph with board Runtime 2.0.0b0. Keep imports scoped to postprocessing/types and retain attribution. Capture, tracking, events, service layers, and the logging integration patch are project work. |

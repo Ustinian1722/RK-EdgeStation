@@ -1,0 +1,19 @@
+RK-EdgeStation PPE candidate board build and test summary
+Date: 2026-11-06
+Board: KICKPI K7 / RK3576 / Linux 6.1.75 / aarch64
+RKNN Runtime: 2.0.0b0; driver 0.9.7
+Board staging source: /home/kickpi/projects/RK-EdgeStation/.work/ppe-candidate-20261106
+Board build: /home/kickpi/projects/RK-EdgeStation/.work/build-ppe-candidate-20261106
+Worker SHA-256: 35c28c4f7a7ccdf4bbee17c93b5258cae6ba41fc9a56242437f3df658aadca87
+
+Board CTest command: ctest --output-on-failure
+Result: edge_core_tests passed; edge_media_tests passed; 2/2 passed.
+
+Board Python command: PYTHONPATH=python python3 -m unittest discover -s tests/python -v
+Result: 9 tests passed, including the POSIX RLIMIT_FSIZE write-failure case.
+
+Windows Python command: python -m unittest discover -s tests/python -v
+Result: 8 passed; the POSIX-only RLIMIT_FSIZE/SIGXFSZ case was skipped on Windows.
+Python syntax compilation passed for all project scripts used by the PPE route.
+
+Post-run board process check found no RK-EdgeStation service, worker, or benchmark process still running.

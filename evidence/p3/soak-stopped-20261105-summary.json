@@ -1,0 +1,53 @@
+{
+  "result": "failed",
+  "error": null,
+  "started_utc": "2026-11-05T14:12:38Z",
+  "finished_utc": "2026-11-05T19:04:45Z",
+  "elapsed_seconds": 17526.45,
+  "requested_duration_seconds": 86400,
+  "sample_count": 292,
+  "worker_pid_changes": 0,
+  "service_exit_code": 0,
+  "last_health": {
+    "status": "running",
+    "worker_pid": 30042,
+    "worker_exit_code": null,
+    "model": "yolov8n-rk3576-fp.rknn",
+    "source": "p3-static-frame75-5fps-raw.avi",
+    "uptime_seconds": 17465.967,
+    "event_count": 6,
+    "storage_status": "available",
+    "storage_last_error": null,
+    "storage_failures": 0,
+    "event_write_failures": 0,
+    "metric_write_failures": 0,
+    "metrics": {
+      "type": "metric",
+      "status": "running",
+      "processed_frames": 87300,
+      "decoded_frames": 87307,
+      "detections": 611100,
+      "roi_occupancy_count": 3,
+      "cumulative_roi_entries": 3,
+      "queue_capacity": 1,
+      "queue_policy": "latest",
+      "queue_depth": 0,
+      "dropped_frames": 7,
+      "throughput_fps": 5.0,
+      "last_preprocess_ms": 7.467,
+      "last_inference_ms": 75.022,
+      "last_postprocess_ms": 1.653,
+      "last_queue_wait_ms": 0.311,
+      "last_end_to_end_ms": 138.236,
+      "p50_end_to_end_ms": 138.783,
+      "p95_end_to_end_ms": 154.859,
+      "latency_window_frames": 300,
+      "process_rss_kb": 117192
+    }
+  },
+  "database": {
+    "integrity_check": "ok",
+    "event_count": 6,
+    "missing_evidence": 0
+  }
+}

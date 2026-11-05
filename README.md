@@ -2,7 +2,9 @@
 
 RK-EdgeStation is an independent, single-board RK3576 edge-vision project. Its target is a maintainable industrial vision terminal that accepts local video or RTSP, runs a Rockchip NPU model, tracks objects, emits evidence-backed events, and exposes a local management interface. It has no Jetson dependency or second compute board.
 
-The project has completed **P0** and reached **P1 board-side still and moving-video detection-to-event/API runs**. The official RK3576 MobileNet C++ sample and project YOLOv8n worker both ran through the board's RKNN Runtime. A motion-predicted tracker refinement completed a 150-frame moving sample with 129 processed frames, 21 dropped, 1,021 detections, and 29 persisted events. The ROI layer now debounces enter/leave transitions, emits one dwell event per confirmed visit, and reports current occupancy plus cumulative entries. A 150-frame board run produced 17 enters, 4 leaves, and 7 dwells; each dwell followed its enter by the configured 1.2 seconds of media time. A six-frame same-input ONNX CPU vs RKNN comparison matched detection sets at the configured 0.25 threshold, but a confidence sweep exposed one bus-frame difference at 0.345 and raw low-score tensors differ. This is not a labeled accuracy result; two low-confidence `skis` predictions remain. Full P1 acceptance is open. See the [P0 report](P0_ACCEPTANCE_REPORT.md) and [P1 report](P1_ACCEPTANCE_REPORT.md).
+The RK3576 demo now runs a complete single-stream loop: MP4/RTSP input, RKNN inference, tracking, ROI and safety events, evidence images, SQLite history, local REST API, and a web dashboard. The existing YOLOv8n COCO model remains the fast general-object baseline. A separate 12-class YOLOX-S PPE/person/forklift candidate was trained, converted to RKNN, and exercised on the board. Its two fixed-frame API replays emitted the scripted positive PPE event and no PPE event on the safe sample. These are workflow checks, not temporal event-accuracy results. See the [PPE acceptance report](PPE_ACCEPTANCE_REPORT.md).
+
+The COCO model measured 8.27 FPS and the PPE model 4.40 FPS in three interleaved runs on the same RK3576 worker and video. The PPE path has higher decode-to-result latency and drops more frames at a 15-FPS source. Keep the COCO path for speed; use PPE YOLOX-S only when its classes are required. The model comparison and three other same-input board comparison groups are summarized in the [performance report](PERFORMANCE_COMPARISON_REPORT.md).
 
 ## Current target and findings
 
@@ -21,23 +23,23 @@ The planned product has six cooperating subsystems:
 
 1. C++17 video ingest and media processing for MP4/RTSP, with camera input enabled only after a physical device is verified.
 2. RKNN C API inference, with a CPU/OpenCV reference path, model and tensor checks, safe resource ownership, and measured preprocessing/inference/postprocessing.
-3. Detection, lightweight tracking, ROI rules, enter/leave/dwell/count events, and timestamped evidence.
+3. Detection, lightweight tracking, ROI and safety-zone rules, PPE association/status, forklift/person co-occurrence alerts, enter/leave/dwell/count events, and timestamped evidence.
 4. Bounded multithread scheduling, backpressure, FIFO/latest-frame modes, expiry and timeout handling, and separate latency/age/throughput/drop metrics.
 5. Local REST and web management, SQLite, structured logs, authentication, recovery, and systemd integration.
 6. RKNN-OptLab for graph/conversion inspection, FP16/INT8 comparisons, runtime profiling, attribution, and reports.
 
 The staged requirements and architecture are in [REQUIREMENTS.md](REQUIREMENTS.md) and [ARCHITECTURE.md](ARCHITECTURE.md). The implementation will not call a pipeline zero-copy until buffer ownership and DMA-BUF import are demonstrated on this board.
 
-The P1 prototype includes a native RKNN YOLO worker, a bounded queue with selectable latest-frame (drop oldest pending) and FIFO (drop newest while full) policies, a class-gated motion-predicted IoU/center tracker, debounced ROI enter/leave/dwell events, occupancy and cumulative-entry metrics, saved frame evidence, SQLite persistence, and a loopback-only HTTP dashboard. Latest-frame remains the default. Dwell uses monotonicized media timestamps, with nominal-FPS or decode-time fallback when source timestamps are invalid. Confirmed exits require consecutive outside observations; a track that expires while still inside is removed from occupancy without a synthetic leave event. The non-quantized (`fp`) YOLOv8n model was converted in WSL and run on RK3576. Six exploratory single-frame ONNX CPU vs RKNN comparisons matched at confidence 0.25, while a bus-frame comparison diverged at confidence 0.345 and raw class/score-sum outputs differ in low-score regions; broad model equivalence and labeled accuracy remain open. The controlled tracker/event comparison used a 150-frame queue to preserve every frame, but p95 end-to-end delay reached 3.5–4.6 seconds; the live freshness path uses capacity 1. Ground-truth ID continuity, per-core NPU utilization, and product performance remain open.
+The RKNN inference and service run on the RK3576. Windows/WSL is used for model training/export/conversion; after a compatible `.rknn` exists, the host is not required for board inference. Latest-frame remains the default bounded-queue mode. Event rules use normalized image regions and persistence thresholds. Forklift/person co-occurrence is an image-space risk cue, not a physical-distance estimate. Labeled tracking/event accuracy, physical-camera behavior, per-core NPU utilization, and production performance remain open.
 
 ## Phases
 
 | Phase | Scope | State |
 |---|---|---|
-| P0 | Hardware audit, open-source/license review, requirements, architecture, official RKNN demo | Complete; official RK3576 C API smoke test passed |
-| P1 | Single-stream detection-to-event loop and minimum local web UI | Still/moving API loops and ROI enter/leave/dwell/count plumbing pass; six-frame model comparison found a confidence-boundary difference; tracker identity and labeled accuracy remain open |
-| P2 | MPP/RGA pipeline, quantization comparison, scheduling and profiling | INT8 A/B: 9.986 vs 7.602 median FPS in latest-frame mode, without labeled accuracy. Queue A/B: latest p95 232.0 ms vs FIFO 263.8 ms on one 10-FPS sample. SQLite path and bounded-write failure recovery now have board simulations; actual filesystem exhaustion remains open. INT8 remains experimental; MPP/RGA remain stage-only |
-| P3 | Device management, failure/reliability testing, 24-hour run, release package | Manual restart, synthetic RTSP reconnect, and temporary systemd user-service recovery after service/worker failure passed on RK3576. Actual low-disk behavior, the in-progress 24-hour run, boot-time activation, and release handoff remain open |
+| P0 | Hardware audit, license review, requirements, official RKNN smoke | Complete; official RK3576 C API sample passed |
+| P1 | Single-stream detection, events, persistence, and local UI | MP4 and synthetic RTSP paths, ROI transitions, PPE rules, SQLite/API history and acknowledgement exercised on the board. Labeled event accuracy and identity continuity remain open |
+| P2 | Media paths, quantization, scheduling, and profiling | Four same-input end-to-end comparison groups are documented. INT8 remains experimental; MPP/RGA remain stage-only and no zero-copy or end-to-end gain is claimed |
+| P3 | Recovery and handoff | Manual restart, synthetic RTSP reconnect, and temporary systemd user-service recovery passed. A 24-hour soak is outside this project's acceptance scope; the earlier exploratory run stopped after 4 h 52 min and is not a completed soak |
 
 ## Documentation
 
@@ -45,7 +47,9 @@ The P1 prototype includes a native RKNN YOLO worker, a bounded queue with select
 - [Development environments](DEVELOPMENT_ENVIRONMENT.md)
 - [Model conversion](MODEL_CONVERSION.md)
 - [P1 acceptance report](P1_ACCEPTANCE_REPORT.md)
-- [P3 stability runner and deployment controls](BUILD_AND_DEPLOY.md#p3-stability-run)
+- [PPE training protocol](TRAINING_PPE.md) and [PPE acceptance report](PPE_ACCEPTANCE_REPORT.md)
+- [Four-group board performance report](PERFORMANCE_COMPARISON_REPORT.md)
+- [Optional long-run diagnostic and deployment controls](BUILD_AND_DEPLOY.md#optional-monitored-long-run-probe)
 - [P3 graceful restart recovery probe](scripts/restart_recovery_smoke.py)
 - `build/bin/create_static_video` creates and verifies a deterministic repeated-frame AVI test source for long-run experiments.
 - [Benchmark protocol](BENCHMARK_PROTOCOL.md)

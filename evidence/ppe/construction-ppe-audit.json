@@ -1,0 +1,81 @@
+{
+  "dataset": "Ultralytics Construction-PPE",
+  "source_url": "https://github.com/ultralytics/assets/releases/download/v0.0.0/construction-ppe.zip",
+  "license": "CC BY 4.0",
+  "attribution": "Ultralytics Construction-PPE Dataset, Ultralytics team, November 2026, CC BY 4.0",
+  "classes": [
+    "helmet",
+    "gloves",
+    "vest",
+    "boots",
+    "goggles",
+    "Person",
+    "no_helmet",
+    "no_goggle",
+    "no_gloves",
+    "no_boots",
+    "forklift",
+    "no_vest"
+  ],
+  "split": {
+    "train": {
+      "images": 800,
+      "label_files": 800,
+      "boxes": 11902,
+      "class_counts": {
+        "Person": 1962,
+        "boots": 2003,
+        "forklift": 275,
+        "gloves": 1548,
+        "goggles": 612,
+        "helmet": 1282,
+        "no_boots": 569,
+        "no_gloves": 839,
+        "no_goggle": 265,
+        "no_helmet": 634,
+        "no_vest": 437,
+        "vest": 1476
+      },
+      "manifest_split_mismatches": 0
+    },
+    "val": {
+      "images": 200,
+      "label_files": 200,
+      "boxes": 2961,
+      "class_counts": {
+        "Person": 481,
+        "boots": 481,
+        "forklift": 73,
+        "gloves": 381,
+        "goggles": 139,
+        "helmet": 294,
+        "no_boots": 178,
+        "no_gloves": 203,
+        "no_goggle": 82,
+        "no_helmet": 179,
+        "no_vest": 130,
+        "vest": 340
+      },
+      "manifest_split_mismatches": 0
+    }
+  },
+  "manifest_rows": 1000,
+  "manifest_extra_files": [],
+  "sha256_mismatches": [],
+  "missing_labels": [],
+  "malformed_annotations": [],
+  "boxes_outside_image_beyond_rounding_tolerance": [],
+  "rounding_boundary_boxes": 94,
+  "maximum_normalized_edge_excess": 5.000000000032756e-06,
+  "cross_split_exact_duplicates": [],
+  "provenance_fields_in_manifest": [],
+  "provenance_counts": {},
+  "synthetic_image_proportion": "not disclosed per image; release README says human-collected and generated images are mixed",
+  "has_separate_test_split": false,
+  "release_readme_mentions_generated_images": true,
+  "archive": {
+    "path": "construction-ppe.zip",
+    "bytes": 647666037,
+    "sha256": "e5817aa9c73f33e525d76ca6bc6af4e4eac9dcea9bcfef1cfd1a71c09fbc1232"
+  }
+}

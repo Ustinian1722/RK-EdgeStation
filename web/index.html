@@ -20,16 +20,22 @@
   <h1>RK-EdgeStation</h1>
   <div id="summary" class="muted">Connecting to the local board service…</div>
   <section id="metrics" class="grid"></section>
-  <h2>Recent ROI events</h2>
-  <div class="card"><table><thead><tr><th>Time (UTC)</th><th>Object / type</th><th>State</th><th>Track</th><th>Confidence</th><th>ROI occupancy</th><th>Evidence</th></tr></thead>
-    <tbody id="events"><tr><td colspan="7">Waiting for events</td></tr></tbody></table></div>
-  <p class="muted">This service binds to loopback. Metrics describe the active input source and its configured queue.</p>
+  <h2>Recent events</h2>
+  <div class="card"><table><thead><tr><th>Time (UTC)</th><th>Object / type</th><th>State</th><th>Severity</th><th>Track / related</th><th>Association</th><th>Confidence</th><th>ROI occupancy</th><th>Evidence</th><th>Acknowledgement</th></tr></thead>
+    <tbody id="events"><tr><td colspan="10">Waiting for events</td></tr></tbody></table></div>
+  <p class="muted">A person is marked compliant only when both helmet and vest detections are present; otherwise the PPE status remains unknown unless a violation is detected. PPE alerts require persistent detections. Danger and forklift/person zones are opt-in normalized rectangles. Co-occurrence only means both detections occupy the configured rectangle; it does not estimate physical distance. This service binds to loopback.</p>
   <script>
     const metricKeys = [
       ["status", "Worker"], ["throughput_fps", "Processed FPS"],
       ["last_inference_ms", "Last inference ms"], ["p95_end_to_end_ms", "P95 end-to-end ms"],
       ["dropped_frames", "Dropped frames"], ["process_rss_kb", "Process RSS kB"],
       ["roi_occupancy_count", "Objects inside ROI"], ["cumulative_roi_entries", "Total entries"],
+      ["safety_event_count", "Safety events"], ["ppe_violation_count", "PPE violations"],
+      ["ppe_compliant_person_count", "Helmet + vest observed"],
+      ["ppe_violation_person_count", "People with PPE violation"],
+      ["ppe_unknown_person_count", "People with unknown PPE status"],
+      ["danger_zone_intrusion_count", "Zone intrusions"],
+      ["forklift_person_cooccurrence_count", "Forklift/person co-occurrences"],
       ["source_type", "Input type"], ["source_status", "Stream status"],
       ["reconnect_attempts", "Reconnect attempts"],
       ["stream_epoch", "Stream epoch"]
@@ -58,16 +64,35 @@
         }));
         const body = document.getElementById('events'); body.replaceChildren();
         const events = Array.isArray(eventData.events) ? eventData.events : [];
-        if (!eventResponse.ok) { const row = body.insertRow(); const cell = row.insertCell(); cell.colSpan = 7; cell.textContent = `Event history unavailable: ${eventData.detail || eventData.error || eventResponse.status}`; }
-        else if (!events.length) { const row = body.insertRow(); const cell = row.insertCell(); cell.colSpan = 7; cell.textContent = 'No events yet'; }
+        if (!eventResponse.ok) { const row = body.insertRow(); const cell = row.insertCell(); cell.colSpan = 10; cell.textContent = `Event history unavailable: ${eventData.detail || eventData.error || eventResponse.status}`; }
+        else if (!events.length) { const row = body.insertRow(); const cell = row.insertCell(); cell.colSpan = 10; cell.textContent = 'No events yet'; }
         for (const event of events) {
           const row = body.insertRow();
-          for (const value of [event.timestamp_utc, `${event.label} · ${event.event_type}`, event.state ?? '—',
-            event.track_id, Number(event.confidence).toFixed(3), event.roi_occupancy_count ?? '—']) {
+          for (const value of [event.timestamp_utc, `${event.label} · ${event.event_type}`, event.state ?? '—', event.severity ?? '—',
+            event.related_track_id == null ? event.track_id : `${event.track_id} / ${event.related_track_id}`,
+            event.person_association ?? '—', Number(event.confidence).toFixed(3), event.roi_occupancy_count ?? '—']) {
             row.insertCell().textContent = value;
           }
           const cell = row.insertCell();
           if (event.evidence) { const link = document.createElement('a'); link.href = `/evidence/${encodeURIComponent(event.evidence.split('/').pop())}`; link.textContent = 'open'; cell.append(link); }
+          const ackCell = row.insertCell();
+          if (event.acknowledged_at) {
+            ackCell.textContent = `Acknowledged by ${event.acknowledged_by} · ${event.acknowledged_at}`;
+          } else {
+            const button = document.createElement('button'); button.textContent = 'Acknowledge';
+            button.onclick = async () => {
+              button.disabled = true;
+              try {
+                const response = await fetch(`/api/events/${encodeURIComponent(event.event_id)}/ack`, {
+                  method: 'POST', headers: {'Content-Type':'application/json'},
+                  body: JSON.stringify({acknowledged_by:'operator'})
+                });
+                if (!response.ok) throw new Error(`acknowledgement failed: ${response.status}`);
+                refresh();
+              } catch (error) { button.disabled = false; button.textContent = 'Retry'; }
+            };
+            ackCell.append(button);
+          }
         }
       } catch (error) { document.getElementById('summary').textContent = `Local service error: ${error}`; }
     }

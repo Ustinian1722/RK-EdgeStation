@@ -11,7 +11,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from .media_source import display_source, is_rtsp_source, resolve_worker_source
 from .storage import EventStore
@@ -62,7 +62,7 @@ class AppState:
             self.storage_status = "unavailable"
             self.storage_error = detail
             self.storage_failures += 1
-            if operation == "write event":
+            if operation in ("write event", "acknowledge event"):
                 self.event_write_failures += 1
             elif operation == "write metric":
                 self.metric_write_failures += 1
@@ -100,6 +100,17 @@ class AppState:
             raise StorageUnavailable(detail) from error
         self._mark_storage_available()
         return events
+
+    def acknowledge_event(self, event_id: str, acknowledged_by: str) -> bool:
+        try:
+            found = self._get_store().acknowledge_event(event_id, acknowledged_by)
+        except StorageUnavailable:
+            raise
+        except (OSError, sqlite3.Error, ValueError, TypeError) as error:
+            detail = self._mark_storage_failure("acknowledge event", error)
+            raise StorageUnavailable(detail) from error
+        self._mark_storage_available()
+        return found
 
     def start_worker(self, command: list[str], model: Path, video: Path | str) -> None:
         self.model_name = model.name
@@ -260,6 +271,39 @@ def make_handler(state: AppState):
                 return
             self._json(404, {"error": "not found"})
 
+        def do_POST(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
+            parsed = urlparse(self.path)
+            prefix = "/api/events/"
+            suffix = "/ack"
+            if not parsed.path.startswith(prefix) or not parsed.path.endswith(suffix):
+                self._json(404, {"error": "not found"})
+                return
+            event_id = unquote(parsed.path[len(prefix):-len(suffix)])
+            if not event_id or "/" in event_id:
+                self._json(400, {"error": "invalid event id"})
+                return
+            try:
+                body_size = int(self.headers.get("Content-Length", "0"))
+                if body_size < 0 or body_size > 8192:
+                    raise ValueError("request body must be at most 8192 bytes")
+                payload = json.loads(self.rfile.read(body_size) or b"{}")
+                if not isinstance(payload, dict):
+                    raise ValueError("request body must be a JSON object")
+                acknowledged_by = payload.get("acknowledged_by", "operator")
+                if not isinstance(acknowledged_by, str):
+                    raise ValueError("acknowledged_by must be a string")
+                found = state.acknowledge_event(event_id, acknowledged_by)
+            except (ValueError, json.JSONDecodeError) as error:
+                self._json(400, {"error": str(error)})
+                return
+            except StorageUnavailable as error:
+                self._json(503, {"error": "event storage unavailable", "detail": str(error)})
+                return
+            if not found:
+                self._json(404, {"error": "event not found"})
+                return
+            self._json(200, {"event_id": event_id, "acknowledged": True})
+
         def log_message(self, fmt: str, *args: Any) -> None:
             print(f"http {self.address_string()} {fmt % args}", file=sys.stderr)
 
@@ -269,6 +313,7 @@ def make_handler(state: AppState):
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="RK-EdgeStation local dashboard")
     parser.add_argument("--model", type=Path)
+    parser.add_argument("--model-family", choices=("yolov8-coco", "yolox-ppe"), default="yolov8-coco")
     parser.add_argument("--video")
     parser.add_argument("--worker", type=Path, default=ROOT / "build" / "bin" / "rk_edge_worker")
     parser.add_argument("--state-dir", type=Path, default=ROOT / "state")
@@ -280,6 +325,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--confidence", type=float, default=0.25)
     parser.add_argument("--dwell-ms", type=int, default=5000)
     parser.add_argument("--roi-debounce-frames", type=int, default=2)
+    parser.add_argument("--danger-zone", help="normalized x,y,width,height for persistent person/forklift entry")
+    parser.add_argument("--conflict-zone", help="normalized x,y,width,height for person/forklift co-occurrence")
+    parser.add_argument("--ppe-confirm-frames", type=int, default=3)
+    parser.add_argument("--ppe-cooldown-ms", type=int, default=30000)
+    parser.add_argument("--conflict-dwell-ms", type=int, default=1000)
     return parser.parse_args()
 
 
@@ -287,11 +337,19 @@ def build_worker_command(args: argparse.Namespace, worker: Path, model: Path,
                          video: Path | str, state_dir: Path) -> list[str]:
     command = [
         str(worker), "--model", str(model), "--video", str(video),
+        "--model-family", args.model_family,
         "--state-dir", str(state_dir), "--roi", args.roi,
         "--queue-capacity", str(args.queue_capacity), "--queue-policy", args.queue_policy,
         "--confidence", str(args.confidence), "--dwell-ms", str(args.dwell_ms),
         "--roi-debounce-frames", str(args.roi_debounce_frames),
+        "--ppe-confirm-frames", str(args.ppe_confirm_frames),
+        "--ppe-cooldown-ms", str(args.ppe_cooldown_ms),
+        "--conflict-dwell-ms", str(args.conflict_dwell_ms),
     ]
+    if args.danger_zone:
+        command.extend(("--danger-zone", args.danger_zone))
+    if args.conflict_zone:
+        command.extend(("--conflict-zone", args.conflict_zone))
     if args.loop_video:
         command.append("--loop-video")
     return command
@@ -308,6 +366,23 @@ def main() -> int:
     if args.dwell_ms <= 0 or not (1 <= args.roi_debounce_frames <= 10000):
         print("dwell-ms must be positive and ROI debounce frames must be 1..10000", file=sys.stderr)
         return 2
+    if not (1 <= args.ppe_confirm_frames <= 10000) or args.ppe_cooldown_ms < 0 or args.conflict_dwell_ms < 0:
+        print("PPE confirmation, cooldown, and conflict dwell settings are invalid", file=sys.stderr)
+        return 2
+    for option_name in ("danger_zone", "conflict_zone"):
+        value = getattr(args, option_name)
+        if value is None:
+            continue
+        try:
+            values = [float(part.strip()) for part in value.split(",")]
+            x, y, width, height = values
+        except (ValueError, TypeError):
+            print(f"--{option_name.replace('_', '-')} must be x,y,width,height", file=sys.stderr)
+            return 2
+        if (x < 0 or y < 0 or width <= 0 or height <= 0 or
+                x + width > 1 or y + height > 1):
+            print(f"--{option_name.replace('_', '-')} must lie within normalized frame coordinates", file=sys.stderr)
+            return 2
 
     state_dir = args.state_dir if args.state_dir.is_absolute() else ROOT / args.state_dir
     state_dir = state_dir.resolve()

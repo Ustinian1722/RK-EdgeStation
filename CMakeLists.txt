@@ -14,6 +14,8 @@ add_executable(rk_edge_worker
     src/main.cpp
     src/tracker.cpp
     src/roi_events.cpp
+    src/ppe_events.cpp
+    src/yolox_ppe_postprocess.cpp
     src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc
 )
 
@@ -35,7 +37,7 @@ set_target_properties(rk_edge_worker PROPERTIES BUILD_RPATH "/lib;/usr/lib/aarch
 
 include(CTest)
 if(BUILD_TESTING)
-    add_executable(edge_core_tests tests/cpp_core_tests.cpp src/tracker.cpp src/roi_events.cpp)
+    add_executable(edge_core_tests tests/cpp_core_tests.cpp src/tracker.cpp src/roi_events.cpp src/ppe_events.cpp)
     target_include_directories(edge_core_tests PRIVATE src)
     target_compile_options(edge_core_tests PRIVATE -Wall -Wextra -Wpedantic)
     add_test(NAME edge_core_tests COMMAND edge_core_tests)

@@ -1,5 +1,6 @@
 # Locally generated builds and model artifacts
 .work/
+YOLOX_outputs/
 .p0_official_demo/
 build/
 cmake-build-*/

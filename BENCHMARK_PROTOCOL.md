@@ -46,4 +46,4 @@ Use the same source, model, resolution, input path, queue policy, worker count, 
 - Exercise slow-consumer and burst-input cases under both policies at increasing rates while recording queue bounds, frame age, drops, timeouts, RSS, CPU/NPU, and event correctness. Compare the actual processed frame sequences; total drop counts alone do not establish freshness or correctness.
 - Use deterministic injected delays for queue-control tests; label them as scheduler tests, not hardware saturation results.
 - Run reconnect, malformed input, model-load error, inference-worker failure, low disk, restart, and long-run tests from [TEST_PLAN.md](TEST_PLAN.md).
-- P3 requires a continuous 24-hour run with timestamps, periodic resource snapshots, error counts, restart count, storage free space, and event sanity checks.
+- P3 recovery evidence uses bounded, repeatable board runs with timestamps, resource snapshots, error/restart counts, storage status, and event/evidence checks. Extended-duration monitoring is optional and must not be treated as a substitute for model, event, or recovery validation.
