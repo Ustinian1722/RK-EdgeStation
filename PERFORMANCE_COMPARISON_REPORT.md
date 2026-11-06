@@ -40,5 +40,5 @@ The YOLOX-S median inference interval was about 2.85× the COCO model's; its p95
 
 - The FP/INT8 and tracker/queue reports predate process-level CPU sampling; they retain worker RSS where captured. CPU values are not reconstructed for those runs.
 - MPP decode and RGA letterbox results are stage-only. The current worker remains on OpenCV software decode/preprocessing; no zero-copy path or end-to-end MPP/RGA gain is claimed.
-- Detection-output consistency is separate from event correctness. The PPE board output comparison covers one saved input; the event checks cover two fixed-frame replay scenarios, not a labeled video test set.
+- Detection-output consistency is separate from event correctness. The PPE board output comparison covers one saved input. The event replays now have a source-label-grounded, clip-level presence score of 2/2 across one positive and one compliant static scene; they still do not form an independent labeled video test set or support temporal event precision/recall. See the [PPE event evaluation](evidence/ppe/event-level-replay-evaluation.json) and [acceptance report](PPE_ACCEPTANCE_REPORT.md).
 - Keep the YOLOv8n COCO path as the fast general-object baseline. The PPE YOLOX-S path is a demonstrable, slower task-specific candidate with measured limits.

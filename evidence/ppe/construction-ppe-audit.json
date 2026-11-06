@@ -1,7 +1,18 @@
 {
   "dataset": "Ultralytics Construction-PPE",
+  "asset_release": "ultralytics/assets v0.0.0",
   "source_url": "https://github.com/ultralytics/assets/releases/download/v0.0.0/construction-ppe.zip",
+  "source_documentation_url": "https://docs.ultralytics.com/zh/datasets/detect/construction-ppe",
+  "source_yaml_url": "https://raw.githubusercontent.com/ultralytics/ultralytics/main/ultralytics/cfg/datasets/construction-ppe.yaml",
   "license": "CC BY 4.0",
+  "license_evidence": {
+    "embedded_license_file": "LICENSE.txt",
+    "present": true,
+    "header": "Attribution 4.0 International",
+    "readme_mentions_cc_by_4": true,
+    "sha256": "9ba9550ad48438d0836ddab3da480b3b69ffa0aac7b7878b5a0039e7ab429411",
+    "matches_cc_by_4_declaration": true
+  },
   "attribution": "Ultralytics Construction-PPE Dataset, Ultralytics team, November 2026, CC BY 4.0",
   "classes": [
     "helmet",

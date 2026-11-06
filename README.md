@@ -2,7 +2,7 @@
 
 RK-EdgeStation is an independent, single-board RK3576 edge-vision project. Its target is a maintainable industrial vision terminal that accepts local video or RTSP, runs a Rockchip NPU model, tracks objects, emits evidence-backed events, and exposes a local management interface. It has no Jetson dependency or second compute board.
 
-The RK3576 demo now runs a complete single-stream loop: MP4/RTSP input, RKNN inference, tracking, ROI and safety events, evidence images, SQLite history, local REST API, and a web dashboard. The existing YOLOv8n COCO model remains the fast general-object baseline. A separate 12-class YOLOX-S PPE/person/forklift candidate was trained, converted to RKNN, and exercised on the board. Its two fixed-frame API replays emitted the scripted positive PPE event and no PPE event on the safe sample. These are workflow checks, not temporal event-accuracy results. See the [PPE acceptance report](PPE_ACCEPTANCE_REPORT.md).
+The RK3576 demo runs a single-stream loop: MP4/RTSP input, RKNN inference, tracking, ROI and safety events, evidence images, SQLite history, local REST API, and a web dashboard. The existing YOLOv8n COCO model remains the fast general-object baseline. A separate 12-class YOLOX-S PPE/person/forklift candidate was trained, converted to RKNN, and exercised on the board. A label-grounded replay evaluator matched the expected PPE-event presence in 2/2 fixed-scene clips (one positive, one compliant). Both clips repeat one development-validation image, so this is a workflow check rather than an independent or temporal accuracy estimate. See the [PPE acceptance report](PPE_ACCEPTANCE_REPORT.md) and [event evaluation record](evidence/ppe/event-level-replay-evaluation.json).
 
 The COCO model measured 8.27 FPS and the PPE model 4.40 FPS in three interleaved runs on the same RK3576 worker and video. The PPE path has higher decode-to-result latency and drops more frames at a 15-FPS source. Keep the COCO path for speed; use PPE YOLOX-S only when its classes are required. The model comparison and three other same-input board comparison groups are summarized in the [performance report](PERFORMANCE_COMPARISON_REPORT.md).
 
@@ -30,14 +30,14 @@ The planned product has six cooperating subsystems:
 
 The staged requirements and architecture are in [REQUIREMENTS.md](REQUIREMENTS.md) and [ARCHITECTURE.md](ARCHITECTURE.md). The implementation will not call a pipeline zero-copy until buffer ownership and DMA-BUF import are demonstrated on this board.
 
-The RKNN inference and service run on the RK3576. Windows/WSL is used for model training/export/conversion; after a compatible `.rknn` exists, the host is not required for board inference. Latest-frame remains the default bounded-queue mode. Event rules use normalized image regions and persistence thresholds. Forklift/person co-occurrence is an image-space risk cue, not a physical-distance estimate. Labeled tracking/event accuracy, physical-camera behavior, per-core NPU utilization, and production performance remain open.
+The RKNN inference and service run on the RK3576. Windows/WSL is used for model training/export/conversion; after a compatible `.rknn` exists, the host is not required for board inference. Latest-frame remains the default bounded-queue mode. Event rules use normalized image regions and persistence thresholds. Forklift/person co-occurrence is an image-space risk cue, not a physical-distance estimate. Independent PPE/event accuracy, temporal event matching, real-camera behavior, per-core NPU utilization, and production performance remain open.
 
 ## Phases
 
 | Phase | Scope | State |
 |---|---|---|
 | P0 | Hardware audit, license review, requirements, official RKNN smoke | Complete; official RK3576 C API sample passed |
-| P1 | Single-stream detection, events, persistence, and local UI | MP4 and synthetic RTSP paths, ROI transitions, PPE rules, SQLite/API history and acknowledgement exercised on the board. Labeled event accuracy and identity continuity remain open |
+| P1 | Single-stream detection, events, persistence, and local UI | MP4 and synthetic RTSP paths, ROI transitions, PPE rules, SQLite/API history and acknowledgement exercised on the board. Two fixed-scene PPE clips have a label-grounded 2/2 sequence-presence check; independent temporal accuracy and identity continuity remain open |
 | P2 | Media paths, quantization, scheduling, and profiling | Four same-input end-to-end comparison groups are documented. INT8 remains experimental; MPP/RGA remain stage-only and no zero-copy or end-to-end gain is claimed |
 | P3 | Recovery and handoff | Manual restart, synthetic RTSP reconnect, and temporary systemd user-service recovery passed. A 24-hour soak is outside this project's acceptance scope; the earlier exploratory run stopped after 4 h 52 min and is not a completed soak |
 
@@ -48,6 +48,7 @@ The RKNN inference and service run on the RK3576. Windows/WSL is used for model 
 - [Model conversion](MODEL_CONVERSION.md)
 - [P1 acceptance report](P1_ACCEPTANCE_REPORT.md)
 - [PPE training protocol](TRAINING_PPE.md) and [PPE acceptance report](PPE_ACCEPTANCE_REPORT.md)
+- [PPE event replay video generator](scripts/generate_ppe_replay_videos.py) and [label-grounded replay evaluator](scripts/evaluate_ppe_replay_events.py)
 - [Four-group board performance report](PERFORMANCE_COMPARISON_REPORT.md)
 - [Optional long-run diagnostic and deployment controls](BUILD_AND_DEPLOY.md#optional-monitored-long-run-probe)
 - [P3 graceful restart recovery probe](scripts/restart_recovery_smoke.py)

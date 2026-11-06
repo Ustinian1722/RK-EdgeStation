@@ -3,10 +3,12 @@
 ## Scope and data
 
 This is a separate 12-class PPE/person/forklift detector experiment. It does not
-replace or relabel the existing COCO YOLOv8n baseline. The candidate dataset is
-Ultralytics Construction-PPE, distributed under CC BY 4.0. Preserve the
-attribution in `scripts/export_construction_ppe_coco.py` and in any dataset
-derived model card. Its 1,000 images are split 800/200 with 14,863 annotations.
+replace or relabel the existing COCO YOLOv8n baseline. The candidate is pinned to
+the Ultralytics Assets `v0.0.0` Construction-PPE archive, distributed under CC BY
+4.0. The archive hash, embedded license, official November 2026 dataset page,
+and matching YAML are recorded in the [dataset audit](evidence/ppe/construction-ppe-audit.json).
+Preserve the attribution in `scripts/export_construction_ppe_coco.py` and in any
+dataset-derived model card. Its 1,000 images are split 800/200 with 14,863 annotations.
 The release says human-collected and generated images are mixed, but the public
 manifest has no image-level origin field, so the generated-image fraction is
 unknown. The release has no separate test split; its validation metrics are
@@ -30,6 +32,23 @@ python scripts/export_construction_ppe_coco.py `
 
 The archive, images, annotations, checkpoints, and ONNX/RKNN binaries stay under
 `.work` and are excluded from Git.
+
+## Reproducible event-replay inputs
+
+After exporting the COCO annotations, regenerate positive and compliant-negative
+fixed-scene clips from validation image IDs 90 and 200:
+
+```powershell
+python scripts/generate_ppe_replay_videos.py `
+  --output-dir .work/ppe-event-replays
+```
+
+The generator verifies the person/PPE labels before encoding two 640×640 H.264
+clips at 15 FPS for 150 frames. Its `replay-manifest.json` records source-image
+and video hashes, expected PPE-event labels, FFmpeg version, and encoding
+arguments. This creates repeatable rule inputs, not real moving footage. Board
+results must be collected again for newly generated video hashes; the archived
+metrics in the acceptance report refer to the separately hashed original clips.
 
 Create 640-pixel training images and matching COCO boxes in the ignored cache:
 
@@ -132,7 +151,12 @@ results and hashes are in [PPE_ACCEPTANCE_REPORT.md](PPE_ACCEPTANCE_REPORT.md).
 ## License and provenance
 
 - RK-EdgeStation source remains Apache-2.0.
-- Dataset: CC BY 4.0; retain attribution and license link.
+- Dataset: the pinned November 2026 `ultralytics/assets` v0.0.0 archive is CC BY
+  4.0; retain attribution and license link. The current Chinese dataset page
+  and the archive README/LICENSE match its 1,000-image, 12-class schema. The
+  English dataset page currently describes a different 2025 schema (1,416
+  images, 11 classes, AGPL-3.0); do not use that page to identify the archive
+  used for this experiment.
 - YOLOX source: Apache-2.0; it is an external training dependency, not copied
   into this repository.
 - Do not train this route with Ultralytics model/training code: its AGPL terms

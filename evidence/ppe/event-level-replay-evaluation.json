@@ -1,0 +1,151 @@
+{
+  "evaluation_name": "RK3576 PPE fixed-scene replay event-presence check",
+  "date": "2026-11-06",
+  "board": {
+    "model": "KICKPI K7 / RK3576",
+    "architecture": "aarch64",
+    "rknn_runtime": "2.0.0b0",
+    "driver": "0.9.7"
+  },
+  "model": {
+    "family": "yolox-ppe",
+    "file": "yolox_s_construction_ppe_std1_fp.rknn",
+    "sha256": "64cc93f556816286f17c9e21f69cd2f818c3602ef13dbb2d13ed48616f74482b",
+    "input": "640x640 BGR uint8 NHWC; raw 0-255; mean 0; std 1; non-quantized build"
+  },
+  "unit": "one 150-frame replay clip; binary presence of at least one PPE-violation event",
+  "label_rule": "positive if a source COCO no_helmet/no_vest box is linked to a labeled person by center containment",
+  "status_rule": "person status follows the production association rule: violation evidence wins; compliant requires linked helmet and vest; otherwise unknown",
+  "dataset_archive_sha256": "e5817aa9c73f33e525d76ca6bc6af4e4eac9dcea9bcfef1cfd1a71c09fbc1232",
+  "dataset_release": "ultralytics/assets v0.0.0",
+  "dataset_license": "CC BY 4.0",
+  "dataset_documentation_url": "https://docs.ultralytics.com/zh/datasets/detect/construction-ppe",
+  "checkpoint_selection_split": "The same 200-image validation split used for model selection; not an independent test split.",
+  "clip_count": 2,
+  "media_hashes_verified_locally": true,
+  "confusion_matrix_clip_presence": {
+    "true_positive": 1,
+    "false_positive": 0,
+    "false_negative": 0,
+    "true_negative": 1
+  },
+  "clip_presence_metrics": {
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "specificity": 1.0,
+    "f1": 1.0
+  },
+  "person_status": {
+    "persons_scored": 2,
+    "correct": 2,
+    "accuracy": 1.0,
+    "unknown_status_examples": 0
+  },
+  "scenarios": [
+    {
+      "scenario": "positive",
+      "source_split": "val (development split)",
+      "source_image_id": 90,
+      "source_image": "ultralytics-ppe-nov2026-171.jpg",
+      "source_image_sha256": "f2121c195d1c69b3b461d5ac69bbd07f221828911e5918fa4d74ffc66b31726a",
+      "source_image_labels": {
+        "Person": 1,
+        "forklift": 1,
+        "gloves": 2,
+        "goggles": 1,
+        "helmet": 1,
+        "no_boots": 2,
+        "no_vest": 1
+      },
+      "person_boxes": 1,
+      "person_linked_ppe_labels_by_center_containment": [
+        "helmet",
+        "no_vest"
+      ],
+      "ground_truth_event_present": true,
+      "ground_truth_person_status": "violation",
+      "replay_video": "ppe-static-positive-150f-15fps.mp4",
+      "replay_video_sha256_recorded": "a23d6d5c057f7c2eb52c79c883de1607d96b97f06eb645f06311b5f3bc6c439b",
+      "replay_video_sha256_local": "a23d6d5c057f7c2eb52c79c883de1607d96b97f06eb645f06311b5f3bc6c439b",
+      "replay_video_hash_verified_locally": true,
+      "replay_video_content_check": {
+        "declared_frames": 150,
+        "decoded_frames": 150,
+        "fps": 15.0,
+        "duration_seconds": 10.0,
+        "width": 640,
+        "height": 640,
+        "unique_decoded_frame_hashes": 19,
+        "maximum_mean_pixel_difference_from_first_frame": 1.6777490234375,
+        "first_frame_mean_absolute_difference_from_labeled_source": 3.0788248697916667
+      },
+      "decoded_frames": 150,
+      "predicted_event_count": 1,
+      "predicted_event_present": true,
+      "predicted_person_status_counts": {
+        "compliant": 0,
+        "violation": 1,
+        "unknown": 0
+      },
+      "predicted_person_status": "violation",
+      "status_match": true,
+      "worker_exit_code": 0,
+      "health_status": "completed"
+    },
+    {
+      "scenario": "negative",
+      "source_split": "val (development split)",
+      "source_image_id": 200,
+      "source_image": "ultralytics-ppe-nov2026-705.jpg",
+      "source_image_sha256": "abe23241f2ee06d55b4d443e7806b5e33bdff767f62bf18584043b0cc54bec8a",
+      "source_image_labels": {
+        "Person": 1,
+        "boots": 2,
+        "gloves": 2,
+        "helmet": 1,
+        "vest": 1
+      },
+      "person_boxes": 1,
+      "person_linked_ppe_labels_by_center_containment": [
+        "helmet",
+        "vest"
+      ],
+      "ground_truth_event_present": false,
+      "ground_truth_person_status": "compliant",
+      "replay_video": "ppe-static-negative-safe-150f-15fps.mp4",
+      "replay_video_sha256_recorded": "8a20ba2aefffa6eb9e06baa30e9c084b7c0872329ad67a31a6f48ce1b22fa63b",
+      "replay_video_sha256_local": "8a20ba2aefffa6eb9e06baa30e9c084b7c0872329ad67a31a6f48ce1b22fa63b",
+      "replay_video_hash_verified_locally": true,
+      "replay_video_content_check": {
+        "declared_frames": 150,
+        "decoded_frames": 150,
+        "fps": 15.0,
+        "duration_seconds": 10.0,
+        "width": 640,
+        "height": 640,
+        "unique_decoded_frame_hashes": 26,
+        "maximum_mean_pixel_difference_from_first_frame": 1.820986328125,
+        "first_frame_mean_absolute_difference_from_labeled_source": 3.4076123046875
+      },
+      "decoded_frames": 150,
+      "predicted_event_count": 0,
+      "predicted_event_present": false,
+      "predicted_person_status_counts": {
+        "compliant": 1,
+        "violation": 0,
+        "unknown": 0
+      },
+      "predicted_person_status": "compliant",
+      "status_match": true,
+      "worker_exit_code": 0,
+      "health_status": "completed"
+    }
+  ],
+  "scope_limits": [
+    "The two clips each repeat one still image; this is clip-level event presence, not temporal event-boundary matching.",
+    "Both images come from the development validation split used for checkpoint selection; results are not independent generalization evidence.",
+    "The sample has one positive and one compliant negative clip; the scores are a narrow workflow check, not a safety performance estimate.",
+    "Danger-zone, dwell, channel-occupancy, and forklift/person events were observed in the board smoke run but have no independent temporal ground-truth labels here."
+  ]
+}

@@ -13,7 +13,8 @@ The project uses the upstream postprocessing routine for compatibility with the 
 ## PPE fine-tuning dependency
 
 - Candidate source: [Megvii-BaseDetection/YOLOX](https://github.com/Megvii-BaseDetection/YOLOX), Apache-2.0. Local experiment source is cloned under ignored `.work/yolox-upstream`; no YOLOX implementation files are copied into this repository. The project-specific experiment configuration and ONNX exporter are original project files.
-- Candidate data: [Ultralytics Construction-PPE](https://docs.ultralytics.com/datasets/detect/construction-ppe), CC BY 4.0. It is attributed in the COCO exporter and experiment instructions. Do not commit the dataset archive or derived weights.
+- Candidate data: the November 2026 [Ultralytics Construction-PPE dataset page](https://docs.ultralytics.com/zh/datasets/detect/construction-ppe) and pinned [Assets v0.0.0 archive](https://github.com/ultralytics/assets/releases/download/v0.0.0/construction-ppe.zip), CC BY 4.0 (archive SHA-256 `e5817aa9c73f33e525d76ca6bc6af4e4eac9dcea9bcfef1cfd1a71c09fbc1232`). The archive's `README.md` and `LICENSE.txt` are retained locally with the dataset. The COCO exporter preserves attribution and source metadata. Do not commit the dataset archive, images, videos, or derived weights.
+- The English Construction-PPE documentation currently describes a 2025, 1,416-image/11-class AGPL-3.0 schema; that page does not match the pinned November 2026 archive used here. Use the dataset-specific license and schema in the archive and the matching November 2026 documentation.
 - The YOLOX Model Zoo raw-head path was converted with Toolkit2 2.0.0b0 for `rk3576` and executed through RKNN Runtime 2.0.0b0 on the KICKPI K7. The custom training code, exporter, and C++ postprocessor are project-authored; no YOLOX implementation files or Model Zoo binaries are copied into the repository. The candidate weights remain local and are not redistributed.
 
 ## YOLOv8 pretrained model

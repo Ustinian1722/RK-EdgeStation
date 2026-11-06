@@ -35,4 +35,4 @@
 2. **PPE 模型训练与部署：**审计 CC BY 4.0 Construction-PPE 数据集，在 RTX 5060 上使用 Apache-2.0 YOLOX-S 训练 12 类模型，导出 ONNX 并通过隔离 WSL Toolkit2 转为 RK3576 RKNN；最佳开发集 AP50:95 为 47.22%，板端完成 ONNX/RKNN 单输入一致性与正/安全固定帧事件回放。
 3. **板端实测与性能分析：**在 RK3576 上完成跟踪关联、FP/INT8、FIFO/latest、COCO/PPE 四组同输入对照；FIFO/latest 样本中 latest 将 p95 从 263.8 ms 降至 232.0 ms，PPE YOLOX-S 的三轮中位数为 4.40 FPS，对照 COCO YOLOv8n 的 8.27 FPS，并记录各阶段耗时、帧丢弃、CPU/RSS 与精度边界。
 
-面试中应主动说明：YOLOX-S 的 AP 来自 200 张开发验证集且没有独立测试集；正/安全事件只各测一个静态图像场景；FIFO/latest 与模型性能结果来自指定视频而非全场景保证。MPP/RGA 是独立阶段探针，没有证明完整 worker 提速或零拷贝。
+面试中应主动说明：YOLOX-S 的 AP 来自 200 张开发验证集且没有独立测试集；正/安全事件回放按源标签核对为 2/2 clip-presence 匹配，但每类只有一个静态场景，不代表独立或时序准确率；FIFO/latest 与模型性能结果来自指定视频而非全场景保证。MPP/RGA 是独立阶段探针，没有证明完整 worker 提速或零拷贝。

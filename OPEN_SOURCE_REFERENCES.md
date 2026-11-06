@@ -1,6 +1,6 @@
 # Open-source and upstream review
 
-Reviewed 2026-11-05. Commit IDs below were read from public Git refs or GitHub metadata on that date. Imported files retain their upstream attribution; exact paths and scope are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Reviewed 2026-11-06. Commit IDs below were read from public Git refs or GitHub metadata on that date. Imported files retain their upstream attribution; exact paths and scope are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Industrial safety / PPE review (2026-11-06)
 
@@ -8,16 +8,18 @@ Reviewed 2026-11-05. Commit IDs below were read from public Git refs or GitHub m
 |---|---|---|---|
 | [roboflow/supervision](https://github.com/roboflow/supervision) | MIT | Detection containers, tracking, zones, line counting, and evaluation patterns. | Read as a design reference; no Python runtime dependency is added to the RK3576 C++ application. |
 | [blakeblackshear/frigate](https://github.com/blakeblackshear/frigate) | MIT | Review/event and evidence workflows for video monitoring. | Use event-center concepts only; do not pull in the NVR stack. |
-| [saiayush/warehouse-safety-monitor](https://github.com/saiayush/warehouse-safety-monitor) | Apache-2.0 listed by repository metadata | Small warehouse-monitoring reference with limited implementation documentation. | Reference only until specific reusable components and dependencies are verified. |
+| [saiayush/warehouse-safety-monitor](https://github.com/saiayush/warehouse-safety-monitor) | Apache-2.0 in the repository `LICENSE` file | Small warehouse-monitoring reference with limited implementation documentation. | Reference only until specific reusable components and dependencies are verified. |
 | [IlliaSator/industrial-safety-vision](https://github.com/IlliaSator/industrial-safety-vision) | No clear software license found at the repository root during review | Some dataset/content references are separately labeled, which does not grant software reuse rights. | Do not copy its code; conceptual inspection only. |
 | [Megvii-BaseDetection/YOLOX](https://github.com/Megvii-BaseDetection/YOLOX) | Apache-2.0 | COCO-pretrained YOLOX-S and custom COCO-format training workflow are available. | Candidate for a separate PPE model experiment; clone, weights, and outputs stay under ignored `.work`. |
-| [airockchip/rknn_model_zoo v2.0.0](https://github.com/airockchip/rknn_model_zoo/releases) | Apache-2.0; release notes add RK3576 | The YOLOX example describes optimized outputs as three raw maps; its example-specific platform list is narrower than the v2.0.0 release-level platform list. | The custom 12-class YOLOX head was exported and converted with Toolkit2 2.0.0b0 for RK3576, then run on the board. Retain the input-channel/scale contract and one-input output comparison in [PPE acceptance](PPE_ACCEPTANCE_REPORT.md). |
+| [airockchip/rknn_model_zoo v2.0.0](https://github.com/airockchip/rknn_model_zoo/releases) | Apache-2.0; release notes add RK3576 | The YOLOX example describes optimized outputs as three raw maps; its example-specific platform list is narrower than the v2.0.0 release-level platform list. The current upstream release is v2.5.0, which requires RKNPU2 SDK >=2.5.0; v2.0.0 requires SDK >=2.0.0. | The custom 12-class YOLOX head was exported and converted with Toolkit2 2.0.0b0 for RK3576, then run on the board. The board's Runtime 2.0.0b0 matches the selected Toolkit2 v2.0.0b0 and the v2.0.0 Model Zoo minimum. Retain the input-channel/scale contract and one-input output comparison in [PPE acceptance](PPE_ACCEPTANCE_REPORT.md). |
 
 The candidate data audit and training boundary are documented in
 [`TRAINING_PPE.md`](TRAINING_PPE.md). Dataset release metadata says human-collected
 and generated images are mixed but does not expose an image-level origin field;
 the synthetic fraction is therefore unknown. It has train/validation only, so
 validation scores are not independent deployment accuracy.
+
+The experiment is pinned to the [Ultralytics Assets v0.0.0 archive](https://github.com/ultralytics/assets/releases/download/v0.0.0/construction-ppe.zip), SHA-256 `e5817aa9c73f33e525d76ca6bc6af4e4eac9dcea9bcfef1cfd1a71c09fbc1232`. The [November 2026 dataset page](https://docs.ultralytics.com/zh/datasets/detect/construction-ppe), embedded archive `README.md`/`LICENSE.txt`, and its matching YAML identify this specific 1,000-image, 12-class dataset as CC BY 4.0. The English documentation page currently describes a separate 2025 schema (1,416 images, 11 classes, AGPL-3.0); it does not match this pinned archive. The audit records the embedded license-file hash and provenance fields; image-level generated-image provenance is not published.
 
 | Source | Revision / license | Findings | Project decision |
 |---|---|---|---|

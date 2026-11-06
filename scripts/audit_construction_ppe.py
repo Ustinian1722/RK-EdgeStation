@@ -14,6 +14,9 @@ from typing import Any
 
 
 DATASET_URL = "https://github.com/ultralytics/assets/releases/download/v0.0.0/construction-ppe.zip"
+DATASET_DOCUMENTATION_URL = "https://docs.ultralytics.com/zh/datasets/detect/construction-ppe"
+DATASET_YAML_URL = "https://raw.githubusercontent.com/ultralytics/ultralytics/main/ultralytics/cfg/datasets/construction-ppe.yaml"
+ASSET_RELEASE = "ultralytics/assets v0.0.0"
 KNOWN_PROVENANCE_KEYS = {
     "source", "source_type", "synthetic", "generated", "origin", "image_type",
     "human_collected", "is_synthetic",
@@ -48,9 +51,24 @@ def load_class_names(data_yaml: Path) -> list[str]:
 
 def audit(root: Path, archive: Path | None = None) -> dict[str, Any]:
     readme_path = root / "README.md"
+    license_path = root / "LICENSE.txt"
     manifest_path = root / "manifest.jsonl"
     yaml_path = root / "data.yaml"
     readme = readme_path.read_text(encoding="utf-8")
+    license_text = license_path.read_text(encoding="utf-8") if license_path.is_file() else ""
+    license_header = next((line.strip() for line in license_text.splitlines() if line.strip()), "")
+    license_evidence = {
+        "embedded_license_file": license_path.name,
+        "present": license_path.is_file(),
+        "header": license_header,
+        "readme_mentions_cc_by_4": "CC BY 4.0" in readme,
+        "sha256": sha256_file(license_path) if license_path.is_file() else None,
+        "matches_cc_by_4_declaration": (
+            license_header == "Attribution 4.0 International"
+            and "CC BY 4.0" in readme
+            and "creativecommons.org/licenses/by/4.0" in readme.lower()
+        ),
+    }
     names = load_class_names(yaml_path)
     manifest_rows = [
         json.loads(line)
@@ -167,8 +185,12 @@ def audit(root: Path, archive: Path | None = None) -> dict[str, Any]:
 
     return {
         "dataset": "Ultralytics Construction-PPE",
+        "asset_release": ASSET_RELEASE,
         "source_url": DATASET_URL,
+        "source_documentation_url": DATASET_DOCUMENTATION_URL,
+        "source_yaml_url": DATASET_YAML_URL,
         "license": "CC BY 4.0",
+        "license_evidence": license_evidence,
         "attribution": "Ultralytics Construction-PPE Dataset, Ultralytics team, November 2026, CC BY 4.0",
         "classes": names,
         "split": split_stats,
@@ -211,6 +233,7 @@ def main() -> int:
         or report["malformed_annotations"]
         or report["boxes_outside_image_beyond_rounding_tolerance"]
         or report["manifest_extra_files"]
+        or not report["license_evidence"]["matches_cc_by_4_declaration"]
         or any(value["manifest_split_mismatches"] for value in report["split"].values())
     )
     return 1 if problems else 0

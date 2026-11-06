@@ -1,6 +1,6 @@
 # PPE model and event acceptance
 
-**Status:** The separate PPE/person/forklift model converts to RKNN and runs on the KICKPI K7 / RK3576. The model-to-event/API loop passed two fixed-frame board replays. This is a prototype acceptance result; the data does not establish independent deployment accuracy.
+**Status:** The separate PPE/person/forklift model converts to RKNN and runs on the KICKPI K7 / RK3576. The model-to-event/API loop passed two fixed-frame board replays. A label-grounded clip-presence scorer now reproduces those results as 2/2 exact scenario matches (one violation clip, one compliant clip). This remains a narrow workflow check, not independent deployment accuracy or temporal event accuracy.
 
 ## Dataset and training
 
@@ -52,7 +52,21 @@ The same worker also supports normalized danger/conflict zones, confirmed ROI en
 
 Two 150-frame, 15-FPS files each repeat a single validation image. Both board services completed with exit code 0, storage available, and zero event-write failures. Health, metrics, and event-history requests returned HTTP 200. The positive replay emitted one associated `no_vest` violation, two configured-zone intrusions, and one forklift/person co-occurrence; the violation acknowledgement was stored in SQLite. The safe replay emitted zero PPE violations and counted its one person as compliant. See the [board API smoke record](evidence/ppe/rk3576-ppe-api-smoke.json).
 
-These two replays establish that selected rules and the event/API persistence path work on the board. They do not establish temporal event precision/recall, tracking identity quality, or real-camera behavior. They use two images from the same development validation split.
+### Label-grounded event-presence evaluation
+
+The post-hoc evaluator [scripts/evaluate_ppe_replay_events.py](scripts/evaluate_ppe_replay_events.py) joins the source COCO annotations to the archived board API results, verifies the local replay-video SHA-256 values, and decodes each clip to check its frame count and source-scene match. It writes [event-level-replay-evaluation.json](evidence/ppe/event-level-replay-evaluation.json). Ground truth is derived from the source image labels: image 90 contains a person-associated `no_vest` violation, while image 200 contains a person-associated helmet and vest with no target violation. The board reported one `ppe_violation` event for the positive clip and zero for the compliant clip.
+
+| Clip-level PPE violation presence | Count |
+|---|---:|
+| True positive | 1 |
+| False positive | 0 |
+| False negative | 0 |
+| True negative | 1 |
+| Exact scenario matches | 2/2 |
+
+The two person-status outputs also matched their source-label-derived status: one violation and one compliant. These are sequence-presence metrics over **two 10-second, 150-frame clips that each repeat one validation scene**, drawn from the same development validation split used for model selection. They do not measure event onset/offset, deduplication across real trajectories, identity continuity, or performance on independent recordings. The scores must not be presented as general event accuracy. The danger-zone, dwell/channel-occupancy, and forklift/person co-occurrence outputs in the smoke run remain functional demonstrations without independent temporal ground-truth labels.
+
+Reproduce the archived-result calculation from the repository root with `python scripts/evaluate_ppe_replay_events.py`. The Construction-PPE archive and the original MP4s must be present in their ignored `.work` locations; neither is redistributed in Git. To generate fresh deterministic inputs from the pinned dataset, run `python scripts/generate_ppe_replay_videos.py --output-dir .work/ppe-event-replays`. The generator records source-image hashes, FFmpeg version/arguments, frame format, and output hashes in `replay-manifest.json`. Its fresh files will not match the archived board-run hashes; rerun the board service on those files and use that new API evidence before calculating new event metrics.
 
 ## Performance and limitations
 

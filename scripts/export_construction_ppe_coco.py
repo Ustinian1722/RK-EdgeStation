@@ -13,6 +13,8 @@ import cv2
 
 
 LICENSE_URL = "https://creativecommons.org/licenses/by/4.0/"
+DATASET_URL = "https://github.com/ultralytics/assets/releases/download/v0.0.0/construction-ppe.zip"
+DATASET_DOCUMENTATION_URL = "https://docs.ultralytics.com/zh/datasets/detect/construction-ppe"
 ATTRIBUTION = "Ultralytics Construction-PPE Dataset, Ultralytics team, November 2026, CC BY 4.0"
 
 
@@ -106,6 +108,9 @@ def convert_split(root: Path, split: str, names: list[str]) -> tuple[dict[str, A
             "source_attribution": ATTRIBUTION,
             "source_license": "CC BY 4.0",
             "source_license_url": LICENSE_URL,
+            "source_url": DATASET_URL,
+            "source_documentation_url": DATASET_DOCUMENTATION_URL,
+            "source_release": "ultralytics/assets v0.0.0",
         },
         "licenses": [{"id": 1, "name": "CC BY 4.0", "url": LICENSE_URL}],
         "images": images,
