@@ -4,6 +4,8 @@
 - **Board:** KICKPI K7 / RK3576 / Ubuntu 24.04.3 aarch64
 - **Status:** P1 detection-to-event/API runs passed on still and moving sample video; full P1 acceptance remains open.
 
+**Follow-up (2026-11-07):** Dynamic construction-site motion and optional MPP DMA-BUF → RGA → shared-RKNN-input processing were later exercised on RK3576. The evidence is scoped separately in [DYNAMIC_VIDEO_EVALUATION.md](DYNAMIC_VIDEO_EVALUATION.md) and [ZERO_COPY_BENCHMARK_REPORT.md](ZERO_COPY_BENCHMARK_REPORT.md); it does not change this earlier P1 snapshot or establish PPE accuracy on a diverse independent set.
+
 ## What ran
 
 The project YOLOv8n ONNX graph was converted in the isolated Ubuntu 22.04 x86-64 WSL2 environment with RKNN-Toolkit2 2.0.0b0, targeting `rk3576` in non-quantized `fp` mode. The resulting 8,317,332-byte `.rknn` model was copied into the board's project-only `.work` directory. The application, native build, RKNN C Runtime, video worker, event storage, and HTTP service ran on the RK3576; the host did not provide inference hardware or runtime.

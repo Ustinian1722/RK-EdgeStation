@@ -3,7 +3,7 @@
 - **Report date:** 2026-11-07
 - **Baseline:** `ab4fb7c96fc999ffb238f2aabfade29afd936154`
 - **Target:** KICKPI K7 / Rockchip RK3576
-**Status:** GStreamer/MPP and RGA are integrated in the C++17 Worker and have been exercised on the board. Matched worker matrices, PPE INT8 quality/performance measurements, RTSP reconnect, API/event smoke tests, and build/test records are archived. The remaining acceptance limit is independent dynamic PPE/event video: the available PPE clips repeat fixed scenes, so no temporal PPE accuracy claim is made.
+**Status at the original report baseline:** GStreamer/MPP and RGA were integrated in the C++17 Worker and board-tested. The follow-up against baseline `ff0652724bb3b6fee1c40744cd2b3541bd325c2d` now adds a partial low-copy DMA-BUF input option and one dynamic construction-site video run. These follow-up results are documented in [ZERO_COPY_BENCHMARK_REPORT.md](ZERO_COPY_BENCHMARK_REPORT.md) and [DYNAMIC_VIDEO_EVALUATION.md](DYNAMIC_VIDEO_EVALUATION.md). The new clip still does not establish independent PPE/event accuracy.
 
 ## Findings
 
@@ -11,7 +11,7 @@
 - At a media-clock 10-FPS input, MPP/RGA with the COCO FP model processed 7.981 FPS versus 7.656 FPS for OpenCV/CPU. Its decode-to-result P95 was 220.6 ms versus 236.6 ms, with lower measured process CPU and RSS. This is a modest system gain, not an acceleration multiplier.
 - COCO INT8 reached 9.991 FPS on that 10-FPS input with no drops. It is a speed candidate only; its accuracy was not established on labels in this report.
 - PPE YOLOX-S INT8 was converted from the same graph, calibrated with 50 class-aware training images, and run on RK3576. On the same 15-FPS positive replay it reached 7.975 FPS versus 4.593 FPS for MPP/RGA FP, reducing median dropped frames from 103 to 69. On the 200-image development validation split, AP50 changed 73.10% to 72.21%, AP50:95 changed 46.77% to 45.76%, `no_helmet` recall stayed at 59.78%, and `no_vest` recall changed 73.08% to 70.77%. The split was also used to select the FP checkpoint, so these are development comparisons, not independent test estimates.
-- No DMA-BUF path or zero-copy behavior is implemented or claimed. The MPP output is copied into owned packed NV12 memory; RGA writes a CPU-addressable model-input buffer; the Worker passes that pointer to `rknn_inputs_set`.
+- At this report's original baseline, MPP output was copied into owned packed NV12 memory and RGA wrote a CPU-addressable tensor passed to `rknn_inputs_set`. The follow-up adds Z2: MPP DMA-BUF → RGA → RKNN shared input allocation. It removes the explicit Worker NV12 row-copy, but does not establish full zero-copy or absence of internal driver/runtime movement.
 
 ## Board and software boundary
 
@@ -151,7 +151,7 @@ The H.264 RTSP reconnect test used a file-backed local server and a loopback-onl
 - **COCO INT8:** input submission fell from about 42 ms to 1.3 ms, `rknn_run` from about 60 ms to 40 ms, and output fetch from about 12 ms to 7.4 ms. Quantized output decoding raised CPU postprocess from about 1.6 ms to 16.4 ms, so that stage is now material. Even with the cost, throughput rose to 13.903 FPS offline and kept pace with the 10-FPS source.
 - **PPE FP:** input submission was about 50 ms and `rknn_run` about 144 ms with MPP/RGA. This is the main reason the 15-FPS input drops frames. RGA does not help this already-square source.
 - **PPE INT8:** input submission fell below 1 ms, `rknn_run` to about 116 ms, output fetch below 1 ms, and postprocess was about 2.4 ms. The performance gain is paired with the measured validation-set changes above; it is not accepted as safety-equivalent without dynamic validation.
-- **MPP/RGA:** MPP-to-NV12 is a fast hardware decode stage, but copying padded NV12 rows into owned memory and handing a CPU-addressed image to RGA/RKNN prevents this from being zero-copy. RGA helps when resize/color work is substantial; it can add overhead when the input is already model-sized.
+- **MPP/RGA:** In the original baseline, copying padded NV12 rows into owned memory blocked direct DMA-BUF sharing. The follow-up proves the installed MPP FD can be imported by RGA and that RGA can write into an RKNN-owned input FD. This partial low-copy path reduced explicit copies and CPU/RSS in matched tests, but made only a small throughput difference; see the follow-up benchmark for its limits.
 - **Queue:** Latest and FIFO produced similar throughput on the 10-FPS overload clip. Latest delivered a fresher result by P95 and is the appropriate real-time default; FIFO is retained for ordered/replay work.
 
 Recommended deployment profiles for the current evidence:
@@ -159,6 +159,7 @@ Recommended deployment profiles for the current evidence:
 1. Keep OpenCV/CPU plus FP as the correctness/reference fallback and the default for unreviewed models.
 2. Use MPP/RGA plus latest for the RK3576 demo when CPU/RSS headroom matters; it has a small COCO FP throughput gain and lower process CPU/RSS, but it is not a universal FPS upgrade.
 3. Keep PPE YOLOX-S FP as the safety-oriented default. Expose PPE INT8 as an experimental candidate for controlled evaluation: it is 44.2% smaller and materially faster, while losing 2.31 pp `no_vest` recall on the development split.
+4. Keep the later Z2 DMA-BUF/shared-input route optional. It removes one explicit 1.3824 MB/frame CPU copy and modestly reduces CPU/RSS, but does not justify replacing stable Z0 as the default.
 
 ## Reproduction and evidence
 
@@ -180,4 +181,4 @@ The raw records and evidence files include:
 
 ## Acceptance boundary
 
-The core heterogeneous path, performance measurements, model candidate and existing service/event wiring are implemented and board-tested. This is a substantial edge-inference engineering portfolio result, but it does **not yet satisfy a full independent industrial-safety validation**: the available PPE material has no dynamic, independently labeled video, the board has no attached camera, the PPE validation split was used during model selection, and NPU utilization telemetry is unavailable. The report does not substitute static replay for those missing checks.
+The core heterogeneous path, low-copy candidate, performance measurements, model candidate and existing service/event wiring are implemented and board-tested. This remains a substantial edge-inference engineering portfolio result, but it does **not satisfy full independent industrial-safety validation**: only one short dynamic construction video was reviewed; it contains no confirmed PPE violation or forklift; three of four final-run PPE alerts were visually inconsistent with the visible clothing and one helmet result was unknown; no physical camera was attached; the PPE validation split participated in model selection; and NPU utilization telemetry is unavailable. Static or qualitative event exercises do not replace those missing checks.

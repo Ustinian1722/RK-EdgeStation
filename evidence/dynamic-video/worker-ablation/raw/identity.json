@@ -1,0 +1,10 @@
+{
+  "worker_path": "/home/kickpi/projects/RK-EdgeStation/.work/zero-copy-probes/build/bin/rk_edge_worker",
+  "worker_sha256": "617a2dc21d1bb4e3155c90ea1cbc16f23071011f3a61504253588fc587fdeab0",
+  "model_path": "/home/kickpi/projects/RK-EdgeStation/.work/flagship-models/yolox-s-ppe-int8.rknn",
+  "model_sha256": "88b10ac2711f4b00d2859dfa0e1089ccb34ebd78a73b7dc46bd51a56c92c502c",
+  "model_bytes": 11566602,
+  "video_path": "/home/kickpi/projects/RK-EdgeStation/.work/zero-copy-probes/perf-segment-18-26.mp4",
+  "video_sha256": "c97d49fd60776ebbd41d6f356337dcf7b20d0976983a6709b82720392040f8b4",
+  "video_bytes": 2153693
+}

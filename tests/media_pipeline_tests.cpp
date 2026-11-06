@@ -1,10 +1,12 @@
 #include <opencv2/core.hpp>
 #include <opencv2/videoio.hpp>
 
+#include "preprocess.hpp"
 #include "video_source.hpp"
 
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <filesystem>
 #include <iostream>
 #include <stdexcept>
@@ -95,8 +97,62 @@ int main() {
         std::cerr << "NV12 conversion accepted invalid plane dimensions\n";
         return 1;
     }
+
+    edge::DecodedFrame color_frame{};
+    color_frame.width = width;
+    color_frame.height = height;
+    color_frame.bgr.create(height, width, CV_8UC3);
+    for (int row = 0; row < height; ++row) {
+        for (int column = 0; column < width; ++column) {
+            color_frame.bgr.at<cv::Vec3b>(row, column) = cv::Vec3b(
+                static_cast<std::uint8_t>((row + column) % 256),
+                static_cast<std::uint8_t>((row * 3 + column) % 256),
+                static_cast<std::uint8_t>((row + column * 5) % 256));
+        }
+    }
+    constexpr int model_size = 64;
+    const auto reference = edge::preprocess_frame(
+        color_frame, model_size, model_size, false, edge::PreprocessBackend::Cpu);
+    cv::Mat caller_owned_input(model_size, model_size, CV_8UC3);
+    const auto into_caller_memory = edge::preprocess_frame_into(
+        color_frame, model_size, model_size, false, edge::PreprocessBackend::Cpu,
+        caller_owned_input);
+    if (into_caller_memory.model_input.data != caller_owned_input.data ||
+        into_caller_memory.model_input_bytes != model_size * model_size * 3ULL ||
+        cv::norm(reference.model_input, into_caller_memory.model_input, cv::NORM_INF) != 0.0) {
+        std::cerr << "caller-owned preprocessing output differs from the CPU reference\n";
+        return 1;
+    }
+    bool invalid_destination_rejected = false;
+    try {
+        (void)edge::preprocess_frame_into(
+            color_frame, model_size, model_size, false, edge::PreprocessBackend::Cpu,
+            cv::Mat(model_size, model_size, CV_8UC1));
+    } catch (const std::invalid_argument&) {
+        invalid_destination_rejected = true;
+    }
+    if (!invalid_destination_rejected) {
+        std::cerr << "caller-owned preprocessing accepted an invalid destination type\n";
+        return 1;
+    }
+    edge::DecodedFrame unmapped_dma_frame{};
+    unmapped_dma_frame.width = width;
+    unmapped_dma_frame.height = height;
+    unmapped_dma_frame.dma_buf_fd = 7;
+    bool unmapped_dma_rejected = false;
+    try {
+        (void)edge::preprocess_frame_into(
+            unmapped_dma_frame, model_size, model_size, false, edge::PreprocessBackend::Cpu,
+            cv::Mat(model_size, model_size, CV_8UC3));
+    } catch (const std::invalid_argument&) {
+        unmapped_dma_rejected = true;
+    }
+    if (!unmapped_dma_rejected) {
+        std::cerr << "CPU preprocessing accepted a DMA-BUF frame without a CPU mapping\n";
+        return 1;
+    }
     std::cout << "MP4 encode/decode passed: frames=" << decoded_frames
               << " fps=" << fps << " size=" << width << 'x' << height
-              << "; NV12 plane conversion passed\n";
+              << "; NV12 conversion and caller-owned preprocessing checks passed\n";
     return 0;
 }

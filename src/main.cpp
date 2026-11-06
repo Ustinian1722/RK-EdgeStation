@@ -86,6 +86,7 @@ struct InferenceResult {
     std::vector<edge::Detection> detections;
     double preprocess_ms = 0.0;
     double input_set_ms = 0.0;
+    double input_sync_ms = 0.0;
     double rknn_run_ms = 0.0;
     double output_fetch_ms = 0.0;
     double inference_ms = 0.0;
@@ -235,8 +236,9 @@ std::vector<std::uint8_t> read_file(const std::string& path) {
 class RknnYoloEngine {
 public:
     explicit RknnYoloEngine(const std::string& model_path, std::string raw_dump_dir,
-                            ModelFamily model_family)
-        : raw_dump_dir_(std::move(raw_dump_dir)), model_family_(model_family) {
+                            ModelFamily model_family, bool shared_input)
+        : raw_dump_dir_(std::move(raw_dump_dir)), model_family_(model_family),
+          shared_input_(shared_input) {
         try {
             auto model = read_file(model_path);
             int ret = rknn_init(&context_.rknn_ctx, model.data(),
@@ -261,6 +263,40 @@ public:
                                  &input_attrs_[i], sizeof(rknn_tensor_attr));
                 if (ret != RKNN_SUCC) {
                     throw std::runtime_error("failed to query RKNN input tensor");
+                }
+            }
+            if (shared_input_) {
+                native_input_attr_ = {};
+                native_input_attr_.index = 0;
+                ret = rknn_query(context_.rknn_ctx, RKNN_QUERY_NATIVE_INPUT_ATTR,
+                                 &native_input_attr_, sizeof(native_input_attr_));
+                if (ret != RKNN_SUCC) {
+                    throw std::runtime_error("RKNN_QUERY_NATIVE_INPUT_ATTR failed with code " +
+                                             std::to_string(ret));
+                }
+                if (native_input_attr_.fmt != RKNN_TENSOR_NHWC ||
+                    native_input_attr_.dims[0] != 1 || native_input_attr_.dims[3] != 3 ||
+                    native_input_attr_.dims[1] != input_attrs_.front().dims[1] ||
+                    native_input_attr_.dims[2] != input_attrs_.front().dims[2] ||
+                    native_input_attr_.size_with_stride == 0) {
+                    throw std::runtime_error("shared input mode requires a native NHWC image input");
+                }
+                // The deployed preprocessing contract supplies raw uint8 RGB/BGR.
+                // This matches Rockchip's zero-copy image-input example; it does
+                // not claim the Runtime avoids all internal conversions.
+                native_input_attr_.type = RKNN_TENSOR_UINT8;
+                input_memory_ = rknn_create_mem(context_.rknn_ctx,
+                                                native_input_attr_.size_with_stride);
+                if (input_memory_ == nullptr || input_memory_->virt_addr == nullptr ||
+                    input_memory_->fd < 0 ||
+                    input_memory_->size < static_cast<std::uint64_t>(native_input_attr_.w_stride == 0
+                        ? context_.model_width : native_input_attr_.w_stride) *
+                        context_.model_height * 3) {
+                    throw std::runtime_error("rknn_create_mem returned an invalid shared image buffer");
+                }
+                ret = rknn_set_io_mem(context_.rknn_ctx, input_memory_, &native_input_attr_);
+                if (ret != RKNN_SUCC) {
+                    throw std::runtime_error("rknn_set_io_mem failed with code " + std::to_string(ret));
                 }
             }
             for (std::uint32_t i = 0; i < context_.io_num.n_output; ++i) {
@@ -308,8 +344,16 @@ public:
                       << " outputs=" << context_.io_num.n_output
                       << " quantized=" << (context_.is_quant ? "true" : "false")
                       << " family=" << (model_family_ == ModelFamily::YoloXPpe ? "yolox-ppe" : "yolov8-coco")
+                      << " input_mode=" << (shared_input_ ? "shared-mem" : "inputs-set")
+                      << (shared_input_ ? " input_mem_fd=" + std::to_string(input_memory_->fd) +
+                                             " input_mem_size=" + std::to_string(input_memory_->size)
+                                       : "")
                       << '\n';
         } catch (...) {
+            if (input_memory_ != nullptr && context_.rknn_ctx != 0) {
+                rknn_destroy_mem(context_.rknn_ctx, input_memory_);
+                input_memory_ = nullptr;
+            }
             if (context_.rknn_ctx != 0) {
                 rknn_destroy(context_.rknn_ctx);
                 context_.rknn_ctx = 0;
@@ -319,6 +363,11 @@ public:
     }
 
     ~RknnYoloEngine() {
+        if (input_memory_ != nullptr && context_.rknn_ctx != 0) {
+            const int ret = rknn_destroy_mem(context_.rknn_ctx, input_memory_);
+            if (ret != RKNN_SUCC) std::cerr << "rknn_destroy_mem returned " << ret << '\n';
+            input_memory_ = nullptr;
+        }
         if (context_.rknn_ctx != 0) {
             const int ret = rknn_destroy(context_.rknn_ctx);
             if (ret != RKNN_SUCC) {
@@ -334,24 +383,48 @@ public:
                           edge::PreprocessBackend preprocess_backend) {
         InferenceResult result;
         const bool output_rgb = model_family_ == ModelFamily::YoloV8Coco;
-        auto preprocessed = edge::preprocess_frame(
-            frame, context_.model_width, context_.model_height, output_rgb, preprocess_backend);
+        edge::PreprocessResult preprocessed;
+        if (shared_input_) {
+            const std::uint32_t w_stride = native_input_attr_.w_stride == 0
+                ? static_cast<std::uint32_t>(context_.model_width) : native_input_attr_.w_stride;
+            cv::Mat destination(context_.model_height, context_.model_width, CV_8UC3,
+                                input_memory_->virt_addr,
+                                static_cast<std::size_t>(w_stride) * 3);
+            preprocessed = edge::preprocess_frame_into(
+                frame, context_.model_width, context_.model_height, output_rgb,
+                preprocess_backend, std::move(destination),
+                frame.dma_buf_fd >= 0 ? input_memory_->fd : -1, input_memory_->size);
+            const auto sync_start = Clock::now();
+            const rknn_mem_sync_mode sync_mode = frame.dma_buf_fd >= 0
+                ? RKNN_MEMORY_SYNC_BIDIRECTIONAL : RKNN_MEMORY_SYNC_TO_DEVICE;
+            const int sync_ret = rknn_mem_sync(context_.rknn_ctx, input_memory_, sync_mode);
+            if (sync_ret != RKNN_SUCC) {
+                throw std::runtime_error("rknn_mem_sync failed with code " + std::to_string(sync_ret));
+            }
+            result.input_sync_ms = milliseconds(Clock::now() - sync_start);
+        } else {
+            preprocessed = edge::preprocess_frame(
+                frame, context_.model_width, context_.model_height, output_rgb, preprocess_backend);
+        }
         result.preprocess_ms = preprocessed.elapsed_ms;
         result.model_input_bytes = preprocessed.model_input_bytes;
         const cv::Mat& model_input = preprocessed.model_input;
 
-        rknn_input input{};
-        input.index = 0;
-        input.type = RKNN_TENSOR_UINT8;
-        input.fmt = RKNN_TENSOR_NHWC;
-        input.size = static_cast<std::uint32_t>(model_input.total() * model_input.elemSize());
-        input.buf = model_input.data;
-        const auto input_set_start = Clock::now();
-        int ret = rknn_inputs_set(context_.rknn_ctx, context_.io_num.n_input, &input);
-        if (ret != RKNN_SUCC) {
-            throw std::runtime_error("rknn_inputs_set failed with code " + std::to_string(ret));
+        int ret = RKNN_SUCC;
+        if (!shared_input_) {
+            rknn_input input{};
+            input.index = 0;
+            input.type = RKNN_TENSOR_UINT8;
+            input.fmt = RKNN_TENSOR_NHWC;
+            input.size = static_cast<std::uint32_t>(model_input.total() * model_input.elemSize());
+            input.buf = model_input.data;
+            const auto input_set_start = Clock::now();
+            ret = rknn_inputs_set(context_.rknn_ctx, context_.io_num.n_input, &input);
+            if (ret != RKNN_SUCC) {
+                throw std::runtime_error("rknn_inputs_set failed with code " + std::to_string(ret));
+            }
+            result.input_set_ms = milliseconds(Clock::now() - input_set_start);
         }
-        result.input_set_ms = milliseconds(Clock::now() - input_set_start);
 
         const auto inference_start = Clock::now();
         ret = rknn_run(context_.rknn_ctx, nullptr);
@@ -425,8 +498,11 @@ private:
         const fs::path input_path = root / input_filename;
         std::ofstream input_file(input_path, std::ios::binary);
         const auto input_bytes = model_input.total() * model_input.elemSize();
-        input_file.write(reinterpret_cast<const char*>(model_input.data),
-                         static_cast<std::streamsize>(input_bytes));
+        const auto row_bytes = static_cast<std::streamsize>(
+            static_cast<std::size_t>(model_input.cols) * model_input.elemSize());
+        for (int row = 0; row < model_input.rows; ++row) {
+            input_file.write(reinterpret_cast<const char*>(model_input.ptr(row)), row_bytes);
+        }
         if (!input_file) throw std::runtime_error("failed to write raw RKNN input tensor");
 
         std::ofstream manifest(root / "tensor-manifest.txt");
@@ -503,9 +579,12 @@ private:
     rknn_app_context_t context_{};
     std::vector<rknn_tensor_attr> input_attrs_;
     std::vector<rknn_tensor_attr> output_attrs_;
+    rknn_tensor_attr native_input_attr_{};
+    rknn_tensor_mem* input_memory_ = nullptr;
     std::string model_name_;
     std::string raw_dump_dir_;
     ModelFamily model_family_;
+    bool shared_input_ = false;
     bool raw_dumped_ = false;
     bool detections_dumped_ = false;
 };
@@ -516,6 +595,9 @@ struct Options {
     edge::VideoBackend video_backend = edge::VideoBackend::OpenCvFfmpeg;
     edge::PreprocessBackend preprocess_backend = edge::PreprocessBackend::Cpu;
     std::string input_pacing = "media";
+    std::string video_memory_mode = "copy";
+    std::string rknn_input_mode = "api";
+    std::string track_log_path;
     std::string state_dir = "state";
     Roi roi;
     std::size_t queue_capacity = 1;
@@ -554,6 +636,8 @@ Options parse_args(int argc, char** argv) {
                          "[--state-dir state] [--roi x,y,w,h] [--queue-capacity N] "
                          "[--queue-policy latest|fifo] [--loop-video] [--confidence X] "
                          "[--video-backend opencv|gstreamer-mpp] [--preprocess-backend cpu|rga] "
+                         "[--video-memory-mode copy|dmabuf] [--rknn-input-mode api|shared] "
+                         "[--track-log PATH] "
                          "[--input-pacing media|none] "
                          "[--dwell-ms N] [--roi-debounce-frames N] [--dump-first-rknn-output DIR] "
                          "[--model-family yolov8-coco|yolox-ppe] [--danger-zone x,y,w,h] "
@@ -578,8 +662,26 @@ Options parse_args(int argc, char** argv) {
     if (args.count("--video-backend")) options.video_backend = edge::parse_video_backend(args.at("--video-backend"));
     if (args.count("--preprocess-backend")) options.preprocess_backend = edge::parse_preprocess_backend(args.at("--preprocess-backend"));
     if (args.count("--input-pacing")) options.input_pacing = args.at("--input-pacing");
+    if (args.count("--video-memory-mode")) options.video_memory_mode = args.at("--video-memory-mode");
+    if (args.count("--rknn-input-mode")) options.rknn_input_mode = args.at("--rknn-input-mode");
+    if (args.count("--track-log")) options.track_log_path = args.at("--track-log");
     if (options.input_pacing != "media" && options.input_pacing != "none") {
         throw std::invalid_argument("--input-pacing must be media or none");
+    }
+    if (options.video_memory_mode != "copy" && options.video_memory_mode != "dmabuf") {
+        throw std::invalid_argument("--video-memory-mode must be copy or dmabuf");
+    }
+    if (options.rknn_input_mode != "api" && options.rknn_input_mode != "shared") {
+        throw std::invalid_argument("--rknn-input-mode must be api or shared");
+    }
+    if (options.video_memory_mode == "dmabuf" &&
+        (options.video_backend != edge::VideoBackend::GStreamerMpp ||
+         options.preprocess_backend != edge::PreprocessBackend::Rga ||
+         options.rknn_input_mode != "shared")) {
+        throw std::invalid_argument("DMA-BUF video mode requires GStreamer/MPP, RGA, and shared RKNN input");
+    }
+    if (options.rknn_input_mode == "shared" && options.preprocess_backend != edge::PreprocessBackend::Rga) {
+        throw std::invalid_argument("shared RKNN input mode currently requires RGA preprocessing");
     }
     if (args.count("--state-dir")) options.state_dir = args.at("--state-dir");
     if (args.count("--queue-capacity")) options.queue_capacity = std::stoul(args.at("--queue-capacity"));
@@ -630,6 +732,7 @@ struct StageSamples {
     std::deque<double> decode;
     std::deque<double> preprocess;
     std::deque<double> input_set;
+    std::deque<double> input_sync;
     std::deque<double> rknn_run;
     std::deque<double> output_fetch;
     std::deque<double> inference;
@@ -642,12 +745,13 @@ struct StageSamples {
         if (samples.size() > 300) samples.pop_front();
     }
 
-    void add(double decode_ms, double preprocess_ms, double input_set_ms,
+    void add(double decode_ms, double preprocess_ms, double input_set_ms, double input_sync_ms,
              double run_ms, double fetch_ms, double postprocess_ms,
              double queue_wait_ms, double end_to_end_ms) {
         append(decode, decode_ms);
         append(preprocess, preprocess_ms);
         append(input_set, input_set_ms);
+        append(input_sync, input_sync_ms);
         append(rknn_run, run_ms);
         append(output_fetch, fetch_ms);
         append(inference, run_ms + fetch_ms);
@@ -669,9 +773,12 @@ struct RuntimeMetricSnapshot {
     edge::VideoBackend video_backend = edge::VideoBackend::OpenCvFfmpeg;
     edge::PreprocessBackend preprocess_backend = edge::PreprocessBackend::Cpu;
     std::string input_pacing = "media";
+    std::string video_memory_mode = "copy";
+    std::string rknn_input_mode = "api";
     double decode_ms = 0.0;
     double preprocess_ms = 0.0;
     double input_set_ms = 0.0;
+    double input_sync_ms = 0.0;
     double rknn_run_ms = 0.0;
     double output_fetch_ms = 0.0;
     double inference_ms = 0.0;
@@ -725,6 +832,7 @@ void emit_metric(std::uint64_t processed, std::uint64_t detections, std::uint64_
               << ",\"last_decode_ms\":" << runtime.decode_ms
               << ",\"last_preprocess_ms\":" << runtime.preprocess_ms
               << ",\"last_rknn_input_set_ms\":" << runtime.input_set_ms
+              << ",\"last_rknn_input_sync_ms\":" << runtime.input_sync_ms
               << ",\"last_rknn_run_ms\":" << runtime.rknn_run_ms
               << ",\"last_rknn_output_fetch_ms\":" << runtime.output_fetch_ms
               << ",\"last_inference_ms\":" << runtime.inference_ms
@@ -737,6 +845,8 @@ void emit_metric(std::uint64_t processed, std::uint64_t detections, std::uint64_
               << ",\"p95_preprocess_ms\":" << percentile(samples.preprocess, 0.95)
               << ",\"p50_rknn_input_set_ms\":" << percentile(samples.input_set, 0.50)
               << ",\"p95_rknn_input_set_ms\":" << percentile(samples.input_set, 0.95)
+              << ",\"p50_rknn_input_sync_ms\":" << percentile(samples.input_sync, 0.50)
+              << ",\"p95_rknn_input_sync_ms\":" << percentile(samples.input_sync, 0.95)
               << ",\"p50_rknn_run_ms\":" << percentile(samples.rknn_run, 0.50)
               << ",\"p95_rknn_run_ms\":" << percentile(samples.rknn_run, 0.95)
               << ",\"p50_rknn_output_fetch_ms\":" << percentile(samples.output_fetch, 0.50)
@@ -753,6 +863,8 @@ void emit_metric(std::uint64_t processed, std::uint64_t detections, std::uint64_
               << ",\"video_backend\":\"" << edge::video_backend_name(runtime.video_backend) << "\""
               << ",\"preprocess_backend\":\"" << edge::preprocess_backend_name(runtime.preprocess_backend) << "\""
               << ",\"input_pacing\":\"" << runtime.input_pacing << "\""
+              << ",\"video_memory_mode\":\"" << runtime.video_memory_mode << "\""
+              << ",\"rknn_input_mode\":\"" << runtime.rknn_input_mode << "\""
               << ",\"source_copy_bytes_total\":" << runtime.source_copy_bytes_total
               << ",\"last_source_copy_bytes\":" << runtime.source_copy_bytes_last
               << ",\"model_input_bytes\":" << runtime.model_input_bytes_last
@@ -842,6 +954,13 @@ int main(int argc, char** argv) {
             throw std::runtime_error("video file does not exist: " + options.video);
         }
         fs::create_directories(fs::path(options.state_dir) / "evidence");
+        std::ofstream track_log;
+        if (!options.track_log_path.empty()) {
+            const fs::path track_path(options.track_log_path);
+            if (!track_path.parent_path().empty()) fs::create_directories(track_path.parent_path());
+            track_log.open(track_path, std::ios::out | std::ios::trunc);
+            if (!track_log) throw std::runtime_error("could not open track log: " + options.track_log_path);
+        }
 
         const ModelFamily model_family = options.model_family == "yolox-ppe"
             ? ModelFamily::YoloXPpe
@@ -851,7 +970,8 @@ int main(int argc, char** argv) {
         }
         int exit_code = 0;
         {
-            RknnYoloEngine engine(options.model, options.raw_dump_dir, model_family);
+            RknnYoloEngine engine(options.model, options.raw_dump_dir, model_family,
+                                  options.rknn_input_mode == "shared");
             edge::BoundedQueue<Frame> queue(options.queue_capacity, options.queue_policy);
             edge::PPEEventConfig ppe_event_config;
             ppe_event_config.danger_zone = options.danger_zone;
@@ -901,7 +1021,8 @@ int main(int argc, char** argv) {
                         accounted_backend_drops = 0;
                     };
                     auto open_source = [&](std::string& error) {
-                        source = edge::make_video_source(options.video_backend);
+                        source = edge::make_video_source(
+                            options.video_backend, options.video_memory_mode == "dmabuf");
                         if (!source->open(options.video, options.queue_policy, error)) {
                             source->close();
                             source.reset();
@@ -1065,6 +1186,8 @@ int main(int argc, char** argv) {
             runtime.video_backend = options.video_backend;
             runtime.preprocess_backend = options.preprocess_backend;
             runtime.input_pacing = rtsp_source ? "source-clock" : options.input_pacing;
+            runtime.video_memory_mode = options.video_memory_mode;
+            runtime.rknn_input_mode = options.rknn_input_mode;
             std::uint64_t processed = 0;
             std::uint64_t detection_total = 0;
             std::uint64_t event_total = 0;
@@ -1110,6 +1233,7 @@ int main(int argc, char** argv) {
                     runtime.decode_ms = frame.media.decode_ms;
                     runtime.preprocess_ms = result.preprocess_ms;
                     runtime.input_set_ms = result.input_set_ms;
+                    runtime.input_sync_ms = result.input_sync_ms;
                     runtime.rknn_run_ms = result.rknn_run_ms;
                     runtime.output_fetch_ms = result.output_fetch_ms;
                     runtime.inference_ms = result.inference_ms;
@@ -1118,6 +1242,26 @@ int main(int argc, char** argv) {
                     runtime.model_input_bytes_last = result.model_input_bytes;
                     detection_total += result.detections.size();
                     const auto tracked = tracker.update(result.detections);
+                    if (track_log.is_open()) {
+                        track_log << std::fixed << std::setprecision(4)
+                                  << "{\"frame_sequence\":" << frame.sequence
+                                  << ",\"source_pts_ms\":" << frame.pts_ms
+                                  << ",\"detections\":[";
+                        for (std::size_t index = 0; index < tracked.size(); ++index) {
+                            if (index != 0) track_log << ',';
+                            const auto& item = tracked[index];
+                            const auto& d = item.detection;
+                            track_log << "{\"track_id\":" << item.track_id
+                                      << ",\"class_id\":" << d.class_id
+                                      << ",\"confidence\":" << d.confidence
+                                      << ",\"box\":[" << d.left << ',' << d.top << ','
+                                      << d.right << ',' << d.bottom << ']'
+                                      << ",\"new_track\":" << (item.created ? "true" : "false")
+                                      << '}';
+                        }
+                        track_log << "]}\n";
+                        if (!track_log) throw std::runtime_error("failed writing track log");
+                    }
                     std::vector<edge::RoiObservation> observations;
                     observations.reserve(tracked.size());
 
@@ -1175,9 +1319,7 @@ int main(int argc, char** argv) {
                     }
 
                     if (!pending_events.empty() || !pending_safety_events.empty()) {
-                        cv::Mat source_bgr = frame.media.bgr.empty()
-                            ? edge::nv12_to_bgr(frame.media.nv12, frame.media.width, frame.media.height)
-                            : frame.media.bgr;
+                        cv::Mat source_bgr = edge::frame_to_bgr(frame.media);
                         cv::Mat annotated = source_bgr.clone();
                         for (const auto& item : tracked) {
                             const auto& d = item.detection;
@@ -1227,6 +1369,7 @@ int main(int argc, char** argv) {
                     ++processed;
                     runtime.end_to_end_ms = milliseconds(Clock::now() - frame.media.decoded_at);
                     stage_samples.add(runtime.decode_ms, runtime.preprocess_ms, runtime.input_set_ms,
+                                      runtime.input_sync_ms,
                                       runtime.rknn_run_ms, runtime.output_fetch_ms,
                                       runtime.postprocess_ms, runtime.queue_wait_ms,
                                       runtime.end_to_end_ms);
