@@ -1,13 +1,14 @@
 #include "bounded_queue.hpp"
 #include "ppe_events.hpp"
+#include "preprocess.hpp"
 #include "roi_events.hpp"
 #include "tracker.hpp"
+#include "video_source.hpp"
 #include "yolov8.h"
 #include "yolox_ppe_postprocess.hpp"
 
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
-#include <opencv2/videoio.hpp>
 
 #include <algorithm>
 #include <array>
@@ -34,6 +35,7 @@
 #include <thread>
 #include <utility>
 #include <vector>
+#include <unistd.h>
 
 namespace fs = std::filesystem;
 using Clock = std::chrono::steady_clock;
@@ -60,17 +62,11 @@ bool wait_for_retry(std::chrono::milliseconds duration) {
     return !shutdown_requested;
 }
 
-std::vector<int> rtsp_open_parameters() {
-    return {cv::CAP_PROP_OPEN_TIMEOUT_MSEC, 3000,
-            cv::CAP_PROP_READ_TIMEOUT_MSEC, 3000};
-}
-
 struct Frame {
-    cv::Mat image;
+    edge::DecodedFrame media;
     std::uint64_t sequence = 0;
     double pts_ms = 0.0;
     std::uint64_t stream_epoch = 0;
-    Clock::time_point decoded_at;
 };
 
 struct Roi {
@@ -89,8 +85,12 @@ struct Roi {
 struct InferenceResult {
     std::vector<edge::Detection> detections;
     double preprocess_ms = 0.0;
+    double input_set_ms = 0.0;
+    double rknn_run_ms = 0.0;
+    double output_fetch_ms = 0.0;
     double inference_ms = 0.0;
     double postprocess_ms = 0.0;
+    std::uint64_t model_input_bytes = 0;
 };
 
 enum class ModelFamily { YoloV8Coco, YoloXPpe };
@@ -149,6 +149,69 @@ int read_rss_kb() {
         std::getline(status, rest);
     }
     return 0;
+}
+
+int read_peak_rss_kb() {
+    std::ifstream status("/proc/self/status");
+    std::string key;
+    while (status >> key) {
+        if (key == "VmHWM:") {
+            int value = 0;
+            status >> value;
+            return value;
+        }
+        std::string rest;
+        std::getline(status, rest);
+    }
+    return read_rss_kb();
+}
+
+struct ProcessCpuUsage {
+    double core_percent = 0.0;
+    double system_percent = 0.0;
+    double sample_seconds = 0.0;
+};
+
+ProcessCpuUsage read_process_cpu_usage() {
+    std::ifstream stat("/proc/self/stat");
+    std::string line;
+    if (!std::getline(stat, line)) return {};
+    const auto command_end = line.rfind(')');
+    if (command_end == std::string::npos || command_end + 2 >= line.size()) return {};
+    std::istringstream fields_stream(line.substr(command_end + 2));
+    std::vector<std::string> fields;
+    for (std::string field; fields_stream >> field;) fields.push_back(std::move(field));
+    if (fields.size() <= 12) return {};
+    std::uint64_t ticks = 0;
+    try {
+        ticks = std::stoull(fields[11]) + std::stoull(fields[12]);
+    } catch (const std::exception&) {
+        return {};
+    }
+
+    static bool have_start = false;
+    static std::uint64_t start_ticks = 0;
+    static auto start_at = Clock::now();
+    const auto now = Clock::now();
+    const long ticks_per_second = ::sysconf(_SC_CLK_TCK);
+    const long online_cpus = ::sysconf(_SC_NPROCESSORS_ONLN);
+    if (!have_start || ticks_per_second <= 0) {
+        have_start = true;
+        start_ticks = ticks;
+        start_at = now;
+        return {};
+    }
+    const double elapsed = std::chrono::duration<double>(now - start_at).count();
+    const std::uint64_t elapsed_ticks = ticks >= start_ticks ? ticks - start_ticks : 0;
+    if (elapsed <= 0.0) return {};
+    ProcessCpuUsage usage;
+    usage.sample_seconds = elapsed;
+    usage.core_percent = static_cast<double>(elapsed_ticks) /
+                         static_cast<double>(ticks_per_second) / elapsed * 100.0;
+    usage.system_percent = online_cpus > 0
+        ? usage.core_percent / static_cast<double>(online_cpus)
+        : usage.core_percent;
+    return usage;
 }
 
 std::vector<std::uint8_t> read_file(const std::string& path) {
@@ -234,13 +297,14 @@ public:
             }
             context_.is_quant = output_attrs_.front().qnt_type == RKNN_TENSOR_QNT_AFFINE_ASYMMETRIC &&
                                 output_attrs_.front().type == RKNN_TENSOR_INT8;
-            if (!raw_dump_dir_.empty() && context_.is_quant) {
-                throw std::runtime_error("raw RKNN output dump currently supports fp models only");
-            }
             model_name_ = basename(model_path);
             std::cerr << "RKNN model=" << model_name_
                       << " input=" << context_.model_width << 'x' << context_.model_height
                       << " channels=" << context_.model_channel
+                      << " input_type=" << get_type_string(input.type)
+                      << " input_format=" << get_format_string(input.fmt)
+                      << " input_quantization=" << get_qnt_type_string(input.qnt_type)
+                      << " input_scale=" << input.scale << " input_zero_point=" << input.zp
                       << " outputs=" << context_.io_num.n_output
                       << " quantized=" << (context_.is_quant ? "true" : "false")
                       << " family=" << (model_family_ == ModelFamily::YoloXPpe ? "yolox-ppe" : "yolov8-coco")
@@ -266,52 +330,36 @@ public:
     RknnYoloEngine(const RknnYoloEngine&) = delete;
     RknnYoloEngine& operator=(const RknnYoloEngine&) = delete;
 
-    InferenceResult infer(const cv::Mat& bgr, float confidence) {
+    InferenceResult infer(const edge::DecodedFrame& frame, float confidence,
+                          edge::PreprocessBackend preprocess_backend) {
         InferenceResult result;
-        const auto prep_start = Clock::now();
-        const float scale = std::min(
-            static_cast<float>(context_.model_width) / static_cast<float>(bgr.cols),
-            static_cast<float>(context_.model_height) / static_cast<float>(bgr.rows));
-        const int resized_width = std::max(1, static_cast<int>(std::round(bgr.cols * scale)));
-        const int resized_height = std::max(1, static_cast<int>(std::round(bgr.rows * scale)));
-        const int pad_x = (context_.model_width - resized_width) / 2;
-        const int pad_y = (context_.model_height - resized_height) / 2;
-
-        cv::Mat resized;
-        cv::resize(bgr, resized, cv::Size(resized_width, resized_height), 0.0, 0.0, cv::INTER_LINEAR);
-        cv::Mat padded(context_.model_height, context_.model_width, CV_8UC3, cv::Scalar(114, 114, 114));
-        resized.copyTo(padded(cv::Rect(pad_x, pad_y, resized_width, resized_height)));
-        cv::Mat rgb;
-        const cv::Mat* model_input = &padded;
-        const char* input_channel_order = "BGR";
-        if (model_family_ == ModelFamily::YoloV8Coco) {
-            cv::cvtColor(padded, rgb, cv::COLOR_BGR2RGB);
-            model_input = &rgb;
-            input_channel_order = "RGB";
-        }
-
-        letterbox_t letterbox{};
-        letterbox.x_pad = pad_x;
-        letterbox.y_pad = pad_y;
-        letterbox.scale = scale;
-        result.preprocess_ms = milliseconds(Clock::now() - prep_start);
+        const bool output_rgb = model_family_ == ModelFamily::YoloV8Coco;
+        auto preprocessed = edge::preprocess_frame(
+            frame, context_.model_width, context_.model_height, output_rgb, preprocess_backend);
+        result.preprocess_ms = preprocessed.elapsed_ms;
+        result.model_input_bytes = preprocessed.model_input_bytes;
+        const cv::Mat& model_input = preprocessed.model_input;
 
         rknn_input input{};
         input.index = 0;
         input.type = RKNN_TENSOR_UINT8;
         input.fmt = RKNN_TENSOR_NHWC;
-        input.size = static_cast<std::uint32_t>(model_input->total() * model_input->elemSize());
-        input.buf = model_input->data;
+        input.size = static_cast<std::uint32_t>(model_input.total() * model_input.elemSize());
+        input.buf = model_input.data;
+        const auto input_set_start = Clock::now();
         int ret = rknn_inputs_set(context_.rknn_ctx, context_.io_num.n_input, &input);
         if (ret != RKNN_SUCC) {
             throw std::runtime_error("rknn_inputs_set failed with code " + std::to_string(ret));
         }
+        result.input_set_ms = milliseconds(Clock::now() - input_set_start);
 
         const auto inference_start = Clock::now();
         ret = rknn_run(context_.rknn_ctx, nullptr);
         if (ret != RKNN_SUCC) {
             throw std::runtime_error("rknn_run failed with code " + std::to_string(ret));
         }
+        result.rknn_run_ms = milliseconds(Clock::now() - inference_start);
+        const auto output_fetch_start = Clock::now();
         std::vector<rknn_output> outputs(context_.io_num.n_output);
         for (std::uint32_t i = 0; i < context_.io_num.n_output; ++i) {
             outputs[i] = {};
@@ -322,23 +370,25 @@ public:
         if (ret != RKNN_SUCC) {
             throw std::runtime_error("rknn_outputs_get failed with code " + std::to_string(ret));
         }
+        result.output_fetch_ms = milliseconds(Clock::now() - output_fetch_start);
         struct OutputRelease {
             rknn_context context;
             std::uint32_t count;
             rknn_output* outputs;
             ~OutputRelease() { rknn_outputs_release(context, count, outputs); }
         } output_release{context_.rknn_ctx, context_.io_num.n_output, outputs.data()};
-        result.inference_ms = milliseconds(Clock::now() - inference_start);
-        dump_first_outputs(*model_input, outputs, bgr.cols, bgr.rows, letterbox,
-                           input_channel_order);
+        result.inference_ms = result.rknn_run_ms + result.output_fetch_ms;
+        dump_first_outputs(model_input, outputs, frame.width, frame.height, frame.sequence,
+                           frame.pts_ms, preprocessed.letterbox, output_rgb ? "RGB" : "BGR");
 
         const auto post_start = Clock::now();
         object_detect_result_list raw{};
         if (model_family_ == ModelFamily::YoloXPpe) {
-            ret = post_process_yolox_ppe(&context_, outputs.data(), &letterbox, confidence,
-                                         NMS_THRESH, bgr.cols, bgr.rows, &raw);
+            ret = post_process_yolox_ppe(&context_, outputs.data(), &preprocessed.letterbox,
+                                         confidence, NMS_THRESH, frame.width, frame.height, &raw);
         } else {
-            ret = post_process(&context_, outputs.data(), &letterbox, confidence, NMS_THRESH, &raw);
+            ret = post_process(&context_, outputs.data(), &preprocessed.letterbox,
+                               confidence, NMS_THRESH, &raw);
         }
         if (ret != 0) {
             throw std::runtime_error("YOLO postprocess failed with code " + std::to_string(ret));
@@ -348,10 +398,10 @@ public:
         result.detections.reserve(raw.count);
         for (int i = 0; i < raw.count; ++i) {
             const auto& item = raw.results[i];
-            const int left = std::clamp(item.box.left, 0, bgr.cols);
-            const int top = std::clamp(item.box.top, 0, bgr.rows);
-            const int right = std::clamp(item.box.right, left, bgr.cols);
-            const int bottom = std::clamp(item.box.bottom, top, bgr.rows);
+            const int left = std::clamp(item.box.left, 0, frame.width);
+            const int top = std::clamp(item.box.top, 0, frame.height);
+            const int right = std::clamp(item.box.right, left, frame.width);
+            const int bottom = std::clamp(item.box.bottom, top, frame.height);
             const char* label = model_family_ == ModelFamily::YoloXPpe
                 ? ppe_class_to_name(item.cls_id)
                 : coco_cls_to_name(item.cls_id);
@@ -363,7 +413,8 @@ public:
 
 private:
     void dump_first_outputs(const cv::Mat& model_input, const std::vector<rknn_output>& outputs,
-                            int source_width, int source_height, const letterbox_t& letterbox,
+                            int source_width, int source_height, std::uint64_t source_sequence,
+                            double source_pts_ms, const letterbox_t& letterbox,
                             const char* input_channel_order) {
         if (raw_dump_dir_.empty() || raw_dumped_) return;
         fs::create_directories(raw_dump_dir_);
@@ -384,22 +435,30 @@ private:
                  << "input_layout=NHWC\ninput_type=uint8\ninput_shape="
                  << context_.model_height << ',' << context_.model_width << ','
                  << context_.model_channel << '\n'
+                 << "input_model_type=" << get_type_string(input_attrs_.front().type) << '\n'
+                 << "input_model_format=" << get_format_string(input_attrs_.front().fmt) << '\n'
+                 << "input_quantization=" << get_qnt_type_string(input_attrs_.front().qnt_type) << '\n'
+                 << "input_scale=" << input_attrs_.front().scale << '\n'
+                 << "input_zero_point=" << input_attrs_.front().zp << '\n'
                  << "input_channel_order=" << input_channel_order << '\n'
                  << "input_file=" << input_path.filename().string() << '\n'
                  << "input_bytes=" << input_bytes << '\n'
                  << "source_width=" << source_width << '\n'
                  << "source_height=" << source_height << '\n'
+                 << "source_sequence=" << source_sequence << '\n'
+                 << "source_pts_ms=" << std::setprecision(12) << source_pts_ms << '\n'
                  << "letterbox_x_pad=" << letterbox.x_pad << '\n'
                  << "letterbox_y_pad=" << letterbox.y_pad << '\n'
                  << "letterbox_scale=" << std::setprecision(10) << letterbox.scale << '\n'
-                 << "output_requested_type=float32\n";
+                 << "output_requested_type=" << (context_.is_quant ? "native" : "float32") << '\n';
 
         for (std::size_t i = 0; i < outputs.size(); ++i) {
-            if (outputs[i].buf == nullptr || outputs[i].size == 0 || outputs[i].size % sizeof(float) != 0) {
-                throw std::runtime_error("raw RKNN output is empty or not float32");
+            if (outputs[i].buf == nullptr || outputs[i].size == 0) {
+                throw std::runtime_error("raw RKNN output is empty");
             }
             std::ostringstream filename;
-            filename << "output-" << std::setw(2) << std::setfill('0') << i << ".f32.bin";
+            filename << "output-" << std::setw(2) << std::setfill('0') << i
+                     << (context_.is_quant ? ".native.bin" : ".f32.bin");
             std::ofstream output_file(root / filename.str(), std::ios::binary);
             output_file.write(static_cast<const char*>(outputs[i].buf), outputs[i].size);
             if (!output_file) throw std::runtime_error("failed to write raw RKNN output tensor");
@@ -413,10 +472,10 @@ private:
             }
             manifest << '\n'
                      << "output[" << i << "].type=" << get_type_string(attr.type) << '\n'
-                     << "output[" << i << "].format=" << get_format_string(attr.fmt) << '\n'
-                     << "output[" << i << "].quantization=" << get_qnt_type_string(attr.qnt_type) << '\n'
+                     << "output[" << i << "].qnt_type=" << get_qnt_type_string(attr.qnt_type) << '\n'
                      << "output[" << i << "].scale=" << attr.scale << '\n'
                      << "output[" << i << "].zero_point=" << attr.zp << '\n'
+                     << "output[" << i << "].format=" << get_format_string(attr.fmt) << '\n'
                      << "output[" << i << "].file=" << filename.str() << '\n'
                      << "output[" << i << "].bytes=" << outputs[i].size << '\n';
         }
@@ -454,6 +513,9 @@ private:
 struct Options {
     std::string model;
     std::string video;
+    edge::VideoBackend video_backend = edge::VideoBackend::OpenCvFfmpeg;
+    edge::PreprocessBackend preprocess_backend = edge::PreprocessBackend::Cpu;
+    std::string input_pacing = "media";
     std::string state_dir = "state";
     Roi roi;
     std::size_t queue_capacity = 1;
@@ -491,6 +553,8 @@ Options parse_args(int argc, char** argv) {
             std::cout << "rk_edge_worker --model MODEL.rknn --video INPUT.mp4 "
                          "[--state-dir state] [--roi x,y,w,h] [--queue-capacity N] "
                          "[--queue-policy latest|fifo] [--loop-video] [--confidence X] "
+                         "[--video-backend opencv|gstreamer-mpp] [--preprocess-backend cpu|rga] "
+                         "[--input-pacing media|none] "
                          "[--dwell-ms N] [--roi-debounce-frames N] [--dump-first-rknn-output DIR] "
                          "[--model-family yolov8-coco|yolox-ppe] [--danger-zone x,y,w,h] "
                          "[--conflict-zone x,y,w,h] [--ppe-confirm-frames N] "
@@ -511,6 +575,12 @@ Options parse_args(int argc, char** argv) {
     }
     options.model = args.at("--model");
     options.video = args.at("--video");
+    if (args.count("--video-backend")) options.video_backend = edge::parse_video_backend(args.at("--video-backend"));
+    if (args.count("--preprocess-backend")) options.preprocess_backend = edge::parse_preprocess_backend(args.at("--preprocess-backend"));
+    if (args.count("--input-pacing")) options.input_pacing = args.at("--input-pacing");
+    if (options.input_pacing != "media" && options.input_pacing != "none") {
+        throw std::invalid_argument("--input-pacing must be media or none");
+    }
     if (args.count("--state-dir")) options.state_dir = args.at("--state-dir");
     if (args.count("--queue-capacity")) options.queue_capacity = std::stoul(args.at("--queue-capacity"));
     if (args.count("--queue-policy")) {
@@ -556,10 +626,69 @@ Options parse_args(int argc, char** argv) {
     return options;
 }
 
+struct StageSamples {
+    std::deque<double> decode;
+    std::deque<double> preprocess;
+    std::deque<double> input_set;
+    std::deque<double> rknn_run;
+    std::deque<double> output_fetch;
+    std::deque<double> inference;
+    std::deque<double> postprocess;
+    std::deque<double> queue_wait;
+    std::deque<double> end_to_end;
+
+    static void append(std::deque<double>& samples, double value) {
+        samples.push_back(value);
+        if (samples.size() > 300) samples.pop_front();
+    }
+
+    void add(double decode_ms, double preprocess_ms, double input_set_ms,
+             double run_ms, double fetch_ms, double postprocess_ms,
+             double queue_wait_ms, double end_to_end_ms) {
+        append(decode, decode_ms);
+        append(preprocess, preprocess_ms);
+        append(input_set, input_set_ms);
+        append(rknn_run, run_ms);
+        append(output_fetch, fetch_ms);
+        append(inference, run_ms + fetch_ms);
+        append(postprocess, postprocess_ms);
+        append(queue_wait, queue_wait_ms);
+        append(end_to_end, end_to_end_ms);
+    }
+};
+
+double percentile(const std::deque<double>& samples, double fraction) {
+    if (samples.empty()) return 0.0;
+    std::vector<double> sorted(samples.begin(), samples.end());
+    std::sort(sorted.begin(), sorted.end());
+    const auto index = static_cast<std::size_t>(std::ceil(fraction * sorted.size())) - 1;
+    return sorted[std::min(index, sorted.size() - 1)];
+}
+
+struct RuntimeMetricSnapshot {
+    edge::VideoBackend video_backend = edge::VideoBackend::OpenCvFfmpeg;
+    edge::PreprocessBackend preprocess_backend = edge::PreprocessBackend::Cpu;
+    std::string input_pacing = "media";
+    double decode_ms = 0.0;
+    double preprocess_ms = 0.0;
+    double input_set_ms = 0.0;
+    double rknn_run_ms = 0.0;
+    double output_fetch_ms = 0.0;
+    double inference_ms = 0.0;
+    double postprocess_ms = 0.0;
+    double queue_wait_ms = 0.0;
+    double end_to_end_ms = 0.0;
+    std::uint64_t backend_dropped_frames = 0;
+    std::uint64_t source_copy_bytes_total = 0;
+    std::uint64_t source_copy_bytes_last = 0;
+    std::uint64_t model_input_bytes_last = 0;
+    std::uint64_t reconnect_stale_frames_dropped = 0;
+    double nominal_input_fps = 0.0;
+};
+
 void emit_metric(std::uint64_t processed, std::uint64_t detections, std::uint64_t decoded,
                  const edge::BoundedQueue<Frame>& queue, Clock::time_point started,
-                 double preprocess_ms, double inference_ms, double postprocess_ms,
-                 double queue_wait_ms, double e2e_ms, const std::deque<double>& latency_window,
+                 const StageSamples& samples, const RuntimeMetricSnapshot& runtime,
                  std::size_t roi_occupancy_count, std::uint64_t cumulative_roi_entries,
                  std::uint64_t safety_event_count, std::uint64_t ppe_violation_count,
                  std::uint64_t danger_zone_count, std::uint64_t conflict_count,
@@ -567,19 +696,15 @@ void emit_metric(std::uint64_t processed, std::uint64_t detections, std::uint64_
                  std::uint64_t reconnect_attempts, std::uint64_t stream_epoch,
                  const char* source_type, const char* source_status, const char* status) {
     std::lock_guard<std::mutex> output_lock(stdout_mutex);
-    std::vector<double> sorted(latency_window.begin(), latency_window.end());
-    std::sort(sorted.begin(), sorted.end());
-    auto percentile = [&sorted](double fraction) {
-        if (sorted.empty()) return 0.0;
-        const auto index = static_cast<std::size_t>(std::ceil(fraction * sorted.size())) - 1;
-        return sorted[std::min(index, sorted.size() - 1)];
-    };
     const double elapsed = std::chrono::duration<double>(Clock::now() - started).count();
     const double fps = elapsed > 0.0 ? processed / elapsed : 0.0;
+    const ProcessCpuUsage cpu_usage = read_process_cpu_usage();
     std::cout << std::fixed << std::setprecision(3)
               << "{\"type\":\"metric\",\"status\":\"" << status
               << "\",\"processed_frames\":" << processed
               << ",\"decoded_frames\":" << decoded
+              << ",\"nominal_input_fps\":" << runtime.nominal_input_fps
+              << ",\"source_delivery_fps\":" << (elapsed > 0.0 ? decoded / elapsed : 0.0)
               << ",\"detections\":" << detections
               << ",\"roi_occupancy_count\":" << roi_occupancy_count
               << ",\"cumulative_roi_entries\":" << cumulative_roi_entries
@@ -594,16 +719,48 @@ void emit_metric(std::uint64_t processed, std::uint64_t detections, std::uint64_
               << ",\"queue_policy\":\"" << edge::queue_policy_name(queue.policy()) << "\""
               << ",\"queue_depth\":" << queue.size()
               << ",\"dropped_frames\":" << queue.dropped_count()
+              << ",\"backend_dropped_frames\":" << runtime.backend_dropped_frames
+              << ",\"reconnect_stale_frames_dropped\":" << runtime.reconnect_stale_frames_dropped
               << ",\"throughput_fps\":" << fps
-              << ",\"last_preprocess_ms\":" << preprocess_ms
-              << ",\"last_inference_ms\":" << inference_ms
-              << ",\"last_postprocess_ms\":" << postprocess_ms
-              << ",\"last_queue_wait_ms\":" << queue_wait_ms
-              << ",\"last_end_to_end_ms\":" << e2e_ms
-              << ",\"p50_end_to_end_ms\":" << percentile(0.50)
-              << ",\"p95_end_to_end_ms\":" << percentile(0.95)
-              << ",\"latency_window_frames\":" << sorted.size()
+              << ",\"last_decode_ms\":" << runtime.decode_ms
+              << ",\"last_preprocess_ms\":" << runtime.preprocess_ms
+              << ",\"last_rknn_input_set_ms\":" << runtime.input_set_ms
+              << ",\"last_rknn_run_ms\":" << runtime.rknn_run_ms
+              << ",\"last_rknn_output_fetch_ms\":" << runtime.output_fetch_ms
+              << ",\"last_inference_ms\":" << runtime.inference_ms
+              << ",\"last_postprocess_ms\":" << runtime.postprocess_ms
+              << ",\"last_queue_wait_ms\":" << runtime.queue_wait_ms
+              << ",\"last_end_to_end_ms\":" << runtime.end_to_end_ms
+              << ",\"p50_decode_ms\":" << percentile(samples.decode, 0.50)
+              << ",\"p95_decode_ms\":" << percentile(samples.decode, 0.95)
+              << ",\"p50_preprocess_ms\":" << percentile(samples.preprocess, 0.50)
+              << ",\"p95_preprocess_ms\":" << percentile(samples.preprocess, 0.95)
+              << ",\"p50_rknn_input_set_ms\":" << percentile(samples.input_set, 0.50)
+              << ",\"p95_rknn_input_set_ms\":" << percentile(samples.input_set, 0.95)
+              << ",\"p50_rknn_run_ms\":" << percentile(samples.rknn_run, 0.50)
+              << ",\"p95_rknn_run_ms\":" << percentile(samples.rknn_run, 0.95)
+              << ",\"p50_rknn_output_fetch_ms\":" << percentile(samples.output_fetch, 0.50)
+              << ",\"p95_rknn_output_fetch_ms\":" << percentile(samples.output_fetch, 0.95)
+              << ",\"p50_inference_ms\":" << percentile(samples.inference, 0.50)
+              << ",\"p95_inference_ms\":" << percentile(samples.inference, 0.95)
+              << ",\"p50_postprocess_ms\":" << percentile(samples.postprocess, 0.50)
+              << ",\"p95_postprocess_ms\":" << percentile(samples.postprocess, 0.95)
+              << ",\"p50_queue_wait_ms\":" << percentile(samples.queue_wait, 0.50)
+              << ",\"p95_queue_wait_ms\":" << percentile(samples.queue_wait, 0.95)
+              << ",\"p50_end_to_end_ms\":" << percentile(samples.end_to_end, 0.50)
+              << ",\"p95_end_to_end_ms\":" << percentile(samples.end_to_end, 0.95)
+              << ",\"metric_window_frames\":" << samples.end_to_end.size()
+              << ",\"video_backend\":\"" << edge::video_backend_name(runtime.video_backend) << "\""
+              << ",\"preprocess_backend\":\"" << edge::preprocess_backend_name(runtime.preprocess_backend) << "\""
+              << ",\"input_pacing\":\"" << runtime.input_pacing << "\""
+              << ",\"source_copy_bytes_total\":" << runtime.source_copy_bytes_total
+              << ",\"last_source_copy_bytes\":" << runtime.source_copy_bytes_last
+              << ",\"model_input_bytes\":" << runtime.model_input_bytes_last
               << ",\"process_rss_kb\":" << read_rss_kb()
+              << ",\"process_peak_rss_kb\":" << read_peak_rss_kb()
+              << ",\"process_cpu_core_percent\":" << cpu_usage.core_percent
+              << ",\"process_cpu_system_percent\":" << cpu_usage.system_percent
+              << ",\"process_cpu_sample_seconds\":" << cpu_usage.sample_seconds
               << ",\"source_type\":\"" << source_type << "\""
               << ",\"source_status\":\"" << source_status << "\""
               << ",\"reconnect_attempts\":" << reconnect_attempts
@@ -705,6 +862,11 @@ int main(int argc, char** argv) {
             std::atomic<std::uint64_t> decoded{0};
             std::atomic<std::uint64_t> reconnect_attempts{0};
             std::atomic<std::uint64_t> stream_epoch{0};
+            std::atomic<bool> source_connected{false};
+            std::atomic<std::uint64_t> backend_dropped{0};
+            std::atomic<std::uint64_t> source_copy_bytes{0};
+            std::atomic<std::uint64_t> stale_epoch_frames_dropped{0};
+            std::atomic<double> nominal_input_fps{0.0};
             std::string producer_error;
             const auto started = Clock::now();
             const auto run_started_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -712,74 +874,85 @@ int main(int argc, char** argv) {
 
             std::thread producer([&] {
                 try {
-                    cv::VideoCapture capture;
-                    auto open_source = [&]() {
-                        if (rtsp_source) {
-                            const auto parameters = rtsp_open_parameters();
-                            return capture.open(options.video, cv::CAP_FFMPEG, parameters);
-                        }
-                        return capture.open(options.video);
-                    };
-                    if (rtsp_source) {
-                        // OpenCV's FFmpeg backend reads this process-level option for RTSP transport.
-                        ::setenv("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp", 1);
-                    }
-                    if (!rtsp_source && !open_source()) {
-                        producer_error = "OpenCV could not open the video source";
-                        queue.close();
-                        return;
-                    }
-                    const double source_fps = rtsp_source ? 0.0 : capture.get(cv::CAP_PROP_FPS);
-                    const bool pace_source = !rtsp_source && std::isfinite(source_fps) &&
-                                             source_fps > 0.0 && source_fps <= 240.0;
-                    const auto frame_period = pace_source
-                        ? std::chrono::duration_cast<Clock::duration>(std::chrono::duration<double>(1.0 / source_fps))
-                        : Clock::duration::zero();
-                    auto next_frame_at = Clock::now();
-                    if (rtsp_source) {
-                        std::cerr << "video source_type=rtsp pacing=disabled reconnect=enabled\n";
-                    } else {
-                        std::cerr << "video source_type=local-file source_fps=" << source_fps
-                                  << " pacing=" << (pace_source ? "media-rate" : "disabled")
-                                  << " looping=" << (options.loop_video ? "enabled" : "disabled") << '\n';
-                    }
-                    cv::Mat frame;
+                    std::unique_ptr<edge::VideoSource> source;
                     std::uint64_t sequence = 0;
                     std::uint64_t local_stream_epoch = 0;
                     double last_pts_ms = -1.0;
                     bool ever_decoded = false;
                     bool awaiting_reconnect = false;
+                    double source_fps = 0.0;
+                    bool source_mode_logged = false;
+                    auto next_frame_at = Clock::now();
+                    std::uint64_t accounted_backend_drops = 0;
                     std::chrono::milliseconds retry_delay{500};
+
+                    auto account_backend_drops = [&] {
+                        if (!source) return;
+                        const auto current = source->dropped_frames();
+                        if (current > accounted_backend_drops) {
+                            backend_dropped.fetch_add(current - accounted_backend_drops);
+                            accounted_backend_drops = current;
+                        }
+                    };
+                    auto close_source = [&] {
+                        account_backend_drops();
+                        if (source) source->close();
+                        source.reset();
+                        accounted_backend_drops = 0;
+                    };
+                    auto open_source = [&](std::string& error) {
+                        source = edge::make_video_source(options.video_backend);
+                        if (!source->open(options.video, options.queue_policy, error)) {
+                            source->close();
+                            source.reset();
+                            return false;
+                        }
+                        accounted_backend_drops = 0;
+                        source_fps = source->nominal_fps();
+                        nominal_input_fps.store(source_fps);
+                        return true;
+                    };
+
                     while (!shutdown_requested) {
-                        if (rtsp_source && !capture.isOpened()) {
-                            bool opened = false;
-                            try {
-                                opened = open_source();
-                            } catch (const std::exception&) {
-                                opened = false;
-                            }
-                            if (!opened) {
-                                capture.release();
+                        if (!source) {
+                            std::string open_error;
+                            if (!open_source(open_error)) {
+                                if (!rtsp_source) {
+                                    producer_error = open_error.empty() ? "video source could not be opened" : open_error;
+                                    break;
+                                }
+                                source_connected.store(false);
                                 const auto attempt = reconnect_attempts.fetch_add(1) + 1;
                                 emit_source_status(ever_decoded ? "reconnecting" : "connecting",
                                                    attempt, local_stream_epoch);
-                                std::cerr << "RTSP reconnect attempt=" << attempt << '\n';
+                                std::cerr << "RTSP " << edge::video_backend_name(options.video_backend)
+                                          << " open attempt=" << attempt << " failed: " << open_error << '\n';
                                 if (!wait_for_retry(retry_delay)) break;
                                 retry_delay = std::min(retry_delay * 2, std::chrono::milliseconds(5000));
                                 continue;
                             }
                         }
 
-                        bool frame_read = false;
+                        edge::DecodedFrame decoded_frame;
+                        std::string read_error;
+                        edge::FrameReadStatus read_status = edge::FrameReadStatus::Error;
                         try {
-                            frame_read = capture.read(frame) && !frame.empty();
-                        } catch (const std::exception&) {
-                            frame_read = false;
+                            read_status = source->read(decoded_frame, read_error);
+                        } catch (const std::exception& exception) {
+                            read_error = exception.what();
+                            read_status = edge::FrameReadStatus::Error;
                         }
-                        if (!frame_read) {
+                        account_backend_drops();
+                        if (read_status == edge::FrameReadStatus::Timeout) continue;
+                        if (read_status == edge::FrameReadStatus::EndOfStream ||
+                            read_status == edge::FrameReadStatus::Error) {
                             if (rtsp_source) {
-                                capture.release();
                                 awaiting_reconnect = ever_decoded;
+                                source_connected.store(false);
+                                close_source();
+                                if (!read_error.empty()) {
+                                    std::cerr << "RTSP source reconnecting after: " << read_error << '\n';
+                                }
                                 const auto attempt = reconnect_attempts.fetch_add(1) + 1;
                                 emit_source_status(ever_decoded ? "reconnecting" : "connecting",
                                                    attempt, local_stream_epoch);
@@ -788,68 +961,95 @@ int main(int argc, char** argv) {
                                 retry_delay = std::min(retry_delay * 2, std::chrono::milliseconds(5000));
                                 continue;
                             }
+                            if (read_status == edge::FrameReadStatus::Error) {
+                                producer_error = read_error.empty() ? "video source read failed" : read_error;
+                                break;
+                            }
                             if (!options.loop_video) break;
-                            capture.release();
-                            if (!capture.open(options.video)) {
-                                producer_error = "OpenCV could not reopen the looped video source";
+                            close_source();
+                            std::string open_error;
+                            if (!open_source(open_error)) {
+                                producer_error = "could not reopen looped video: " + open_error;
                                 break;
                             }
-                            if (!capture.read(frame) || frame.empty()) {
-                                producer_error = "looped video source returned no frame after reopen";
-                                break;
+                            ++local_stream_epoch;
+                            stream_epoch.store(local_stream_epoch);
+                            last_pts_ms = -1.0;
+                            next_frame_at = Clock::now();
+                            std::cerr << "local video loop restarted epoch=" << local_stream_epoch << '\n';
+                            continue;
+                        }
+
+                        if (!rtsp_source && source_fps <= 0.0) {
+                            source_fps = source->nominal_fps();
+                            nominal_input_fps.store(source_fps);
+                        }
+                        if (!source_mode_logged) {
+                            if (rtsp_source) {
+                                std::cerr << "video source_type=rtsp backend=" << source->name()
+                                          << " pacing=source-clock reconnect=enabled\n";
+                            } else {
+                                std::cerr << "video source_type=local-file backend=" << source->name()
+                                          << " source_fps=" << source_fps
+                                          << " pacing=" << (options.input_pacing == "media" ? "media-rate" : "disabled")
+                                          << " looping=" << (options.loop_video ? "enabled" : "disabled") << '\n';
                             }
+                            source_mode_logged = true;
                         }
                         if (rtsp_source) {
                             if (awaiting_reconnect) {
                                 ++local_stream_epoch;
                                 stream_epoch.store(local_stream_epoch);
                                 awaiting_reconnect = false;
+                                source_connected.store(true);
                                 retry_delay = std::chrono::milliseconds(500);
                                 std::cerr << "RTSP stream reconnected epoch=" << local_stream_epoch << '\n';
-                                emit_source_status("connected", reconnect_attempts.load(),
-                                                   local_stream_epoch);
+                                emit_source_status("connected", reconnect_attempts.load(), local_stream_epoch);
                             }
                             if (!ever_decoded) {
-                                emit_source_status("connected", reconnect_attempts.load(),
-                                                   local_stream_epoch);
+                                source_connected.store(true);
+                                emit_source_status("connected", reconnect_attempts.load(), local_stream_epoch);
                             }
                             ever_decoded = true;
                         }
                         ++sequence;
                         double pts_ms = rtsp_source
-                            ? milliseconds(Clock::now() - started)
-                            : capture.get(cv::CAP_PROP_POS_MSEC);
-                        if (!rtsp_source && (!std::isfinite(pts_ms) || pts_ms < 0.0 ||
-                            (sequence > 1 && pts_ms <= last_pts_ms))) {
-                            pts_ms = pace_source
+                            ? milliseconds(decoded_frame.decoded_at - started)
+                            : decoded_frame.pts_ms;
+                        if (!std::isfinite(pts_ms) || pts_ms < 0.0 ||
+                            (sequence > 1 && pts_ms <= last_pts_ms)) {
+                            pts_ms = !rtsp_source && source_fps > 0.0
                                 ? static_cast<double>(sequence - 1) * 1000.0 / source_fps
-                                : milliseconds(Clock::now() - started);
+                                : milliseconds(decoded_frame.decoded_at - started);
                         }
                         if (!rtsp_source && sequence > 1 && pts_ms <= last_pts_ms) {
-                            pts_ms = last_pts_ms + (pace_source ? 1000.0 / source_fps : 1.0);
+                            pts_ms = last_pts_ms + (source_fps > 0.0 ? 1000.0 / source_fps : 1.0);
                         }
                         Frame item;
-                        item.image = frame.clone();
+                        item.media = std::move(decoded_frame);
+                        item.media.sequence = sequence;
+                        item.media.stream_epoch = local_stream_epoch;
+                        item.media.pts_ms = pts_ms;
                         item.sequence = sequence;
                         item.pts_ms = pts_ms;
                         item.stream_epoch = local_stream_epoch;
                         last_pts_ms = pts_ms;
-                        item.decoded_at = Clock::now();
+                        source_copy_bytes.fetch_add(item.media.source_copy_bytes);
                         if (queue.push(std::move(item)) == edge::QueuePushResult::Closed) break;
                         decoded.store(sequence);
-                        if (pace_source) {
+                        if (!rtsp_source && options.input_pacing == "media" && source_fps > 0.0) {
+                            const auto frame_period = std::chrono::duration_cast<Clock::duration>(
+                                std::chrono::duration<double>(1.0 / source_fps));
                             next_frame_at += frame_period;
                             const auto now = Clock::now();
-                            if (next_frame_at > now) {
-                                std::this_thread::sleep_until(next_frame_at);
-                            } else {
-                                next_frame_at = now;
-                            }
+                            if (next_frame_at > now) std::this_thread::sleep_until(next_frame_at);
+                            else next_frame_at = now;
                         }
                     }
+                    close_source();
                     queue.close();
                 } catch (const std::exception& error) {
-                    producer_error = rtsp_source ? "RTSP capture failed unexpectedly" : error.what();
+                    producer_error = rtsp_source ? "RTSP source failed unexpectedly" : error.what();
                     queue.close();
                 }
             });
@@ -860,17 +1060,41 @@ int main(int argc, char** argv) {
             edge::PPEEventMachine ppe_event_machine(ppe_event_config);
             edge::PPEStatusCounts ppe_status_counts;
             std::uint64_t processed_stream_epoch = 0;
-            std::deque<double> latency_window;
+            StageSamples stage_samples;
+            RuntimeMetricSnapshot runtime;
+            runtime.video_backend = options.video_backend;
+            runtime.preprocess_backend = options.preprocess_backend;
+            runtime.input_pacing = rtsp_source ? "source-clock" : options.input_pacing;
             std::uint64_t processed = 0;
             std::uint64_t detection_total = 0;
             std::uint64_t event_total = 0;
             std::size_t roi_occupancy_count = 0;
             std::uint64_t cumulative_roi_entries = 0;
             double roi_timeline_ms = -1.0;
-            double last_preprocess = 0.0, last_inference = 0.0, last_postprocess = 0.0;
-            double last_queue_wait = 0.0, last_e2e = 0.0;
             Frame frame;
+            auto report_metric = [&](const char* status) {
+                runtime.backend_dropped_frames = backend_dropped.load();
+                runtime.source_copy_bytes_total = source_copy_bytes.load();
+                runtime.reconnect_stale_frames_dropped = stale_epoch_frames_dropped.load();
+                runtime.nominal_input_fps = nominal_input_fps.load();
+                emit_metric(processed, detection_total, decoded.load(), queue, started,
+                            stage_samples, runtime,
+                            roi_occupancy_count, cumulative_roi_entries,
+                            ppe_event_machine.total_events(), ppe_event_machine.ppe_violations(),
+                            ppe_event_machine.danger_zone_intrusions(),
+                            ppe_event_machine.forklift_person_cooccurrences(), ppe_status_counts,
+                            reconnect_attempts.load(), stream_epoch.load(),
+                            rtsp_source ? "rtsp" : "local-file",
+                            rtsp_source
+                                ? (source_connected.load() ? "connected" : "reconnecting")
+                                : "not-applicable",
+                            status);
+            };
             while (queue.pop(frame)) {
+                if (frame.stream_epoch < stream_epoch.load()) {
+                    stale_epoch_frames_dropped.fetch_add(1);
+                    continue;
+                }
                 if (frame.stream_epoch != processed_stream_epoch) {
                     tracker.reset();
                     roi_event_machine.reset_stream();
@@ -880,35 +1104,33 @@ int main(int argc, char** argv) {
                     std::cerr << "stream state reset epoch=" << processed_stream_epoch << '\n';
                 }
                 const auto process_start = Clock::now();
-                last_queue_wait = milliseconds(process_start - frame.decoded_at);
+                runtime.queue_wait_ms = milliseconds(process_start - frame.media.decoded_at);
                 try {
-                    auto result = engine.infer(frame.image, options.confidence);
-                    last_preprocess = result.preprocess_ms;
-                    last_inference = result.inference_ms;
-                    last_postprocess = result.postprocess_ms;
+                    auto result = engine.infer(frame.media, options.confidence, options.preprocess_backend);
+                    runtime.decode_ms = frame.media.decode_ms;
+                    runtime.preprocess_ms = result.preprocess_ms;
+                    runtime.input_set_ms = result.input_set_ms;
+                    runtime.rknn_run_ms = result.rknn_run_ms;
+                    runtime.output_fetch_ms = result.output_fetch_ms;
+                    runtime.inference_ms = result.inference_ms;
+                    runtime.postprocess_ms = result.postprocess_ms;
+                    runtime.source_copy_bytes_last = frame.media.source_copy_bytes;
+                    runtime.model_input_bytes_last = result.model_input_bytes;
                     detection_total += result.detections.size();
                     const auto tracked = tracker.update(result.detections);
-                    cv::Mat annotated = frame.image.clone();
                     std::vector<edge::RoiObservation> observations;
                     observations.reserve(tracked.size());
 
                     for (const auto& item : tracked) {
                         const auto& d = item.detection;
-                        const bool inside = options.roi.contains(d, frame.image.cols, frame.image.rows);
+                        const bool inside = options.roi.contains(d, frame.media.width, frame.media.height);
                         observations.push_back({item.track_id, d, inside});
-                        cv::rectangle(annotated, cv::Point(d.left, d.top), cv::Point(d.right, d.bottom),
-                                      cv::Scalar(40, 220, 40), 2);
-                        std::ostringstream label;
-                        label << (d.label ? d.label : "object") << ' ' << std::fixed << std::setprecision(2)
-                              << d.confidence << " T" << item.track_id;
-                        cv::putText(annotated, label.str(), cv::Point(std::max(0, d.left), std::max(18, d.top - 4)),
-                                    cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(40, 220, 40), 1);
                     }
                     const auto active = tracker.active_ids();
                     double event_time_ms = frame.pts_ms;
                     if (!std::isfinite(event_time_ms) || event_time_ms < 0.0 ||
                         event_time_ms <= roi_timeline_ms) {
-                        event_time_ms = milliseconds(frame.decoded_at - started);
+                        event_time_ms = milliseconds(frame.media.decoded_at - started);
                     }
                     event_time_ms = std::max(event_time_ms, roi_timeline_ms);
                     roi_timeline_ms = event_time_ms;
@@ -919,7 +1141,7 @@ int main(int argc, char** argv) {
                     std::vector<edge::PPEEventTransition> safety_transitions;
                     if (model_family == ModelFamily::YoloXPpe) {
                         safety_transitions = ppe_event_machine.update(
-                            tracked, active, frame.image.cols, frame.image.rows, event_time);
+                            tracked, active, frame.media.width, frame.media.height, event_time);
                     }
                     ppe_status_counts = ppe_event_machine.person_status_counts();
                     roi_occupancy_count = roi_event_machine.occupancy_count();
@@ -953,6 +1175,21 @@ int main(int argc, char** argv) {
                     }
 
                     if (!pending_events.empty() || !pending_safety_events.empty()) {
+                        cv::Mat source_bgr = frame.media.bgr.empty()
+                            ? edge::nv12_to_bgr(frame.media.nv12, frame.media.width, frame.media.height)
+                            : frame.media.bgr;
+                        cv::Mat annotated = source_bgr.clone();
+                        for (const auto& item : tracked) {
+                            const auto& d = item.detection;
+                            cv::rectangle(annotated, cv::Point(d.left, d.top), cv::Point(d.right, d.bottom),
+                                          cv::Scalar(40, 220, 40), 2);
+                            std::ostringstream label;
+                            label << (d.label ? d.label : "object") << ' ' << std::fixed
+                                  << std::setprecision(2) << d.confidence << " T" << item.track_id;
+                            cv::putText(annotated, label.str(),
+                                        cv::Point(std::max(0, d.left), std::max(18, d.top - 4)),
+                                        cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(40, 220, 40), 1);
+                        }
                         const std::string filename = "frame-" + std::to_string(run_started_ms) + "-" +
                                                      std::to_string(frame.sequence) + ".jpg";
                         const fs::path disk_path = fs::path(options.state_dir) / "evidence" / filename;
@@ -988,22 +1225,13 @@ int main(int argc, char** argv) {
                     }
 
                     ++processed;
-                    last_e2e = milliseconds(Clock::now() - frame.decoded_at);
-                    latency_window.push_back(last_e2e);
-                    if (latency_window.size() > 300) latency_window.pop_front();
+                    runtime.end_to_end_ms = milliseconds(Clock::now() - frame.media.decoded_at);
+                    stage_samples.add(runtime.decode_ms, runtime.preprocess_ms, runtime.input_set_ms,
+                                      runtime.rknn_run_ms, runtime.output_fetch_ms,
+                                      runtime.postprocess_ms, runtime.queue_wait_ms,
+                                      runtime.end_to_end_ms);
                     if (processed == 1 || processed % 30 == 0) {
-                        emit_metric(processed, detection_total, decoded.load(), queue, started,
-                                    last_preprocess, last_inference, last_postprocess,
-                                    last_queue_wait, last_e2e, latency_window,
-                                    roi_occupancy_count, cumulative_roi_entries,
-                                    ppe_event_machine.total_events(),
-                                    ppe_event_machine.ppe_violations(),
-                                    ppe_event_machine.danger_zone_intrusions(),
-                                    ppe_event_machine.forklift_person_cooccurrences(),
-                                    ppe_status_counts,
-                                    reconnect_attempts.load(), stream_epoch.load(),
-                                    rtsp_source ? "rtsp" : "local-file",
-                                    rtsp_source ? "connected" : "not-applicable", "running");
+                        report_metric("running");
                     }
                 } catch (const std::exception& error) {
                     std::cerr << "frame processing failed at sequence " << frame.sequence
@@ -1022,19 +1250,7 @@ int main(int argc, char** argv) {
                 std::cerr << "video producer stopped after input error: " << producer_error << '\n';
                 exit_code = 3;
             }
-            emit_metric(processed, detection_total, decoded.load(), queue, started,
-                        last_preprocess, last_inference, last_postprocess,
-                        last_queue_wait, last_e2e, latency_window,
-                        roi_occupancy_count, cumulative_roi_entries,
-                        ppe_event_machine.total_events(),
-                        ppe_event_machine.ppe_violations(),
-                        ppe_event_machine.danger_zone_intrusions(),
-                        ppe_event_machine.forklift_person_cooccurrences(),
-                        ppe_status_counts,
-                        reconnect_attempts.load(), stream_epoch.load(),
-                        rtsp_source ? "rtsp" : "local-file",
-                        rtsp_source ? "connected" : "not-applicable",
-                        exit_code == 0 ? "completed" : "error");
+            report_metric(exit_code == 0 ? "completed" : "error");
             std::cerr << "worker completed: decoded=" << decoded.load()
                       << " processed=" << processed << " detections=" << detection_total
                       << " events=" << event_total << " dropped=" << queue.dropped_count() << '\n';

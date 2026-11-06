@@ -1,0 +1,79 @@
+{
+  "dumps": [
+    {
+      "bytes": 1228800,
+      "file": "input-bgr-u8.bin",
+      "logical_run": "fp-cpu",
+      "sha256": "e7715dfa1fa822b11ed556ba4bc45dd751d99da2940ac1c72a5a5d19384af8ce"
+    },
+    {
+      "bytes": 435200,
+      "file": "output-00.f32.bin",
+      "logical_run": "fp-cpu",
+      "sha256": "a3dbabcd7d3264ff9c3d4f06d3617b32592dcf2cd34784b27783004dda2f8461"
+    },
+    {
+      "bytes": 108800,
+      "file": "output-01.f32.bin",
+      "logical_run": "fp-cpu",
+      "sha256": "f0b210826c3b190ca853d1b7883b029ac71b877dda87adf39b5040f93dcb21dc"
+    },
+    {
+      "bytes": 27200,
+      "file": "output-02.f32.bin",
+      "logical_run": "fp-cpu",
+      "sha256": "986ca30b90db956a84c1f60e666eda149b56daa0910985c51f1d2cb29f4b6ec1"
+    },
+    {
+      "bytes": 1228800,
+      "file": "input-bgr-u8.bin",
+      "logical_run": "fp-rga",
+      "sha256": "2a2d0bf1874de62d7aad147c3669bdf0ed44fca00d4e8d2f7d54e69f95ca60f6"
+    },
+    {
+      "bytes": 435200,
+      "file": "output-00.f32.bin",
+      "logical_run": "fp-rga",
+      "sha256": "977ea07d7f968232d7a9d9c439a6dc8d9a690d4fa10e6dd79abea7c7e4eb949e"
+    },
+    {
+      "bytes": 108800,
+      "file": "output-01.f32.bin",
+      "logical_run": "fp-rga",
+      "sha256": "910567af20267523efc88ac574e5ca80c660996295508653ae24d6339d9d08aa"
+    },
+    {
+      "bytes": 27200,
+      "file": "output-02.f32.bin",
+      "logical_run": "fp-rga",
+      "sha256": "8d69c335377d15036a8f5924dfba39f2daf368946720947366847a76ad2452de"
+    },
+    {
+      "bytes": 1228800,
+      "file": "input-bgr-u8.bin",
+      "logical_run": "int8-rga",
+      "sha256": "2a2d0bf1874de62d7aad147c3669bdf0ed44fca00d4e8d2f7d54e69f95ca60f6"
+    },
+    {
+      "bytes": 108800,
+      "file": "output-00.native.bin",
+      "logical_run": "int8-rga",
+      "sha256": "2cecab4347b6eeca29d423792c836fcae1b4f02e12558d560756fa1ca19c3983"
+    },
+    {
+      "bytes": 27200,
+      "file": "output-01.native.bin",
+      "logical_run": "int8-rga",
+      "sha256": "6ac46359a91ae246c24eb25625555e83c0f069b6b0442f4d659a69b3b65823ee"
+    },
+    {
+      "bytes": 6800,
+      "file": "output-02.native.bin",
+      "logical_run": "int8-rga",
+      "sha256": "35096784f9078330bee950d9e6eb4d199307b82f24057f04223daca59b7068a3"
+    }
+  ],
+  "ppe_fp_model_sha256": "64cc93f556816286f17c9e21f69cd2f818c3602ef13dbb2d13ed48616f74482b",
+  "ppe_int8_model_sha256": "88b10ac2711f4b00d2859dfa0e1089ccb34ebd78a73b7dc46bd51a56c92c502c",
+  "source_clip_sha256": "482ce6acf11ffb0edb19e306cda1fccef484bb612a65a4a1c2b2857fcbdec4a5"
+}

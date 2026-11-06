@@ -315,6 +315,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", type=Path)
     parser.add_argument("--model-family", choices=("yolov8-coco", "yolox-ppe"), default="yolov8-coco")
     parser.add_argument("--video")
+    parser.add_argument("--video-backend", choices=("opencv", "gstreamer-mpp"), default="opencv")
+    parser.add_argument("--preprocess-backend", choices=("cpu", "rga"), default="cpu")
+    parser.add_argument("--input-pacing", choices=("media", "none"), default="media")
     parser.add_argument("--worker", type=Path, default=ROOT / "build" / "bin" / "rk_edge_worker")
     parser.add_argument("--state-dir", type=Path, default=ROOT / "state")
     parser.add_argument("--loop-video", action="store_true")
@@ -338,6 +341,9 @@ def build_worker_command(args: argparse.Namespace, worker: Path, model: Path,
     command = [
         str(worker), "--model", str(model), "--video", str(video),
         "--model-family", args.model_family,
+        "--video-backend", args.video_backend,
+        "--preprocess-backend", args.preprocess_backend,
+        "--input-pacing", args.input_pacing,
         "--state-dir", str(state_dir), "--roi", args.roi,
         "--queue-capacity", str(args.queue_capacity), "--queue-policy", args.queue_policy,
         "--confidence", str(args.confidence), "--dwell-ms", str(args.dwell_ms),

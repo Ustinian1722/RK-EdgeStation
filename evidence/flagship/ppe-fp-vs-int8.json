@@ -1,0 +1,81 @@
+{
+  "contract_mismatches": {},
+  "detections": {
+    "first_detection_count": 11,
+    "iou_threshold": 0.5,
+    "matched_same_class_iou_at_least_threshold": 11,
+    "max_matched_confidence_delta": 0.10571000000000003,
+    "mean_matched_confidence_delta": 0.02419796363636363,
+    "mean_matched_iou": 0.9549576424694345,
+    "second_detection_count": 11,
+    "unmatched_first": 0,
+    "unmatched_second": 0
+  },
+  "first_model": "yolox-s-ppe-fp.rknn",
+  "input_tensor": {
+    "bytes": 1228800,
+    "exact_byte_fraction": 1.0,
+    "maximum_absolute_byte_difference": 0,
+    "mean_absolute_byte_difference": 0.0
+  },
+  "model_input_interfaces": {
+    "input_model_format": [
+      "NHWC",
+      "NHWC"
+    ],
+    "input_model_type": [
+      "FP16",
+      "INT8"
+    ],
+    "input_quantization": [
+      "AFFINE",
+      "AFFINE"
+    ],
+    "input_scale": [
+      "1",
+      "1"
+    ],
+    "input_zero_point": [
+      "0",
+      "-128"
+    ]
+  },
+  "raw_output_tensors": {
+    "output[0]": {
+      "cosine_similarity": 0.9965853424530011,
+      "element_count": 108800,
+      "exact_value_fraction": 0.0,
+      "first_representation": "float32",
+      "maximum_absolute_difference": 1.25614389778,
+      "mean_absolute_difference": 0.02031617981313488,
+      "second_representation": "native"
+    },
+    "output[1]": {
+      "cosine_similarity": 0.9961457317871136,
+      "element_count": 27200,
+      "exact_value_fraction": 0.0,
+      "first_representation": "float32",
+      "maximum_absolute_difference": 1.4133596532350001,
+      "mean_absolute_difference": 0.02089978607275594,
+      "second_representation": "native"
+    },
+    "output[2]": {
+      "cosine_similarity": 0.9993519318035676,
+      "element_count": 6800,
+      "exact_value_fraction": 0.0,
+      "first_representation": "float32",
+      "maximum_absolute_difference": 0.29943745604999994,
+      "mean_absolute_difference": 0.012989093878654136,
+      "second_representation": "native"
+    }
+  },
+  "same_source_frame": {
+    "first_pts_ms": "0",
+    "first_sequence": "1",
+    "pts_matches_within_0_01ms": true,
+    "second_pts_ms": "0",
+    "second_sequence": "1",
+    "sequence_matches": true
+  },
+  "second_model": "yolox-s-ppe-int8.rknn"
+}

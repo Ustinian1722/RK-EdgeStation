@@ -4,7 +4,7 @@ RK-EdgeStation is an independent, single-board RK3576 edge-vision project. Its t
 
 The RK3576 demo runs a single-stream loop: MP4/RTSP input, RKNN inference, tracking, ROI and safety events, evidence images, SQLite history, local REST API, and a web dashboard. The existing YOLOv8n COCO model remains the fast general-object baseline. A separate 12-class YOLOX-S PPE/person/forklift candidate was trained, converted to RKNN, and exercised on the board. A label-grounded replay evaluator matched the expected PPE-event presence in 2/2 fixed-scene clips (one positive, one compliant). Both clips repeat one development-validation image, so this is a workflow check rather than an independent or temporal accuracy estimate. See the [PPE acceptance report](PPE_ACCEPTANCE_REPORT.md) and [event evaluation record](evidence/ppe/event-level-replay-evaluation.json).
 
-The COCO model measured 8.27 FPS and the PPE model 4.40 FPS in three interleaved runs on the same RK3576 worker and video. The PPE path has higher decode-to-result latency and drops more frames at a 15-FPS source. Keep the COCO path for speed; use PPE YOLOX-S only when its classes are required. The model comparison and three other same-input board comparison groups are summarized in the [performance report](PERFORMANCE_COMPARISON_REPORT.md).
+The selectable MPP/RGA Worker path has now been measured end to end against the OpenCV/CPU reference. On a media-clock 10-FPS H.264 clip, MPP/RGA FP reached 7.98 FPS versus 7.66 FPS for OpenCV/CPU FP, with lower process CPU and RSS; COCO INT8 reached 9.99 FPS with no drops. A same-graph PPE INT8 candidate reached 7.98 FPS versus 4.59 FPS for PPE FP on a 15-FPS repeated positive clip. On 200 development-validation images, PPE INT8 changed AP50:95 by −1.00 percentage points and `no_vest` recall by −2.31 points. It remains experimental pending dynamic PPE event validation. See the [performance comparison](PERFORMANCE_COMPARISON_REPORT.md) and [flagship optimization report](FLAGSHIP_OPTIMIZATION_REPORT.md).
 
 ## Current target and findings
 
@@ -28,9 +28,9 @@ The planned product has six cooperating subsystems:
 5. Local REST and web management, SQLite, structured logs, authentication, recovery, and systemd integration.
 6. RKNN-OptLab for graph/conversion inspection, FP16/INT8 comparisons, runtime profiling, attribution, and reports.
 
-The staged requirements and architecture are in [REQUIREMENTS.md](REQUIREMENTS.md) and [ARCHITECTURE.md](ARCHITECTURE.md). The implementation will not call a pipeline zero-copy until buffer ownership and DMA-BUF import are demonstrated on this board.
+The implemented selectable pipeline is in [ARCHITECTURE.md](ARCHITECTURE.md). OpenCV/FFmpeg plus CPU preprocessing remains the reference; GStreamer/MPP plus CPU or RGA preprocessing is available for board-side experiments. The GStreamer path copies NV12 into owned host memory, RGA writes a CPU-addressed model-input buffer, and RKNN accepts that buffer through `rknn_inputs_set`; there is no DMA-BUF or zero-copy path.
 
-The RKNN inference and service run on the RK3576. Windows/WSL is used for model training/export/conversion; after a compatible `.rknn` exists, the host is not required for board inference. Latest-frame remains the default bounded-queue mode. Event rules use normalized image regions and persistence thresholds. Forklift/person co-occurrence is an image-space risk cue, not a physical-distance estimate. Independent PPE/event accuracy, temporal event matching, real-camera behavior, per-core NPU utilization, and production performance remain open.
+The RKNN inference and service run on the RK3576. Windows/WSL is used for model training/export/conversion; after a compatible `.rknn` exists, the host is not required for board inference. Latest-frame remains the default bounded-queue mode. Event rules use normalized image regions and persistence thresholds. Forklift/person co-occurrence is an image-space risk cue, not a physical-distance estimate. Independent dynamic PPE/event accuracy, real-camera behavior, per-core NPU utilization, and production performance remain open.
 
 ## Phases
 
@@ -38,7 +38,7 @@ The RKNN inference and service run on the RK3576. Windows/WSL is used for model 
 |---|---|---|
 | P0 | Hardware audit, license review, requirements, official RKNN smoke | Complete; official RK3576 C API sample passed |
 | P1 | Single-stream detection, events, persistence, and local UI | MP4 and synthetic RTSP paths, ROI transitions, PPE rules, SQLite/API history and acknowledgement exercised on the board. Two fixed-scene PPE clips have a label-grounded 2/2 sequence-presence check; independent temporal accuracy and identity continuity remain open |
-| P2 | Media paths, quantization, scheduling, and profiling | Four same-input end-to-end comparison groups are documented. INT8 remains experimental; MPP/RGA remain stage-only and no zero-copy or end-to-end gain is claimed |
+| P2 | Media paths, quantization, scheduling, and profiling | OpenCV and GStreamer/MPP sources plus CPU/RGA preprocessing are integrated into the worker. A0–A3 offline/media-clock and PPE FP/INT8 board matrices are recorded. INT8 remains experimental; no zero-copy is implemented |
 | P3 | Recovery and handoff | Manual restart, synthetic RTSP reconnect, and temporary systemd user-service recovery passed. A 24-hour soak is outside this project's acceptance scope; the earlier exploratory run stopped after 4 h 52 min and is not a completed soak |
 
 ## Documentation
@@ -50,6 +50,8 @@ The RKNN inference and service run on the RK3576. Windows/WSL is used for model 
 - [PPE training protocol](TRAINING_PPE.md) and [PPE acceptance report](PPE_ACCEPTANCE_REPORT.md)
 - [PPE event replay video generator](scripts/generate_ppe_replay_videos.py) and [label-grounded replay evaluator](scripts/evaluate_ppe_replay_events.py)
 - [Four-group board performance report](PERFORMANCE_COMPARISON_REPORT.md)
+- [Flagship MPP/RGA/INT8 optimization report](FLAGSHIP_OPTIMIZATION_REPORT.md)
+- [Board PPE RKNN validation tools](scripts/make_ppe_rknn_image_manifest.py), [`ppe_rknn_dataset_eval`](tools/ppe_rknn_dataset_eval.cpp), and [metric evaluator](scripts/evaluate_ppe_rknn_predictions.py)
 - [Optional long-run diagnostic and deployment controls](BUILD_AND_DEPLOY.md#optional-monitored-long-run-probe)
 - [P3 graceful restart recovery probe](scripts/restart_recovery_smoke.py)
 - `build/bin/create_static_video` creates and verifies a deterministic repeated-frame AVI test source for long-run experiments.

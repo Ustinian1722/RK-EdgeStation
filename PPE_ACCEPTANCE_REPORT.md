@@ -73,3 +73,28 @@ Reproduce the archived-result calculation from the repository root with `python 
 Three interleaved runs on the same 150-frame PPE clip measured a median **4.40 processed FPS** for YOLOX-S on RK3576, with median decode-to-result p95 312.3 ms and 105/150 dropped frames in latest-frame mode. The COCO YOLOv8n baseline on the same worker and input measured 8.27 FPS and 189.0 ms p95. The PPE model is materially slower; retain YOLOv8n as the fast COCO baseline and select YOLOX-S only when the PPE classes are required. The [four-group comparison report](PERFORMANCE_COMPARISON_REPORT.md) and raw [three-run board summary](evidence/ppe/rk3576-yolov8-coco-vs-yolox-ppe.json) include stage times, CPU, RSS, frame counts, and hashes.
 
 The fixed-frame video is intentionally useful for repeatable board validation, but its event labels do not provide temporal ground truth. A larger independently labeled test set, moving PPE footage, multiple lighting/camera conditions, and optimization for the board's throughput are still needed before treating this model as a production detector.
+
+## 2026-11-07 MPP/RGA and PPE INT8 follow-up
+
+The PPE YOLOX-S FP model was converted to INT8 from the same ONNX graph using Toolkit2 2.0.0b0 for RK3576. Calibration used 50 deterministically selected, class-aware images from the training split with coverage of all 12 labels. The BGR, NHWC, raw 0–255 input contract was retained; the board queried an INT8 input and three INT8 output maps. The INT8 model is 11,566,602 bytes versus 20,710,742 bytes FP (44.2% smaller). Model, calibration, dataset, evaluator and raw-run hashes are in [the flagship evidence](evidence/flagship/ppe-int8/).
+
+Three media-clock worker repetitions used the same 150-frame, 15-FPS positive fixed-scene replay, confidence 0.25 and latest capacity-one queue:
+
+| Backend/model | Median FPS | Processed / dropped | Decode-to-result P95 |
+|---|---:|---:|---:|
+| OpenCV/CPU, FP | 4.601 | 47 / 103 | 295.875 ms |
+| GStreamer/MPP + RGA, FP | 4.593 | 47 / 103 | 290.036 ms |
+| GStreamer/MPP + RGA, INT8 | 7.975 | 81 / 69 | 189.413 ms |
+
+The same board RKNN evaluator then processed all 200 images in the development validation split through the production CPU preprocessing and PPE postprocessor. AP uses a 0.001 detection-score floor and NMS IoU 0.45; the listed critical-class recalls use confidence 0.25 and IoU 0.50:
+
+| Metric | FP | INT8 |
+|---|---:|---:|
+| AP50 | 73.10% | 72.21% |
+| AP50:95 | 46.77% | 45.76% |
+| `no_helmet` recall | 59.78% | 59.78% |
+| `no_vest` recall | 73.08% | 70.77% |
+
+The split was used to select the FP checkpoint and is not an independent test set. The 2.31-point `no_vest` recall decrease matters for this application, so INT8 remains an experimental deployment candidate instead of the default. It did emit one PPE violation in each of the three positive repeated-scene Worker runs, which verifies that the quantized model reaches the existing Worker event path; this is not temporal event accuracy or API acceptance for the INT8 candidate. The existing MPP/RGA API smoke is with the FP model.
+
+The detailed matched worker results, all per-run records, same-frame tensor comparisons, calibration-selection record and full set of validation metrics are in [FLAGSHIP_OPTIMIZATION_REPORT.md](FLAGSHIP_OPTIMIZATION_REPORT.md) and [evidence/flagship](evidence/flagship/). Dynamic PPE footage, event onset/offset labels, identity continuity and physical camera/network testing remain unverified.

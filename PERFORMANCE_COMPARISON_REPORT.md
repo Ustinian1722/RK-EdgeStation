@@ -1,8 +1,12 @@
 # RK3576 end-to-end comparison report
 
-**Board:** KICKPI K7 / RK3576 / aarch64, RKNN Runtime 2.0.0b0, driver 0.9.7. The worker's end-to-end latency is decode-to-result age for a frame read from a local video. It is not camera-capture-to-display latency. All model/queue A/B results below are board runs on fixed inputs. MPP and RGA remain isolated stage probes and are not counted as end-to-end improvements.
+**Board:** KICKPI K7 / RK3576 / aarch64, RKNN Runtime 2.0.0b0, driver 0.9.7. The worker's end-to-end latency is decode-to-result age for a frame read from a local video. It is not camera-capture-to-display latency. The comparisons below include historical fixed-input A/Bs plus the integrated worker follow-up dated 2026-11-07.
 
-## Four board-side comparison groups
+## Flagship integrated pipeline follow-up (2026-11-07)
+
+The current Worker supports OpenCV/FFmpeg or GStreamer/MPP and CPU or RGA preprocessing. Three-repeat board matrices used the same model/input for A0–A3 and separated no-pacing throughput from media-clock input. On the 10-FPS moving H.264 clip, OpenCV/CPU FP reached 7.656 FPS, MPP/RGA FP 7.981 FPS, and MPP/RGA INT8 9.991 FPS; respective P95 decode-to-result ages were 236.6, 220.6, and 106.3 ms. MPP/RGA FP used lower CPU/RSS with only a modest throughput change. PPE YOLOX-S INT8 increased Worker throughput from 4.593 to 7.975 FPS on the fixed 15-FPS positive replay; it reduced AP50:95 by 1.00 pp and `no_vest` recall by 2.31 pp on the development validation split. Full tables, stage data, raw records and limitations are in [FLAGSHIP_OPTIMIZATION_REPORT.md](FLAGSHIP_OPTIMIZATION_REPORT.md).
+
+## Historical board-side comparison groups
 
 | Group | Same-input design | Main result | Reading |
 |---|---|---|---|
@@ -39,6 +43,6 @@ The YOLOX-S median inference interval was about 2.85× the COCO model's; its p95
 ## Scope of claims
 
 - The FP/INT8 and tracker/queue reports predate process-level CPU sampling; they retain worker RSS where captured. CPU values are not reconstructed for those runs.
-- MPP decode and RGA letterbox results are stage-only. The current worker remains on OpenCV software decode/preprocessing; no zero-copy path or end-to-end MPP/RGA gain is claimed.
+- The original MPP decode and RGA letterbox results below were stage-only. The 2026-11-07 follow-up integrated them into the Worker; its controlled end-to-end results are reported above and in the flagship report. No zero-copy path is claimed.
 - Detection-output consistency is separate from event correctness. The PPE board output comparison covers one saved input. The event replays now have a source-label-grounded, clip-level presence score of 2/2 across one positive and one compliant static scene; they still do not form an independent labeled video test set or support temporal event precision/recall. See the [PPE event evaluation](evidence/ppe/event-level-replay-evaluation.json) and [acceptance report](PPE_ACCEPTANCE_REPORT.md).
 - Keep the YOLOv8n COCO path as the fast general-object baseline. The PPE YOLOX-S path is a demonstrable, slower task-specific candidate with measured limits.

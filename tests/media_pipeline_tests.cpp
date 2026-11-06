@@ -1,10 +1,13 @@
 #include <opencv2/core.hpp>
 #include <opencv2/videoio.hpp>
 
+#include "video_source.hpp"
+
 #include <chrono>
 #include <cmath>
 #include <filesystem>
 #include <iostream>
+#include <stdexcept>
 #include <string>
 
 int main() {
@@ -71,7 +74,29 @@ int main() {
                   << expected_frames << '\n';
         return 1;
     }
+
+    cv::Mat black_nv12(height * 3 / 2, width, CV_8UC1);
+    black_nv12.rowRange(0, height).setTo(16);
+    black_nv12.rowRange(height, height * 3 / 2).setTo(128);
+    const cv::Mat black_bgr = edge::nv12_to_bgr(black_nv12, width, height);
+    if (black_bgr.size() != cv::Size(width, height) || black_bgr.type() != CV_8UC3 ||
+        cv::mean(black_bgr)[0] > 2.0 || cv::mean(black_bgr)[1] > 2.0 ||
+        cv::mean(black_bgr)[2] > 2.0) {
+        std::cerr << "NV12 limited-range black conversion mismatch\n";
+        return 1;
+    }
+    bool invalid_nv12_rejected = false;
+    try {
+        (void)edge::nv12_to_bgr(black_nv12, width - 1, height);
+    } catch (const std::invalid_argument&) {
+        invalid_nv12_rejected = true;
+    }
+    if (!invalid_nv12_rejected) {
+        std::cerr << "NV12 conversion accepted invalid plane dimensions\n";
+        return 1;
+    }
     std::cout << "MP4 encode/decode passed: frames=" << decoded_frames
-              << " fps=" << fps << " size=" << width << 'x' << height << '\n';
+              << " fps=" << fps << " size=" << width << 'x' << height
+              << "; NV12 plane conversion passed\n";
     return 0;
 }

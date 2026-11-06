@@ -1,0 +1,63 @@
+{
+  "board_evaluator_binary_sha256": "5f6187129778f3649bc98c188a706f604a96d2cf8485da30070918a0cf26ac93",
+  "board_worker_binary_sha256": "d24e5bd1cd09c547a65291e26ed950977199050ced44cc9e8ff5044b9ef8de3d",
+  "calibration": {
+    "annotation_sha256": "ac261f2d95801ae75bf9e3483b987d00bd3778fd2c18497089bfd2f2ee3e0885",
+    "count": 50,
+    "manifest_sha256": "see calibration-selection.json selected image hashes",
+    "seed": 3576,
+    "selector": "greedy inverse-square-root class-image frequency with seeded tie break",
+    "split": "train"
+  },
+  "conversion": {
+    "input_contract": "BGR NHWC uint8 raw 0-255",
+    "same_yolox_s_graph": true,
+    "status": "success",
+    "target_platform": "rk3576",
+    "toolkit_input_mean": [
+      0,
+      0,
+      0
+    ],
+    "toolkit_input_std": [
+      1,
+      1,
+      1
+    ],
+    "toolkit_warning": "Toolkit2 changed model input and all three outputs from float32 to int8"
+  },
+  "models": {
+    "fp": {
+      "AP50": 0.7309920285809611,
+      "AP50_95": 0.4676636556433593,
+      "bytes": 20710742,
+      "no_helmet_recall": 0.5977653631284916,
+      "no_vest_recall": 0.7307692307692307,
+      "sha256": "64cc93f556816286f17c9e21f69cd2f818c3602ef13dbb2d13ed48616f74482b"
+    },
+    "int8": {
+      "AP50": 0.7221386427944179,
+      "AP50_95": 0.45762147971331313,
+      "bytes": 11566602,
+      "no_helmet_recall": 0.5977653631284916,
+      "no_vest_recall": 0.7076923076923077,
+      "sha256": "88b10ac2711f4b00d2859dfa0e1089ccb34ebd78a73b7dc46bd51a56c92c502c"
+    }
+  },
+  "prediction_jsonl_sha256": {
+    "fp": "73fc2b9d63e7fa74380d95f375c28f60eefb5b2e3c9187957f01e1988336d287",
+    "int8": "90640f6e0b75a23672ca823618cdf80a5ee346c55b838f68cb9c466c92132f73"
+  },
+  "target": "RK3576 RKNN Runtime 2.0.0b0",
+  "toolkit2": "2.0.0b0",
+  "validation": {
+    "AP_score_floor": 0.001,
+    "annotations_sha256": "bcec4c400a5c75ceb1146c41a2fd5b0f6fd7b22c90131189f89ec93f22c484ea",
+    "confidence_threshold_for_recall": 0.25,
+    "dataset_archive_sha256": "2e4992d17d83e43dad653ff63ce047078c49f428741eb48d80306bc999477d7c",
+    "evaluator": "scripts/evaluate_ppe_rknn_predictions.py + board ppe_rknn_dataset_eval",
+    "image_count": 200,
+    "nms_iou": 0.45,
+    "split": "development validation, not an independent test split"
+  }
+}

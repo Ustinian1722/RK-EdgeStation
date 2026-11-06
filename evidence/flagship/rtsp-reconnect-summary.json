@@ -1,0 +1,19 @@
+{
+  "backend_dropped_frames": 0,
+  "board_source": "rk3576",
+  "decode_to_result_p95_ms": 239.962,
+  "decoded_frames": 1376,
+  "dropped_frames": 342,
+  "intentional_server_stop_seconds": 6,
+  "interpretation": "Proves H.264 RTSP pipeline rebuild and tracker/event epoch reset on this synthetic file-backed loopback test. Repeated EOS epochs and the intentional interruption make it a recovery test, not a throughput benchmark or camera/network acceptance.",
+  "processed_frames": 1034,
+  "reconnect_attempts": 13,
+  "source_delivery_fps": 7.56,
+  "source_status": "connected",
+  "status": "completed",
+  "stream_epoch": 9,
+  "test_type": "H.264 RTSP MPP/RGA reconnect smoke using a local file-backed RTSP server and strict loopback SSH reverse tunnel",
+  "throughput_fps": 5.681,
+  "video_frames_per_epoch": 150,
+  "video_sha256": "1ea4d10fac31c3b07be95117b3fc6e34e6f79daf9f3cddb3d25f7c4187e3ab98"
+}

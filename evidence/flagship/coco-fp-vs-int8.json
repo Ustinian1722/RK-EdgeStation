@@ -1,0 +1,135 @@
+{
+  "contract_mismatches": {},
+  "detections": {
+    "first_detection_count": 5,
+    "iou_threshold": 0.5,
+    "matched_same_class_iou_at_least_threshold": 5,
+    "max_matched_confidence_delta": 0.022874599999999967,
+    "mean_matched_confidence_delta": 0.016307439999999996,
+    "mean_matched_iou": 0.953807211093243,
+    "second_detection_count": 5,
+    "unmatched_first": 0,
+    "unmatched_second": 0
+  },
+  "first_model": "yolov8n-rk3576-fp.rknn",
+  "input_tensor": {
+    "bytes": 1228800,
+    "exact_byte_fraction": 1.0,
+    "maximum_absolute_byte_difference": 0,
+    "mean_absolute_byte_difference": 0.0
+  },
+  "model_input_interfaces": {
+    "input_model_format": [
+      "NHWC",
+      "NHWC"
+    ],
+    "input_model_type": [
+      "FP16",
+      "INT8"
+    ],
+    "input_quantization": [
+      "AFFINE",
+      "AFFINE"
+    ],
+    "input_scale": [
+      "1",
+      "0.00392157"
+    ],
+    "input_zero_point": [
+      "0",
+      "-128"
+    ]
+  },
+  "raw_output_tensors": {
+    "output[0]": {
+      "cosine_similarity": 0.9955909261512347,
+      "element_count": 409600,
+      "exact_value_fraction": 0.0,
+      "first_representation": "float32",
+      "maximum_absolute_difference": 3.2369434528000003,
+      "mean_absolute_difference": 0.16022369668586137,
+      "second_representation": "native"
+    },
+    "output[1]": {
+      "cosine_similarity": 0.9476868484907003,
+      "element_count": 512000,
+      "exact_value_fraction": 0.0,
+      "first_representation": "float32",
+      "maximum_absolute_difference": 0.33642240614200003,
+      "mean_absolute_difference": 0.0016521368296803143,
+      "second_representation": "native"
+    },
+    "output[2]": {
+      "cosine_similarity": 0.9887272875360938,
+      "element_count": 6400,
+      "exact_value_fraction": 0.0,
+      "first_representation": "float32",
+      "maximum_absolute_difference": 0.20700384276899997,
+      "mean_absolute_difference": 0.1316647800272339,
+      "second_representation": "native"
+    },
+    "output[3]": {
+      "cosine_similarity": 0.993771498668387,
+      "element_count": 102400,
+      "exact_value_fraction": 0.0,
+      "first_representation": "float32",
+      "maximum_absolute_difference": 3.758884742875,
+      "mean_absolute_difference": 0.15987937809610403,
+      "second_representation": "native"
+    },
+    "output[4]": {
+      "cosine_similarity": 0.9823187167292932,
+      "element_count": 128000,
+      "exact_value_fraction": 0.0,
+      "first_representation": "float32",
+      "maximum_absolute_difference": 0.35298179712,
+      "mean_absolute_difference": 0.0016257027463438237,
+      "second_representation": "native"
+    },
+    "output[5]": {
+      "cosine_similarity": 0.9581415804057152,
+      "element_count": 1600,
+      "exact_value_fraction": 0.0,
+      "first_representation": "float32",
+      "maximum_absolute_difference": 0.479422006936,
+      "mean_absolute_difference": 0.12901585569407853,
+      "second_representation": "native"
+    },
+    "output[6]": {
+      "cosine_similarity": 0.9833060943221749,
+      "element_count": 25600,
+      "exact_value_fraction": 0.0,
+      "first_representation": "float32",
+      "maximum_absolute_difference": 3.60162694768,
+      "mean_absolute_difference": 0.22571361882502483,
+      "second_representation": "native"
+    },
+    "output[7]": {
+      "cosine_similarity": 0.9999643855235749,
+      "element_count": 32000,
+      "exact_value_fraction": 0.0,
+      "first_representation": "float32",
+      "maximum_absolute_difference": 0.0020905141725000003,
+      "mean_absolute_difference": 0.0001298923458481711,
+      "second_representation": "native"
+    },
+    "output[8]": {
+      "cosine_similarity": 0.999999648050687,
+      "element_count": 400,
+      "exact_value_fraction": 0.0,
+      "first_representation": "float32",
+      "maximum_absolute_difference": 0.011960158822099998,
+      "mean_absolute_difference": 0.010311784117582212,
+      "second_representation": "native"
+    }
+  },
+  "same_source_frame": {
+    "first_pts_ms": "0",
+    "first_sequence": "1",
+    "pts_matches_within_0_01ms": true,
+    "second_pts_ms": "0",
+    "second_sequence": "1",
+    "sequence_matches": true
+  },
+  "second_model": "yolov8n-rk3576-int8.rknn"
+}

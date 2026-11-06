@@ -1,5 +1,7 @@
 # P2 acceptance report — RK3576 media, preprocessing, and quantization probes
 
+**Follow-up 2026-11-07:** The prior stage-only MPP/RGA probes led to a later Worker integration. The controlled A0–A3, media-clock, PPE FP/INT8, and RTSP evidence is now in [FLAGSHIP_OPTIMIZATION_REPORT.md](FLAGSHIP_OPTIMIZATION_REPORT.md). The original P2 measurements and their decisions below retain their 2026-11-05 scope and are not the final end-to-end result.
+
 - **Date:** 2026-11-05
 - **Board:** KICKPI K7 / RK3576 / Ubuntu 24.04.3 aarch64
 - **Status:** MPP/RGA stage probes and a native INT8 worker A/B were run on RK3576. INT8 improved throughput on this single sample, but remains experimental because representative calibration and labeled accuracy/event evidence are absent; no optimization has been promoted as the product default.
@@ -67,11 +69,11 @@ On RK3576, the non-quantized YOLOv8n worker processed the same 150-frame, 10-FPS
 
 All runs decoded 150 frames and completed without worker errors; board temperatures were 26.846–28.692°C. Median processed/dropped counts and throughput were nearly identical. Latest had 26.406 ms lower p50 and 31.765 ms lower p95 than FIFO in these runs. The worker's end-to-end values are per-frame decode-to-result latencies; p50/p95 are computed per run then summarized across the three repetitions. Since the two policies process different frames, event and detection counts are not accuracy comparisons. Keep latest as the default for freshness; FIFO remains selectable when preserving the order of already queued frames is preferred. See the [six-run summary](evidence/p2/queue-policy-ab-summary.jsonl), [run manifest](evidence/p2/queue-policy-ab-manifest.txt), per-run JSONL/temperature files, and [board build/test log](evidence/p2/b43354b-board-build-test.txt).
 
-## Decision and remaining P2 gates
+## Original P2 decision (2026-11-05; superseded by the flagship follow-up)
 
-- Keep OpenCV CPU preprocessing as the worker default. The isolated RGA stage is about 0.47 ms faster per frame in this test, but that does not establish a meaningful end-to-end gain, and a threshold-sensitive detection difference appeared at confidence 0.25.
-- Do not integrate MPP into the live worker based on the NV12/fakesink throughput. The measured GStreamer BGR path was slower than OpenCV FFmpeg, and no MPP-to-RKNN buffer path was measured.
-- No zero-copy, asynchronous inference, labeled accuracy, or peak throughput is claimed. INT8 shows a measured throughput and queue-age improvement on this one sample, but remains an experimental model and does not replace the FP default until calibration and labeled evaluation cover representative scenes and event behavior. A production RGA/MPP candidate still needs controlled worker A/B runs across representative media, event/output comparison, and labeled evaluation before it can replace the CPU path.
+- Keep OpenCV/CPU as the conservative reference path. The later worker-level matrix found a modest MPP/RGA FP throughput gain and lower CPU/RSS on its fixed 10-FPS sample, while MPP/CPU did not improve throughput.
+- The old stage-only evidence correctly did not justify integration by itself. A later GStreamer/MPP and RGA implementation was compiled and measured in the actual Worker; the results and buffer-copy boundaries are in the flagship report.
+- No zero-copy, asynchronous RGA/NPU overlap, or NPU utilization is claimed. COCO and PPE INT8 are measured candidates, not a safety-default promotion. PPE INT8 was scored on the development validation split; dynamic independent PPE/event validation remains open.
 
 ## Evidence
 

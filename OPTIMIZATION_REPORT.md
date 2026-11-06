@@ -1,6 +1,6 @@
 # Optimization report
 
-Status: no optimization has been promoted as the product default. P2 includes three-repeat RK3576 worker A/Bs for the INT8 model and latest/FIFO queue policies, alongside MPP/RGA stage probes. INT8 was faster on the tested sample, but limited single-scene calibration and no labeled evaluation leave output quality unverified. Latest reduced end-to-end p95 versus FIFO in the measured overload run. The fourth end-to-end workload comparison, COCO YOLOv8n versus PPE YOLOX-S, is summarized in the [four-group comparison report](PERFORMANCE_COMPARISON_REPORT.md); PPE YOLOX-S is materially slower and remains task-specific.
+**Current status (2026-11-07):** GStreamer/MPP and RGA are integrated in the RK3576 Worker and have matched end-to-end board matrices. The OpenCV/CPU path remains the fallback. No quantized model is promoted as the safety default: the same-graph PPE INT8 candidate is faster and smaller, but its development-set `no_vest` recall is 2.31 percentage points lower and independent dynamic PPE/event video is unavailable. The current matrix and analysis are in [FLAGSHIP_OPTIMIZATION_REPORT.md](FLAGSHIP_OPTIMIZATION_REPORT.md). Historical P1/P2 measurements below retain their original dates and conditions.
 
 ## P0 constraints discovered
 
@@ -51,20 +51,22 @@ The inference-interval medians are calculated from each run's final `last_infere
 
 The same FP worker, 150-frame/10-FPS H.264 clip, confidence 0.25 and queue capacity 1 were run in three interleaved repetitions per queue policy with the [queue A/B runner](scripts/benchmark_queue_policy_ab.sh). `latest` replaces the oldest pending frame; `fifo` preserves pending order and drops new frames while full. Latest medians were 119 processed / 31 dropped, 7.892 FPS, 172.878 ms p50 and 232.028 ms p95. FIFO medians were 119 / 31, 7.859 FPS, 199.284 ms p50 and 263.793 ms p95. Each run decoded 150 frames. Latest had 26.406 ms lower p50 and 31.765 ms lower p95 (12.0% relative to FIFO); throughput was nearly identical. Temperatures ranged 26.846–28.692°C. The tests verify queue semantics and policy propagation, but processed frames differ and there are no labels, so event counts are not comparable accuracy evidence. Keep latest as the default for freshness; FIFO is available where preserving the order of already queued frames is preferred. Raw data is in [queue-policy-ab-summary.jsonl](evidence/p2/queue-policy-ab-summary.jsonl), [the run manifest](evidence/p2/queue-policy-ab-manifest.txt), and per-run logs in `evidence/p2/queue-policy-*`.
 
-MPP and RGA remain isolated stage probes and do not establish an end-to-end gain. The worker's decode and preprocessing defaults remain OpenCV CPU. See [P2_ACCEPTANCE_REPORT.md](P2_ACCEPTANCE_REPORT.md) and the raw files in [evidence/p2](evidence/p2/).
+**Original P2 decision (2026-11-05):** MPP/RGA were stage probes only, so the production worker remained OpenCV/CPU. That decision was superseded on 2026-11-07 when both paths were integrated and measured in the Worker. The controlled A0–A3 and media-clock results are in [FLAGSHIP_OPTIMIZATION_REPORT.md](FLAGSHIP_OPTIMIZATION_REPORT.md); the raw P2 probes below remain useful for understanding why NV12 output is important and MPP-to-BGR was slower.
 
 ### PPE/COCO worker comparison (2026-11-06)
 
 Three interleaved RK3576 pairs used the same C++ worker, positive PPE video, queue capacity 1/latest, confidence 0.25, and zone/event settings. Median throughput was 8.271 FPS for YOLOv8n COCO and 4.403 FPS for YOLOX-S PPE. Median decode-to-result p95 was 188.988 ms vs 312.263 ms; median inference interval was 57.602 ms vs 164.426 ms. `/proc` process CPU/RSS, stage timing, drops, event counts, and hashes are in [the raw comparison](evidence/ppe/rk3576-yolov8-coco-vs-yolox-ppe.json). The models have different classes and postprocessing, so this is an end-to-end workload comparison, not model accuracy/equivalence. Keep COCO as the fast baseline and use PPE YOLOX-S where its classes are needed.
 
-## Planned baseline matrix
+## Original P2 baseline plan and follow-up state
 
 | Stage | Reference | Candidate | Required evidence |
 |---|---|---|---|
-| Video decode | OpenCV/CPU decode | GStreamer MPP decode | Stage probe completed; MPP NV12 is high-throughput, while the measured MPP+BGR path is slower than OpenCV FFmpeg. Full worker A/B remains open |
-| Resize/color | OpenCV CPU | RGA | Worker-matched stage probe completed at about 1.20×; six-frame tensor/detection sensitivity recorded. Full worker A/B and labeled accuracy remain open |
-| Inference | RKNN C API non-quantized worker path | INT8 | Three-repeat worker A/B on one sample recorded throughput, drops, inference interval, end-to-end latency and RSS; representative calibration, labeled accuracy/event comparison and broader inputs remain open |
+| Video decode | OpenCV/CPU decode | GStreamer MPP decode | Stage probe and three-repeat A0/A1/A2/A3 Worker comparison completed; MPP-to-BGR remains slower, while NV12-to-RGA is the measured path |
+| Resize/color | OpenCV CPU | RGA | Worker-integrated three-repeat comparison and same-frame tensor/detection checks completed; gain depends on source/model dimensions |
+| Inference | RKNN FP | INT8 | COCO and PPE same-graph board comparisons completed. PPE dev-validation AP/recall is recorded; independent dynamic event validation remains open |
 | Buffer transport | explicit CPU copy | imported DMA-BUF if compatible | fd/allocator ownership, cache sync, copy count, correctness and measured impact |
-| Scheduling | FIFO/drop-newest | latest/drop-oldest | Three-repeat capacity-1 A/B completed on one sample; broader source rates, stale-result policy, timeouts and recovery remain open |
+| Scheduling | FIFO/drop-newest | latest/drop-oldest | Three-repeat 10-FPS Worker A/B and H.264 RTSP reconnect/recovery checks completed; physical camera/network behavior remains open |
+
+See the [flagship report](FLAGSHIP_OPTIMIZATION_REPORT.md) for exact protocols, current results, raw evidence and the remaining independent-validation boundary.
 
 Before changing an implementation, save its source commit and raw run data. An optimization is accepted only if it improves the named metric without violating output correctness or stability. Neutral and negative results remain in the report.

@@ -1,0 +1,282 @@
+[
+  {
+    "config_id": "A0",
+    "decoded_frames_each": [
+      150,
+      150,
+      150
+    ],
+    "drop_rate_percent_each": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "dropped_frames_each": [
+      0,
+      0,
+      0
+    ],
+    "median_stage_metrics": {
+      "nominal_input_fps": 10.0,
+      "p50_decode_ms": 3.185,
+      "p50_end_to_end_ms": 8820.011,
+      "p50_inference_ms": 71.498,
+      "p50_postprocess_ms": 1.649,
+      "p50_preprocess_ms": 7.166,
+      "p50_queue_wait_ms": 8704.885,
+      "p50_rknn_input_set_ms": 41.674,
+      "p50_rknn_output_fetch_ms": 11.912,
+      "p50_rknn_run_ms": 59.507,
+      "p95_decode_ms": 4.682,
+      "p95_end_to_end_ms": 17130.015,
+      "p95_inference_ms": 77.467,
+      "p95_postprocess_ms": 2.507,
+      "p95_preprocess_ms": 19.369,
+      "p95_queue_wait_ms": 17030.71,
+      "p95_rknn_input_set_ms": 49.614,
+      "p95_rknn_output_fetch_ms": 16.596,
+      "p95_rknn_run_ms": 60.712,
+      "process_cpu_core_percent": 71.276,
+      "process_cpu_system_percent": 8.91,
+      "process_peak_rss_kb": 323080.0
+    },
+    "median_throughput_fps": 8.105,
+    "p95_end_to_end_ms_each": [
+      17130.015,
+      17105.931,
+      17204.069
+    ],
+    "p95_preprocess_ms_each": [
+      24.449,
+      13.759,
+      19.369
+    ],
+    "p95_rknn_run_ms_each": [
+      62.16,
+      60.712,
+      60.465
+    ],
+    "processed_frames_each": [
+      150,
+      150,
+      150
+    ],
+    "runs": 3,
+    "successful_runs": 3,
+    "throughput_fps_each": [
+      8.121,
+      8.105,
+      8.092
+    ]
+  },
+  {
+    "config_id": "A1",
+    "decoded_frames_each": [
+      150,
+      150,
+      150
+    ],
+    "drop_rate_percent_each": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "dropped_frames_each": [
+      0,
+      0,
+      0
+    ],
+    "median_stage_metrics": {
+      "nominal_input_fps": 10.0,
+      "p50_decode_ms": 1.04,
+      "p50_end_to_end_ms": 9303.741,
+      "p50_inference_ms": 71.625,
+      "p50_postprocess_ms": 1.632,
+      "p50_preprocess_ms": 9.0,
+      "p50_queue_wait_ms": 9197.607,
+      "p50_rknn_input_set_ms": 40.529,
+      "p50_rknn_output_fetch_ms": 11.963,
+      "p50_rknn_run_ms": 59.597,
+      "p95_decode_ms": 2.556,
+      "p95_end_to_end_ms": 17810.394,
+      "p95_inference_ms": 79.451,
+      "p95_postprocess_ms": 2.354,
+      "p95_preprocess_ms": 34.941,
+      "p95_queue_wait_ms": 17704.674,
+      "p95_rknn_input_set_ms": 49.914,
+      "p95_rknn_output_fetch_ms": 17.745,
+      "p95_rknn_run_ms": 61.805,
+      "process_cpu_core_percent": 75.181,
+      "process_cpu_system_percent": 9.398,
+      "process_peak_rss_kb": 207356.0
+    },
+    "median_throughput_fps": 7.928,
+    "p95_end_to_end_ms_each": [
+      17810.394,
+      17695.923,
+      17834.044
+    ],
+    "p95_preprocess_ms_each": [
+      18.142,
+      35.188,
+      34.941
+    ],
+    "p95_rknn_run_ms_each": [
+      60.772,
+      62.869,
+      61.805
+    ],
+    "processed_frames_each": [
+      150,
+      150,
+      150
+    ],
+    "runs": 3,
+    "successful_runs": 3,
+    "throughput_fps_each": [
+      7.928,
+      7.953,
+      7.887
+    ]
+  },
+  {
+    "config_id": "A2",
+    "decoded_frames_each": [
+      150,
+      150,
+      150
+    ],
+    "drop_rate_percent_each": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "dropped_frames_each": [
+      0,
+      0,
+      0
+    ],
+    "median_stage_metrics": {
+      "nominal_input_fps": 10.0,
+      "p50_decode_ms": 0.995,
+      "p50_end_to_end_ms": 8966.032,
+      "p50_inference_ms": 72.008,
+      "p50_postprocess_ms": 1.638,
+      "p50_preprocess_ms": 3.089,
+      "p50_queue_wait_ms": 8865.304,
+      "p50_rknn_input_set_ms": 43.952,
+      "p50_rknn_output_fetch_ms": 13.082,
+      "p50_rknn_run_ms": 59.663,
+      "p95_decode_ms": 2.419,
+      "p95_end_to_end_ms": 17232.341,
+      "p95_inference_ms": 77.449,
+      "p95_postprocess_ms": 2.436,
+      "p95_preprocess_ms": 3.441,
+      "p95_queue_wait_ms": 17123.678,
+      "p95_rknn_input_set_ms": 49.362,
+      "p95_rknn_output_fetch_ms": 17.184,
+      "p95_rknn_run_ms": 60.65,
+      "process_cpu_core_percent": 56.374,
+      "process_cpu_system_percent": 7.047,
+      "process_peak_rss_kb": 205488.0
+    },
+    "median_throughput_fps": 8.226,
+    "p95_end_to_end_ms_each": [
+      17925.562,
+      17000.968,
+      17232.341
+    ],
+    "p95_preprocess_ms_each": [
+      3.666,
+      3.286,
+      3.441
+    ],
+    "p95_rknn_run_ms_each": [
+      61.064,
+      60.65,
+      60.624
+    ],
+    "processed_frames_each": [
+      150,
+      150,
+      150
+    ],
+    "runs": 3,
+    "successful_runs": 3,
+    "throughput_fps_each": [
+      7.886,
+      8.264,
+      8.226
+    ]
+  },
+  {
+    "config_id": "A3",
+    "decoded_frames_each": [
+      150,
+      150,
+      150
+    ],
+    "drop_rate_percent_each": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "dropped_frames_each": [
+      0,
+      0,
+      0
+    ],
+    "median_stage_metrics": {
+      "nominal_input_fps": 10.0,
+      "p50_decode_ms": 1.013,
+      "p50_end_to_end_ms": 4972.8,
+      "p50_inference_ms": 47.129,
+      "p50_postprocess_ms": 16.363,
+      "p50_preprocess_ms": 4.116,
+      "p50_queue_wait_ms": 4900.667,
+      "p50_rknn_input_set_ms": 1.291,
+      "p50_rknn_output_fetch_ms": 7.376,
+      "p50_rknn_run_ms": 40.353,
+      "p95_decode_ms": 2.622,
+      "p95_end_to_end_ms": 10035.891,
+      "p95_inference_ms": 54.439,
+      "p95_postprocess_ms": 22.154,
+      "p95_preprocess_ms": 5.085,
+      "p95_queue_wait_ms": 9978.771,
+      "p95_rknn_input_set_ms": 1.535,
+      "p95_rknn_output_fetch_ms": 7.531,
+      "p95_rknn_run_ms": 46.967,
+      "process_cpu_core_percent": 58.778,
+      "process_cpu_system_percent": 7.347,
+      "process_peak_rss_kb": 187144.0
+    },
+    "median_throughput_fps": 13.903,
+    "p95_end_to_end_ms_each": [
+      10035.891,
+      9884.091,
+      10473.903
+    ],
+    "p95_preprocess_ms_each": [
+      5.049,
+      5.086,
+      5.085
+    ],
+    "p95_rknn_run_ms_each": [
+      46.967,
+      45.931,
+      47.573
+    ],
+    "processed_frames_each": [
+      150,
+      150,
+      150
+    ],
+    "runs": 3,
+    "successful_runs": 3,
+    "throughput_fps_each": [
+      13.903,
+      14.016,
+      13.324
+    ]
+  }
+]

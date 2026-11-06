@@ -93,6 +93,9 @@ class ServerQueuePolicyTests(unittest.TestCase):
         with patch("sys.argv", ["edge_station.server"]):
             default_args = parse_args()
         self.assertEqual(default_args.queue_policy, "latest")
+        self.assertEqual(default_args.video_backend, "opencv")
+        self.assertEqual(default_args.preprocess_backend, "cpu")
+        self.assertEqual(default_args.input_pacing, "media")
         self.assertFalse(default_args.loop_video)
 
         with patch("sys.argv", ["edge_station.server", "--queue-policy", "fifo"]):
@@ -116,6 +119,16 @@ class ServerQueuePolicyTests(unittest.TestCase):
             Path("state"),
         )
         self.assertIn("--loop-video", loop_command)
+
+    def test_video_and_preprocess_backends_reach_worker_command(self):
+        with patch("sys.argv", ["edge_station.server", "--video-backend", "gstreamer-mpp",
+                                "--preprocess-backend", "rga", "--input-pacing", "none"]):
+            args = parse_args()
+        command = build_worker_command(
+            args, Path("worker"), Path("model.rknn"), Path("video.mp4"), Path("state"))
+        self.assertEqual(command[command.index("--video-backend") + 1], "gstreamer-mpp")
+        self.assertEqual(command[command.index("--preprocess-backend") + 1], "rga")
+        self.assertEqual(command[command.index("--input-pacing") + 1], "none")
 
     def test_rtsp_source_preserves_uri_and_hides_credentials(self):
         source = "rtsp://u:p@camera.example:8554/live?x=1"

@@ -1,6 +1,6 @@
 # 面向 Rockchip / RKNN / C++ / Linux 端侧 AI 岗位的项目讲解
 
-状态：RK3576 单路视频 demo 的板端闭环已打通，含 RKNN 推理、ROI/PPE/叉车风险事件、SQLite、REST API 和网页。YOLOX-S PPE 是实验候选，验证集指标和板端事件回放已记录；独立检测/事件准确率、跟踪身份连续性、物理摄像头行为和产品级性能仍未验证。
+状态：RK3576 单路视频闭环已打通；C++17 Worker 可切换 OpenCV/FFmpeg 与 GStreamer/MPP、CPU 与 RGA，并接入 RKNN、跟踪、PPE/ROI 事件和本地 SQLite/REST/Web。三次板端 A0–A3、媒体时钟、队列与 PPE INT8 对照已归档。独立动态 PPE 事件准确率、身份连续性和物理摄像头行为仍未验证。
 
 ## 项目解决什么问题
 
@@ -8,11 +8,11 @@
 
 ## 当前硬件事实
 
-审计设备为 KICKPI K7 / RK3576，Ubuntu 24.04.3、Linux 6.1.75、aarch64、8 GiB RAM。板上安装 RKNN Runtime 2.0.0b0、MPP 1.5、RGA 2.2。Toolkit2 2.0.0b0 在隔离的 x86-64 WSL 中做模型转换；板端 C++ 程序和 Runtime 独立运行。项目 YOLOv8n 已完成 RKNN Runtime 烟测，但 `/dev/rknpu*` 不可见，运行时到设备的路径和 NPU 利用率仍未确认。物理摄像头未识别，目前用本地 MP4。
+审计设备为 KICKPI K7 / RK3576，Ubuntu 24.04.3、Linux 6.1.75、aarch64、8 GiB RAM。板上 RKNN Runtime 2.0.0b0 / driver 0.9.7，GStreamer 1.24.2、Rockchip MPP plugin 1.14.4、MPP/RGA 组件已在 Worker 实测。Toolkit2 2.0.0b0 在隔离的 x86-64 WSL 中转换模型；推理、视频、事件与 API 都在板端。`/dev/rknpu*` 不可见，无法测逐核 NPU 利用率；没有识别到物理摄像头。
 
 ## 架构要点
 
-- 将视频源、CPU参考处理、MPP/RGA、RKNN、跟踪/ROI事件、调度、数据库/API分层。
+- 将视频源、CPU参考处理、MPP/RGA、RKNN、跟踪/ROI事件、调度、数据库/API分层；GStreamer/NV12 与 RGA 为真实 Worker 可选后端，不是单独 benchmark。
 - 有界队列和新旧帧策略保护内存与事件新鲜度。
 - 把推理时延、端到端延迟、帧龄、吞吐和丢帧分开计量。
 - 每个事件关联帧、时间、置信度、轨迹/区域、规则和模型版本。
@@ -27,12 +27,12 @@
 4. **为什么不直接用 RCDL 的零拷贝？** 上游 README 明确 RK3576/RK356x 尚未验证。项目需要在本机检查 buffer allocator、fd生命周期、stride和cache同步，再测输出和延迟。
 5. **INT8怎样验收？** 记录校准样本、预处理、量化配置和模型散列，与源模型逐帧匹配输出/检测框，并报告数值误差、漏检变化和任务指标。
 6. **如何处理队列过载和断流？** 队列限长、明确FIFO/丢旧帧策略、超时与流epoch；断流后关闭旧流资源，重连后拒绝旧epoch迟到结果。
-7. **有哪些实测成果？** 2026-11-05：Toolkit2 2.0.0b0 将 ONNX opset-12 YOLOv8n 转成 RK3576 `fp`/非量化模型；板端完成 16 帧静态图和 150 帧动态视频闭环。相同 150 帧、同一模型、queue=150 的 3 轮跟踪器对照中，基线每轮产生 33 个 `enter` 事件，速度预测候选每轮 29 个；两者都处理全部帧、0 丢帧、1,194 个检测输出。事件减少可能来自更少轨迹碎片，也可能来自错误合并，没有 GT 不能称精度提升。queue=150 的 p95 为 3.5–4.6 秒，不能代表实时模式。完整证据见 [P1 报告](P1_ACCEPTANCE_REPORT.md)。
+7. **有哪些实测成果？** 2026-11-07：在 RK3576 对同一 150 帧 10-FPS H.264 输入完成 A0–A3 和媒体时钟对照；MPP/RGA FP 为 7.98 FPS，OpenCV/CPU FP 为 7.66 FPS，COCO INT8 为 9.99 FPS。PPE YOLOX-S INT8 在 15-FPS 正样本回放中为 7.98 FPS，FP 为 4.59 FPS；200 张开发验证集的 AP50:95 为 46.77%/45.76%，`no_vest` 召回为 73.08%/70.77%。该验证集参与 FP checkpoint 选择，不能称独立测试。完整阶段数据和边界见 [旗舰报告](FLAGSHIP_OPTIMIZATION_REPORT.md)。
 
 ## 三条可用于实习简历的项目描述
 
-1. **RK3576 端侧视觉系统：**基于 C++17、RKNN Runtime、OpenCV 与 Python REST/SQLite 服务，在 KICKPI K7 上打通 MP4/RTSP 输入、检测跟踪、区域事件留证和本地网页；实现有界 FIFO/latest 调度、事件历史与人工确认。
-2. **PPE 模型训练与部署：**审计 CC BY 4.0 Construction-PPE 数据集，在 RTX 5060 上使用 Apache-2.0 YOLOX-S 训练 12 类模型，导出 ONNX 并通过隔离 WSL Toolkit2 转为 RK3576 RKNN；最佳开发集 AP50:95 为 47.22%，板端完成 ONNX/RKNN 单输入一致性与正/安全固定帧事件回放。
-3. **板端实测与性能分析：**在 RK3576 上完成跟踪关联、FP/INT8、FIFO/latest、COCO/PPE 四组同输入对照；FIFO/latest 样本中 latest 将 p95 从 263.8 ms 降至 232.0 ms，PPE YOLOX-S 的三轮中位数为 4.40 FPS，对照 COCO YOLOv8n 的 8.27 FPS，并记录各阶段耗时、帧丢弃、CPU/RSS 与精度边界。
+1. **RK3576 异构视频 Worker：**基于 C++17 集成 OpenCV/FFmpeg 与 GStreamer/MPP NV12 输入、RGA 预处理及 RKNN 推理，处理 stride、PTS、buffer 所有权、受限队列与 RTSP epoch 重建；输出连接跟踪/PPE/ROI 事件、SQLite 与本机 API/Web。
+2. **PPE 模型量化与部署：**在 RTX 5060 训练 YOLOX-S PPE，并用 RKNN-Toolkit2 转换、在 RK3576 运行 FP/INT8；基于训练集 50 张类别覆盖校准，板端 INT8 达 7.98 FPS，FP 达 4.59 FPS，同时量化了 AP50:95 与关键违规类别召回变化。
+3. **异构性能实测：**建立同视频、同模型的三次 A0–A3、媒体时钟与 Latest/FIFO 对照，记录阶段 P50/P95、帧龄、丢帧、CPU、RSS、视频/模型/Worker SHA，并做输入/输出与检测一致性检查；MPP/RGA FP 的收益小于 INT8，保留负结果。
 
-面试中应主动说明：YOLOX-S 的 AP 来自 200 张开发验证集且没有独立测试集；正/安全事件回放按源标签核对为 2/2 clip-presence 匹配，但每类只有一个静态场景，不代表独立或时序准确率；FIFO/latest 与模型性能结果来自指定视频而非全场景保证。MPP/RGA 是独立阶段探针，没有证明完整 worker 提速或零拷贝。
+面试中应主动说明：当前 PPE AP 和 INT8 差异来自参与 checkpoint 选择的 200 张开发验证图；事件 2/2 回放是两个重复静态场景，不是动态时序准确率。MPP/RGA 已在 Worker 中实测，但收益依输入分辨率和颜色路径而变；GStreamer 到主机内存有拷贝，未实现 DMA-BUF 零拷贝。10-FPS/15-FPS 的固定视频结果不等于多摄像头或真实现场保证。

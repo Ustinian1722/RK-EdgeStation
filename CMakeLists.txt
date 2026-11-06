@@ -10,12 +10,26 @@ find_package(OpenCV 4 REQUIRED COMPONENTS core imgproc imgcodecs videoio)
 find_path(RKNN_INCLUDE_DIR rknn_api.h REQUIRED)
 find_library(RKNN_LIBRARY NAMES rknnrt REQUIRED)
 
+option(EDGE_ENABLE_GSTREAMER "Build the GStreamer/MPP video source" ON)
+option(EDGE_ENABLE_RGA "Build RGA preprocessing support" ON)
+if(EDGE_ENABLE_GSTREAMER)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(GSTREAMER REQUIRED IMPORTED_TARGET
+        gstreamer-1.0 gstreamer-app-1.0 gstreamer-video-1.0)
+endif()
+if(EDGE_ENABLE_RGA)
+    find_path(RGA_INCLUDE_DIR rga/im2d.hpp REQUIRED)
+    find_library(RGA_LIBRARY NAMES rga REQUIRED)
+endif()
+
 add_executable(rk_edge_worker
     src/main.cpp
     src/tracker.cpp
     src/roi_events.cpp
     src/ppe_events.cpp
+    src/preprocess.cpp
     src/yolox_ppe_postprocess.cpp
+    src/video_source.cpp
     src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc
 )
 
@@ -23,6 +37,26 @@ add_executable(create_static_video tools/create_static_video.cpp)
 target_include_directories(create_static_video PRIVATE ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(create_static_video PRIVATE ${OpenCV_LIBS})
 target_compile_options(create_static_video PRIVATE -Wall -Wextra -Wpedantic)
+
+# Offline quality evaluation for the deployed PPE RKNN variants. This target
+# reuses the production CPU preprocessing and YOLOX postprocessor while keeping
+# dataset evaluation out of the live worker.
+add_executable(ppe_rknn_dataset_eval
+    tools/ppe_rknn_dataset_eval.cpp
+    src/preprocess.cpp
+    src/video_source.cpp
+    src/yolox_ppe_postprocess.cpp
+)
+target_include_directories(ppe_rknn_dataset_eval PRIVATE
+    ${RKNN_INCLUDE_DIR}
+    ${OpenCV_INCLUDE_DIRS}
+    src
+    src/third_party/rknn_model_zoo_v2.0.0/utils
+    src/third_party/rknn_model_zoo_v2.0.0/yolov8
+)
+target_link_libraries(ppe_rknn_dataset_eval PRIVATE ${OpenCV_LIBS} ${RKNN_LIBRARY} pthread)
+target_compile_options(ppe_rknn_dataset_eval PRIVATE -Wall -Wextra -Wpedantic)
+set_target_properties(ppe_rknn_dataset_eval PROPERTIES BUILD_RPATH "/lib;/usr/lib/aarch64-linux-gnu")
 
 target_include_directories(rk_edge_worker PRIVATE
     ${RKNN_INCLUDE_DIR}
@@ -32,6 +66,15 @@ target_include_directories(rk_edge_worker PRIVATE
     src/third_party/rknn_model_zoo_v2.0.0/yolov8
 )
 target_link_libraries(rk_edge_worker PRIVATE ${OpenCV_LIBS} ${RKNN_LIBRARY} pthread)
+if(EDGE_ENABLE_GSTREAMER)
+    target_compile_definitions(rk_edge_worker PRIVATE EDGE_HAS_GSTREAMER=1)
+    target_link_libraries(rk_edge_worker PRIVATE PkgConfig::GSTREAMER)
+endif()
+if(EDGE_ENABLE_RGA)
+    target_compile_definitions(rk_edge_worker PRIVATE EDGE_HAS_RGA=1)
+    target_include_directories(rk_edge_worker PRIVATE ${RGA_INCLUDE_DIR})
+    target_link_libraries(rk_edge_worker PRIVATE ${RGA_LIBRARY})
+endif()
 target_compile_options(rk_edge_worker PRIVATE -Wall -Wextra -Wpedantic)
 set_target_properties(rk_edge_worker PROPERTIES BUILD_RPATH "/lib;/usr/lib/aarch64-linux-gnu")
 
@@ -42,8 +85,8 @@ if(BUILD_TESTING)
     target_compile_options(edge_core_tests PRIVATE -Wall -Wextra -Wpedantic)
     add_test(NAME edge_core_tests COMMAND edge_core_tests)
 
-    add_executable(edge_media_tests tests/media_pipeline_tests.cpp)
-    target_include_directories(edge_media_tests PRIVATE ${OpenCV_INCLUDE_DIRS})
+    add_executable(edge_media_tests tests/media_pipeline_tests.cpp src/video_source.cpp)
+    target_include_directories(edge_media_tests PRIVATE ${OpenCV_INCLUDE_DIRS} src)
     target_link_libraries(edge_media_tests PRIVATE ${OpenCV_LIBS})
     target_compile_options(edge_media_tests PRIVATE -Wall -Wextra -Wpedantic)
     add_test(NAME edge_media_tests COMMAND edge_media_tests)

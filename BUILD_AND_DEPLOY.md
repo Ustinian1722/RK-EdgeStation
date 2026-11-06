@@ -1,6 +1,6 @@
 # Build and deploy
 
-Status: native RK3576 build/tests, still/moving detection-to-event/API smokes, synthetic RTSP reconnect, and temporary systemd user-service recovery pass. Full P1 acceptance remains open for tracker continuity, numerical model comparison, labeled accuracy, and reliable NPU-utilization evidence.
+Status: native RK3576 build/tests pass with OpenCV/FFmpeg, GStreamer/MPP and RGA enabled. The worker supports selectable video/preprocessing backends, bounded latest/FIFO scheduling and media-clock or unpaced file input. Dynamic PPE accuracy, tracker continuity, real-camera behavior and reliable per-core NPU utilization remain open.
 
 ## Current supported development path
 
@@ -8,7 +8,7 @@ The board is aarch64 Ubuntu 24.04.3 with GCC/G++ 13.3 and CMake 3.28.3, so nativ
 
 Board's dedicated project path is `/home/kickpi/projects/RK-EdgeStation`. It was created for this project without touching existing user project directories.
 
-## Planned reproducible build interface
+## Build and backend selection
 
 From the project root on the board, build and run the local checks with:
 
@@ -19,13 +19,49 @@ ctest --test-dir build --output-on-failure
 PYTHONPATH=python python3 -m unittest discover -s tests/python -v
 ```
 
-The same sequence is available as `bash scripts/build_and_test_board.sh`; it passed on the target board on 2026-11-05 after the ROI event and media-time changes. Launch a local MP4/model run with `bash scripts/run_demo.sh MODEL.rknn INPUT.mp4`. The UI listens on `127.0.0.1:8080` by default. Queue policy defaults to `latest` (replace the oldest pending frame); select FIFO with `bash scripts/run_demo.sh MODEL.rknn INPUT.mp4 state 8080 fifo` or pass `--queue-policy fifo` to the worker/service. FIFO keeps queued frames in order and drops newly decoded frames while full. The worker also supports `--dwell-ms N` (default 5000) and `--roi-debounce-frames N` (default 2); the Python service forwards these options. Dwell time follows monotonicized media timestamps, using nominal FPS or decode elapsed time when source timestamps are invalid. The opt-in `--loop-video` flag reopens a local MP4 at EOF while preserving increasing frame sequence and monotonicized media time; normal runs remain one-shot. Model files and run state stay outside Git. The first project model was converted in the isolated WSL Toolkit2 environment and run from the board workspace; see [MODEL_CONVERSION.md](MODEL_CONVERSION.md) and [P1_ACCEPTANCE_REPORT.md](P1_ACCEPTANCE_REPORT.md).
+On the target board, the current build with both optional hardware interfaces enabled is:
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
+  -DEDGE_ENABLE_GSTREAMER=ON -DEDGE_ENABLE_RGA=ON
+cmake --build build --parallel 4
+ctest --test-dir build --output-on-failure
+PYTHONPATH=python python3 -m unittest discover -s tests/python -v
+```
+
+The same build/check sequence is available as `bash scripts/build_and_test_board.sh`. Launch the default OpenCV/CPU MP4 path with `bash scripts/run_demo.sh MODEL.rknn INPUT.mp4`. Select the board MPP/RGA candidate with `bash scripts/run_demo.sh MODEL.rknn INPUT.mp4 state 8080 latest --video-backend gstreamer-mpp --preprocess-backend rga --input-pacing media`. The UI listens on `127.0.0.1:8080` by default. The worker supports `--video-backend opencv|gstreamer-mpp`, `--preprocess-backend cpu|rga`, and `--input-pacing media|none`. The media pacing option follows the local file's nominal frame rate; use `none` only for unpaced offline throughput tests. Latest replaces the oldest pending frame; FIFO keeps order and drops a new decoded frame while full. Both report queue drops. The worker also supports `--dwell-ms N` (default 5000) and `--roi-debounce-frames N` (default 2); the Python service forwards these options. Model files and run state stay outside Git. The host's isolated WSL Toolkit2 environment is only needed to train/export/convert a model; inference and runtime backend selection occur on the RK3576.
 
 ## RTSP input and reconnect
 
-Pass an RTSP URL as the service's `--video` value; local-file path resolution and existence checks are skipped for RTSP sources. The worker opens RTSP through OpenCV's FFmpeg backend over TCP with 3-second open/read timeouts. A failed read or connection is released and retried with an interruptible 0.5-to-5-second exponential backoff. Frame sequence stays monotonic across reconnects; each successful reconnection increments `stream_epoch`, resets tracker and current ROI occupancy, and preserves cumulative ROI entries. Health metrics include input type, connected/reconnecting state, reconnect attempts, and stream epoch. Retry status updates the health API without writing every retry to SQLite. A nonzero worker exit makes the Python service exit with failure so `Restart=on-failure` can recover it. Health source display strips URL credentials, path, and query parameters.
+Pass an RTSP URL as the service's `--video` value; local-file path resolution and existence checks are skipped for RTSP sources. OpenCV uses its FFmpeg backend over TCP with 3-second open/read timeouts. The GStreamer backend uses `rtspsrc` with H.264 depayloading and `mppvideodec`; decoder/pipeline errors or five seconds without a frame trigger source teardown and reconstruction. Both paths retry with an interruptible 0.5-to-5-second backoff. Frame sequence stays monotonic across reconnects; each successful reconnection increments `stream_epoch`, resets tracker and temporal event state, and filters queued frames from the old stream epoch. Health metrics include input type, connected/reconnecting state, reconnect attempts, and stream epoch. Retry status updates the health API without writing every retry to SQLite. A nonzero worker exit makes the Python service exit with failure so `Restart=on-failure` can recover it. Health source display strips URL credentials, path, and query parameters.
 
-The board reconnect gate passed against a synthetic 640×480@10 FPS JPEG/RTP stream served from the isolated WSL test environment through an SSH reverse tunnel. On the RK3576 worker, the run decoded 667 frames, processed 582, and emitted 7 stored events. During source loss, `/api/health` showed `source_status=reconnecting` after 3 attempts; restoring the source resumed inference at `source_status=connected`, `reconnect_attempts=4`, and `stream_epoch=1`. SIGTERM stopped the worker cleanly and SQLite integrity passed. This verifies software reconnect behavior with the selected codec/transport; physical cameras, alternate codecs, authentication, and customer network behavior remain separate checks. The reproducible harness is [scripts/rtsp_test_server.py](scripts/rtsp_test_server.py), and the captured evidence is in [evidence/p3/rtsp-reconnect-20261105](evidence/p3/rtsp-reconnect-20261105/summary.md).
+The previous JPEG/RTP reconnect gate passed against a synthetic 640×480@10 FPS stream served through an SSH reverse tunnel; it validated reconnect behavior on the OpenCV backend. The current harness also supports H.264 and binds to loopback by default. The H.264 RTSP test is recorded with the flagship experiments. Physical cameras, authentication, and customer network behavior remain separate checks. The reproducible harness is [scripts/rtsp_test_server.py](scripts/rtsp_test_server.py), and the earlier JPEG evidence is in [evidence/p3/rtsp-reconnect-20261105](evidence/p3/rtsp-reconnect-20261105/summary.md).
+
+## Offline PPE RKNN quality evaluation
+
+The board-only evaluator runs a full COCO image list through the RKNN Runtime while reusing the Worker CPU preprocessing and PPE postprocessor. It writes one JSONL record per image; the Python scorer reports 101-point AP50/AP50:95 and recall for `no_helmet` and `no_vest`. The data, labels, prediction files and models should stay in `.work`.
+
+```bash
+cmake --build .work/flagship-build --target ppe_rknn_dataset_eval --parallel 2
+
+python3 scripts/make_ppe_rknn_image_manifest.py \
+  --image-root /path/to/construction-ppe/images/val \
+  --annotations /path/to/construction-ppe/annotations/instances_val.json \
+  --output .work/ppe-validation/images-manifest.txt
+
+.work/flagship-build/bin/ppe_rknn_dataset_eval \
+  --model .work/models/yolox_s_construction_ppe_fp.rknn \
+  --image-manifest .work/ppe-validation/images-manifest.txt \
+  --output .work/ppe-validation/fp-predictions.jsonl
+
+python3 scripts/evaluate_ppe_rknn_predictions.py \
+  --annotations /path/to/construction-ppe/annotations/instances_val.json \
+  --predictions .work/ppe-validation/fp-predictions.jsonl \
+  --confidence-threshold 0.25 \
+  --output .work/ppe-validation/fp-metrics.json
+```
+
+Repeat the board evaluator with the INT8 model and a separate output file for a matched comparison. The validation data used in the flagship run also selected the FP checkpoint; its AP and recall are development evidence, not independent test performance. The [full score and provenance](FLAGSHIP_OPTIMIZATION_REPORT.md#ppe-validation-set-quality-comparison) document this boundary.
 
 ## Optional monitored long-run probe
 
@@ -47,7 +83,7 @@ PYTHONPATH=python python3 scripts/run_stability_test.py \
 
 Set `SOURCE_COMMIT` to the short commit hash synced and built on the board before an optional run. The uncompressed static source is verified for exact frame count and identical decoded pixels; its SHA-256 is recorded in [the source manifest](evidence/p3/static-video-manifest.txt) and the runner manifest. A 45-second loop smoke passed. An exploratory run on source commit `640d6f3` stopped after 4 h 52 min; it processed 87,300 frames, dropped 7, and passed its final SQLite/evidence checks, but did not complete the 24-hour duration configured for that run. See [the start snapshot](evidence/p3/24h-soak-start-20261105.txt), [stopped-run summary](evidence/p3/soak-stopped-20261105-summary.json), and [P3 report](P3_ACCEPTANCE_REPORT.md). Use a new output directory for every run and inspect `monitor/summary.json`, `monitor/samples.jsonl`, and `monitor/server.log` afterward.
 
-The worker discovers board OpenCV and RKNN headers/libraries and links dynamically to those installed libraries. The current reference path uses OpenCV CPU decode/preprocessing and paces file input at its reported media rate when valid. The queue policy is included in worker metric JSON as `queue_policy`; queue capacity and `dropped_frames` are reported alongside it. P2 exercised MPP decode and RGA letterboxing as isolated board probes; full worker integration remains deferred pending controlled end-to-end and output checks. Python's standard library provides the local HTTP server and SQLite store.
+The worker discovers board OpenCV, RKNN, GStreamer and RGA headers/libraries and links dynamically to those installed components. OpenCV/CPU remains the default reference; GStreamer/MPP plus CPU or RGA is selectable for board workloads. Worker metrics record backend names, queue policy/capacity/drop counts, stage percentiles, frame age, source-copy bytes, and model-input bytes. The appsink frame is copied from its padded MPP buffer into owned packed NV12; RGA then writes an ordinary CPU-addressed image which is passed to RKNN. DMA-BUF transport and zero-copy remain unimplemented. Python's standard library provides the local HTTP server and SQLite store.
 
 ## P3 graceful process restart recovery
 
