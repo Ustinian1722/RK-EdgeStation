@@ -1,0 +1,402 @@
+{
+  "dataset": "Roboflow Universe construction-site-safety v1 Test",
+  "image_count": 34,
+  "class_names_native_order": [
+    "Barricade",
+    "Dumpster",
+    "EXCAVATORS",
+    "Gloves",
+    "Hardhat",
+    "Mask",
+    "NO-Hardhat",
+    "NO-Mask",
+    "NO-Safety Vest",
+    "Person",
+    "Safety Net",
+    "Safety Shoes",
+    "Safety Vest",
+    "dump truck",
+    "mini-van",
+    "truck",
+    "wheel loader"
+  ],
+  "ground_truth_counts": {
+    "Barricade": 0,
+    "Dumpster": 0,
+    "EXCAVATORS": 0,
+    "Gloves": 2,
+    "Hardhat": 32,
+    "Mask": 0,
+    "NO-Hardhat": 7,
+    "NO-Mask": 2,
+    "NO-Safety Vest": 3,
+    "Person": 4,
+    "Safety Net": 0,
+    "Safety Shoes": 0,
+    "Safety Vest": 2,
+    "dump truck": 12,
+    "mini-van": 0,
+    "truck": 0,
+    "wheel loader": 9
+  },
+  "class_map_model_source_to_roboflow_native": {
+    "0": {
+      "id": 9,
+      "name": "Person"
+    },
+    "1": {
+      "id": 4,
+      "name": "Hardhat"
+    },
+    "2": {
+      "id": 6,
+      "name": "NO-Hardhat"
+    },
+    "3": {
+      "id": 12,
+      "name": "Safety Vest"
+    },
+    "4": {
+      "id": 8,
+      "name": "NO-Safety Vest"
+    },
+    "5": {
+      "id": 7,
+      "name": "NO-Mask"
+    },
+    "6": {
+      "id": 3,
+      "name": "Gloves"
+    },
+    "7": {
+      "id": 11,
+      "name": "Safety Shoes"
+    },
+    "8": {
+      "id": 2,
+      "name": "EXCAVATORS"
+    },
+    "9": {
+      "id": 16,
+      "name": "wheel loader"
+    },
+    "10": {
+      "id": 13,
+      "name": "dump truck"
+    }
+  },
+  "confidence_floor_for_AP": 0.001,
+  "nms_iou": 0.7,
+  "confidence_threshold_for_operating_recall": 0.25,
+  "iou_thresholds": [
+    0.5,
+    0.55,
+    0.6,
+    0.65,
+    0.7,
+    0.75,
+    0.8,
+    0.85,
+    0.9,
+    0.95
+  ],
+  "AP50": 0.4519596979208544,
+  "AP50_95": 0.2803194271837209,
+  "ap_class_count_with_ground_truth": 9,
+  "per_class": {
+    "Barricade": {
+      "ground_truth": 0,
+      "predictions_at_low_score_floor": 0,
+      "AP50": null,
+      "AP50_95": null
+    },
+    "Dumpster": {
+      "ground_truth": 0,
+      "predictions_at_low_score_floor": 0,
+      "AP50": null,
+      "AP50_95": null
+    },
+    "EXCAVATORS": {
+      "ground_truth": 0,
+      "predictions_at_low_score_floor": 94,
+      "AP50": null,
+      "AP50_95": null
+    },
+    "Gloves": {
+      "ground_truth": 2,
+      "predictions_at_low_score_floor": 55,
+      "AP50": 0.0,
+      "AP50_95": 0.0
+    },
+    "Hardhat": {
+      "ground_truth": 32,
+      "predictions_at_low_score_floor": 235,
+      "AP50": 0.6892245715956679,
+      "AP50_95": 0.2676804173160173
+    },
+    "Mask": {
+      "ground_truth": 0,
+      "predictions_at_low_score_floor": 0,
+      "AP50": null,
+      "AP50_95": null
+    },
+    "NO-Hardhat": {
+      "ground_truth": 7,
+      "predictions_at_low_score_floor": 62,
+      "AP50": 0.8425742574257425,
+      "AP50_95": 0.4444224422442244
+    },
+    "NO-Mask": {
+      "ground_truth": 2,
+      "predictions_at_low_score_floor": 0,
+      "AP50": 0.0,
+      "AP50_95": 0.0
+    },
+    "NO-Safety Vest": {
+      "ground_truth": 3,
+      "predictions_at_low_score_floor": 130,
+      "AP50": 0.1737647448955422,
+      "AP50_95": 0.08905206310104694
+    },
+    "Person": {
+      "ground_truth": 4,
+      "predictions_at_low_score_floor": 445,
+      "AP50": 0.14260176017601758,
+      "AP50_95": 0.11027977797779778
+    },
+    "Safety Net": {
+      "ground_truth": 0,
+      "predictions_at_low_score_floor": 0,
+      "AP50": null,
+      "AP50_95": null
+    },
+    "Safety Shoes": {
+      "ground_truth": 0,
+      "predictions_at_low_score_floor": 63,
+      "AP50": null,
+      "AP50_95": null
+    },
+    "Safety Vest": {
+      "ground_truth": 2,
+      "predictions_at_low_score_floor": 105,
+      "AP50": 0.4174917491749175,
+      "AP50_95": 0.13366336633663367
+    },
+    "dump truck": {
+      "ground_truth": 12,
+      "predictions_at_low_score_floor": 53,
+      "AP50": 0.801980198019802,
+      "AP50_95": 0.6945094509450945
+    },
+    "mini-van": {
+      "ground_truth": 0,
+      "predictions_at_low_score_floor": 0,
+      "AP50": null,
+      "AP50_95": null
+    },
+    "truck": {
+      "ground_truth": 0,
+      "predictions_at_low_score_floor": 0,
+      "AP50": null,
+      "AP50_95": null
+    },
+    "wheel loader": {
+      "ground_truth": 9,
+      "predictions_at_low_score_floor": 37,
+      "AP50": 1.0,
+      "AP50_95": 0.7832673267326733
+    }
+  },
+  "focus_classes": {
+    "Person": {
+      "ground_truth": 4,
+      "predictions_at_low_score_floor": 445,
+      "AP50": 0.14260176017601758,
+      "AP50_95": 0.11027977797779778
+    },
+    "Helmet": {
+      "ground_truth": 32,
+      "predictions_at_low_score_floor": 235,
+      "AP50": 0.6892245715956679,
+      "AP50_95": 0.2676804173160173
+    },
+    "Vest": {
+      "ground_truth": 2,
+      "predictions_at_low_score_floor": 105,
+      "AP50": 0.4174917491749175,
+      "AP50_95": 0.13366336633663367
+    },
+    "No-Helmet": {
+      "ground_truth": 7,
+      "predictions_at_low_score_floor": 62,
+      "AP50": 0.8425742574257425,
+      "AP50_95": 0.4444224422442244
+    },
+    "No-Vest": {
+      "ground_truth": 3,
+      "predictions_at_low_score_floor": 130,
+      "AP50": 0.1737647448955422,
+      "AP50_95": 0.08905206310104694
+    }
+  },
+  "operating_point_iou_0_50": {
+    "Barricade": {
+      "ground_truth": 0,
+      "predictions_at_confidence_threshold": 0,
+      "true_positives_iou_0_50": 0,
+      "false_positives_iou_0_50": 0,
+      "false_negatives_iou_0_50": 0,
+      "recall_at_confidence_threshold": null,
+      "precision_at_confidence_threshold": null
+    },
+    "Dumpster": {
+      "ground_truth": 0,
+      "predictions_at_confidence_threshold": 0,
+      "true_positives_iou_0_50": 0,
+      "false_positives_iou_0_50": 0,
+      "false_negatives_iou_0_50": 0,
+      "recall_at_confidence_threshold": null,
+      "precision_at_confidence_threshold": null
+    },
+    "EXCAVATORS": {
+      "ground_truth": 0,
+      "predictions_at_confidence_threshold": 1,
+      "true_positives_iou_0_50": 0,
+      "false_positives_iou_0_50": 1,
+      "false_negatives_iou_0_50": 0,
+      "recall_at_confidence_threshold": null,
+      "precision_at_confidence_threshold": 0.0
+    },
+    "Gloves": {
+      "ground_truth": 2,
+      "predictions_at_confidence_threshold": 0,
+      "true_positives_iou_0_50": 0,
+      "false_positives_iou_0_50": 0,
+      "false_negatives_iou_0_50": 2,
+      "recall_at_confidence_threshold": 0.0,
+      "precision_at_confidence_threshold": null
+    },
+    "Hardhat": {
+      "ground_truth": 32,
+      "predictions_at_confidence_threshold": 35,
+      "true_positives_iou_0_50": 24,
+      "false_positives_iou_0_50": 11,
+      "false_negatives_iou_0_50": 8,
+      "recall_at_confidence_threshold": 0.75,
+      "precision_at_confidence_threshold": 0.6857142857142857
+    },
+    "Mask": {
+      "ground_truth": 0,
+      "predictions_at_confidence_threshold": 0,
+      "true_positives_iou_0_50": 0,
+      "false_positives_iou_0_50": 0,
+      "false_negatives_iou_0_50": 0,
+      "recall_at_confidence_threshold": null,
+      "precision_at_confidence_threshold": null
+    },
+    "NO-Hardhat": {
+      "ground_truth": 7,
+      "predictions_at_confidence_threshold": 7,
+      "true_positives_iou_0_50": 4,
+      "false_positives_iou_0_50": 3,
+      "false_negatives_iou_0_50": 3,
+      "recall_at_confidence_threshold": 0.5714285714285714,
+      "precision_at_confidence_threshold": 0.5714285714285714
+    },
+    "NO-Mask": {
+      "ground_truth": 2,
+      "predictions_at_confidence_threshold": 0,
+      "true_positives_iou_0_50": 0,
+      "false_positives_iou_0_50": 0,
+      "false_negatives_iou_0_50": 2,
+      "recall_at_confidence_threshold": 0.0,
+      "precision_at_confidence_threshold": null
+    },
+    "NO-Safety Vest": {
+      "ground_truth": 3,
+      "predictions_at_confidence_threshold": 9,
+      "true_positives_iou_0_50": 1,
+      "false_positives_iou_0_50": 8,
+      "false_negatives_iou_0_50": 2,
+      "recall_at_confidence_threshold": 0.3333333333333333,
+      "precision_at_confidence_threshold": 0.1111111111111111
+    },
+    "Person": {
+      "ground_truth": 4,
+      "predictions_at_confidence_threshold": 42,
+      "true_positives_iou_0_50": 4,
+      "false_positives_iou_0_50": 38,
+      "false_negatives_iou_0_50": 0,
+      "recall_at_confidence_threshold": 1.0,
+      "precision_at_confidence_threshold": 0.09523809523809523
+    },
+    "Safety Net": {
+      "ground_truth": 0,
+      "predictions_at_confidence_threshold": 0,
+      "true_positives_iou_0_50": 0,
+      "false_positives_iou_0_50": 0,
+      "false_negatives_iou_0_50": 0,
+      "recall_at_confidence_threshold": null,
+      "precision_at_confidence_threshold": null
+    },
+    "Safety Shoes": {
+      "ground_truth": 0,
+      "predictions_at_confidence_threshold": 2,
+      "true_positives_iou_0_50": 0,
+      "false_positives_iou_0_50": 2,
+      "false_negatives_iou_0_50": 0,
+      "recall_at_confidence_threshold": null,
+      "precision_at_confidence_threshold": 0.0
+    },
+    "Safety Vest": {
+      "ground_truth": 2,
+      "predictions_at_confidence_threshold": 10,
+      "true_positives_iou_0_50": 2,
+      "false_positives_iou_0_50": 8,
+      "false_negatives_iou_0_50": 0,
+      "recall_at_confidence_threshold": 1.0,
+      "precision_at_confidence_threshold": 0.2
+    },
+    "dump truck": {
+      "ground_truth": 12,
+      "predictions_at_confidence_threshold": 12,
+      "true_positives_iou_0_50": 10,
+      "false_positives_iou_0_50": 2,
+      "false_negatives_iou_0_50": 2,
+      "recall_at_confidence_threshold": 0.8333333333333334,
+      "precision_at_confidence_threshold": 0.8333333333333334
+    },
+    "mini-van": {
+      "ground_truth": 0,
+      "predictions_at_confidence_threshold": 0,
+      "true_positives_iou_0_50": 0,
+      "false_positives_iou_0_50": 0,
+      "false_negatives_iou_0_50": 0,
+      "recall_at_confidence_threshold": null,
+      "precision_at_confidence_threshold": null
+    },
+    "truck": {
+      "ground_truth": 0,
+      "predictions_at_confidence_threshold": 0,
+      "true_positives_iou_0_50": 0,
+      "false_positives_iou_0_50": 0,
+      "false_negatives_iou_0_50": 0,
+      "recall_at_confidence_threshold": null,
+      "precision_at_confidence_threshold": null
+    },
+    "wheel loader": {
+      "ground_truth": 9,
+      "predictions_at_confidence_threshold": 9,
+      "true_positives_iou_0_50": 9,
+      "false_positives_iou_0_50": 0,
+      "false_negatives_iou_0_50": 0,
+      "recall_at_confidence_threshold": 1.0,
+      "precision_at_confidence_threshold": 1.0
+    }
+  },
+  "unmapped_annotated_classes": {},
+  "annotation_sha256": "a068d44e135ead0c37f1277113a80048df6e906e1dd7ec10b7e1c15cef50387d",
+  "image_manifest_sha256": "4c9bd1e66745f33b4e0d3b3743a1a43d6df38e6020d088a4e8c84c2a6298e5b0",
+  "predictions_sha256": "04a41ab950c0a5466cef5530986321d6967b79b006deec5e2203e1bd09587e3b",
+  "metric_definition": "101-point interpolated AP per class; mean over native classes with GT; AP50:95 averages IoU 0.50..0.95 at 0.05 steps"
+}

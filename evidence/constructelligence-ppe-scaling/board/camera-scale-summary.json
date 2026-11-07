@@ -1,0 +1,85 @@
+[
+  {
+    "workers": 1,
+    "elapsed_s": 35.17190913,
+    "total_fps": 4.269,
+    "total_inference_calls": 147,
+    "worker_fps": [
+      4.269
+    ],
+    "worker_drop_rate_percent": [
+      71.17647058823529
+    ],
+    "rknn_run_p95_ms_max_worker": 267.163,
+    "end_to_end_p95_ms_max_worker": 325.365,
+    "system_cpu_percent_mean": 6.375517838452358,
+    "system_cpu_percent_max": 11.152882205513784,
+    "system_memory_used_mb_mean": 753.9429253472222,
+    "system_memory_used_mb_max": 761.58203125,
+    "total_worker_rss_mb_max": 129.6640625,
+    "npu_utilization": "unavailable",
+    "npu_frequency_mhz_min": 300.0,
+    "npu_frequency_mhz_max": 300.0,
+    "npu_temperature_c_max": 27.769,
+    "soc_temperature_c_max": 27.769,
+    "samples": 36
+  },
+  {
+    "workers": 2,
+    "elapsed_s": 35.215064361,
+    "total_fps": 9.026,
+    "total_inference_calls": 310,
+    "worker_fps": [
+      4.514,
+      4.512
+    ],
+    "worker_drop_rate_percent": [
+      69.6078431372549,
+      69.6078431372549
+    ],
+    "rknn_run_p95_ms_max_worker": 246.975,
+    "end_to_end_p95_ms_max_worker": 310.267,
+    "system_cpu_percent_mean": 12.285740552546782,
+    "system_cpu_percent_max": 25.0,
+    "system_memory_used_mb_mean": 867.7374131944445,
+    "system_memory_used_mb_max": 881.5859375,
+    "total_worker_rss_mb_max": 256.65234375,
+    "npu_utilization": "unavailable",
+    "npu_frequency_mhz_min": 300.0,
+    "npu_frequency_mhz_max": 300.0,
+    "npu_temperature_c_max": 29.615,
+    "soc_temperature_c_max": 28.692,
+    "samples": 36
+  },
+  {
+    "workers": 4,
+    "elapsed_s": 35.680568799,
+    "total_fps": 11.624,
+    "total_inference_calls": 403,
+    "worker_fps": [
+      3.027,
+      2.857,
+      2.884,
+      2.856
+    ],
+    "worker_drop_rate_percent": [
+      79.41176470588235,
+      80.58823529411765,
+      80.3921568627451,
+      80.58823529411765
+    ],
+    "rknn_run_p95_ms_max_worker": 379.208,
+    "end_to_end_p95_ms_max_worker": 446.66,
+    "system_cpu_percent_mean": 19.707263955859567,
+    "system_cpu_percent_max": 78.1701444622793,
+    "system_memory_used_mb_mean": 1099.836697048611,
+    "system_memory_used_mb_max": 1121.484375,
+    "total_worker_rss_mb_max": 521.6796875,
+    "npu_utilization": "unavailable",
+    "npu_frequency_mhz_min": 300.0,
+    "npu_frequency_mhz_max": 300.0,
+    "npu_temperature_c_max": 33.307,
+    "soc_temperature_c_max": 33.307,
+    "samples": 36
+  }
+]

@@ -53,6 +53,7 @@ RKNN inference and the service run on the RK3576. Windows/WSL is used for model 
 - [Flagship MPP/RGA/INT8 optimization report](FLAGSHIP_OPTIMIZATION_REPORT.md)
 - [DMA-BUF feasibility audit](ZERO_COPY_FEASIBILITY.md), [implementation](ZERO_COPY_IMPLEMENTATION.md), and [Z0/Z1/Z2 benchmark report](ZERO_COPY_BENCHMARK_REPORT.md)
 - [Dynamic video and event evaluation](DYNAMIC_VIDEO_EVALUATION.md) and the board ablation runner / summarizer at [`scripts/run_zero_copy_ablation.py`](scripts/run_zero_copy_ablation.py) and [`scripts/summarize_zero_copy_ablation.py`](scripts/summarize_zero_copy_ablation.py)
+- [Constructelligence v0.3 PPE model and RK3576 1/2/4-process scaling report](CONSTRUCTELLIGENCE_PPE_SCALING_REPORT.md) with the RKNN test-split metrics, dynamic Worker event records, and aligned board resource-monitor curves.
 - [Released PPE model selection and RK3576 validation](MODEL_SELECTION_REPORT.md), including same-split metrics, license review, dynamic event replay, and candidate model board timings
 - [Board PPE RKNN validation tools](scripts/make_ppe_rknn_image_manifest.py), [`ppe_rknn_dataset_eval`](tools/ppe_rknn_dataset_eval.cpp), and [metric evaluator](scripts/evaluate_ppe_rknn_predictions.py)
 - [Optional long-run diagnostic and deployment controls](BUILD_AND_DEPLOY.md#optional-monitored-long-run-probe)

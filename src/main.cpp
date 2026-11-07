@@ -1,4 +1,5 @@
 #include "bounded_queue.hpp"
+#include "constructelligence_ppe_postprocess.hpp"
 #include "ppe_events.hpp"
 #include "preprocess.hpp"
 #include "roi_events.hpp"
@@ -94,7 +95,20 @@ struct InferenceResult {
     std::uint64_t model_input_bytes = 0;
 };
 
-enum class ModelFamily { YoloV8Coco, YoloXPpe };
+enum class ModelFamily { YoloV8Coco, YoloXPpe, ConstructelligencePpe };
+
+bool is_ppe_model_family(ModelFamily family) {
+    return family != ModelFamily::YoloV8Coco;
+}
+
+const char* model_family_name(ModelFamily family) {
+    switch (family) {
+        case ModelFamily::YoloV8Coco: return "yolov8-coco";
+        case ModelFamily::YoloXPpe: return "yolox-ppe";
+        case ModelFamily::ConstructelligencePpe: return "constructelligence-ppe";
+    }
+    return "unknown";
+}
 
 std::string json_escape(const std::string& value) {
     std::ostringstream out;
@@ -250,7 +264,8 @@ public:
             ret = rknn_query(context_.rknn_ctx, RKNN_QUERY_IN_OUT_NUM,
                              &context_.io_num, sizeof(context_.io_num));
             if (ret != RKNN_SUCC || context_.io_num.n_input != 1 || context_.io_num.n_output == 0 ||
-                (model_family_ == ModelFamily::YoloXPpe && context_.io_num.n_output != 3)) {
+                (model_family_ == ModelFamily::YoloXPpe && context_.io_num.n_output != 3) ||
+                (model_family_ == ModelFamily::ConstructelligencePpe && context_.io_num.n_output != 1)) {
                 throw std::runtime_error("unsupported RKNN input/output contract");
             }
 
@@ -316,6 +331,14 @@ public:
                     if (!nchw && !nhwc) {
                         throw std::runtime_error("YOLOX-PPE requires three 17-channel NCHW/NHWC output maps");
                     }
+                } else if (model_family_ == ModelFamily::ConstructelligencePpe) {
+                    const auto& output = output_attrs_[i];
+                    if (output.n_dims != 3 || output.dims[0] != 1 || output.dims[1] != 18 ||
+                        output.dims[2] != 8400 ||
+                        (output.type != RKNN_TENSOR_FLOAT16 && output.type != RKNN_TENSOR_FLOAT32)) {
+                        throw std::runtime_error(
+                            "Constructelligence PPE requires one floating [1,18,8400] output tensor");
+                    }
                 }
             }
 
@@ -343,7 +366,7 @@ public:
                       << " input_scale=" << input.scale << " input_zero_point=" << input.zp
                       << " outputs=" << context_.io_num.n_output
                       << " quantized=" << (context_.is_quant ? "true" : "false")
-                      << " family=" << (model_family_ == ModelFamily::YoloXPpe ? "yolox-ppe" : "yolov8-coco")
+                      << " family=" << model_family_name(model_family_)
                       << " input_mode=" << (shared_input_ ? "shared-mem" : "inputs-set")
                       << (shared_input_ ? " input_mem_fd=" + std::to_string(input_memory_->fd) +
                                              " input_mem_size=" + std::to_string(input_memory_->size)
@@ -382,7 +405,7 @@ public:
     InferenceResult infer(const edge::DecodedFrame& frame, float confidence,
                           edge::PreprocessBackend preprocess_backend) {
         InferenceResult result;
-        const bool output_rgb = model_family_ == ModelFamily::YoloV8Coco;
+        const bool output_rgb = model_family_ != ModelFamily::YoloXPpe;
         edge::PreprocessResult preprocessed;
         if (shared_input_) {
             const std::uint32_t w_stride = native_input_attr_.w_stride == 0
@@ -459,6 +482,26 @@ public:
         if (model_family_ == ModelFamily::YoloXPpe) {
             ret = post_process_yolox_ppe(&context_, outputs.data(), &preprocessed.letterbox,
                                          confidence, NMS_THRESH, frame.width, frame.height, &raw);
+        } else if (model_family_ == ModelFamily::ConstructelligencePpe) {
+            const auto& output_attr = output_attrs_.front();
+            if (outputs.front().buf == nullptr ||
+                (output_attr.type != RKNN_TENSOR_FLOAT16 &&
+                 output_attr.type != RKNN_TENSOR_FLOAT32) ||
+                outputs.front().want_float != 1) {
+                throw std::runtime_error(
+                    "Constructelligence PPE requires RKNN_FLOAT output conversion for FP16/FP32 model output");
+            }
+            const auto decoded = edge::decode_constructelligence_ppe(
+                static_cast<const float*>(outputs.front().buf), 18, 8400,
+                preprocessed.letterbox, frame.width, frame.height, confidence, NMS_THRESH);
+            result.detections.reserve(decoded.size());
+            for (auto detection : decoded) {
+                detection.label = ppe_class_to_name(detection.class_id);
+                result.detections.push_back(detection);
+            }
+            result.postprocess_ms = milliseconds(Clock::now() - post_start);
+            dump_first_detections(result.detections);
+            return result;
         } else {
             ret = post_process(&context_, outputs.data(), &preprocessed.letterbox,
                                confidence, NMS_THRESH, &raw);
@@ -475,7 +518,7 @@ public:
             const int top = std::clamp(item.box.top, 0, frame.height);
             const int right = std::clamp(item.box.right, left, frame.width);
             const int bottom = std::clamp(item.box.bottom, top, frame.height);
-            const char* label = model_family_ == ModelFamily::YoloXPpe
+            const char* label = is_ppe_model_family(model_family_)
                 ? ppe_class_to_name(item.cls_id)
                 : coco_cls_to_name(item.cls_id);
             result.detections.push_back({item.cls_id, item.prop, left, top, right, bottom, label});
@@ -640,7 +683,7 @@ Options parse_args(int argc, char** argv) {
                          "[--track-log PATH] "
                          "[--input-pacing media|none] "
                          "[--dwell-ms N] [--roi-debounce-frames N] [--dump-first-rknn-output DIR] "
-                         "[--model-family yolov8-coco|yolox-ppe] [--danger-zone x,y,w,h] "
+                         "[--model-family yolov8-coco|yolox-ppe|constructelligence-ppe] [--danger-zone x,y,w,h] "
                          "[--conflict-zone x,y,w,h] [--ppe-confirm-frames N] "
                          "[--ppe-cooldown-ms N] [--conflict-dwell-ms N]\n";
             std::exit(0);
@@ -718,8 +761,10 @@ Options parse_args(int argc, char** argv) {
         options.roi.y + options.roi.height > 1.0) {
         throw std::invalid_argument("invalid queue, confidence, ROI, dwell, or debounce configuration");
     }
-    if (options.model_family != "yolov8-coco" && options.model_family != "yolox-ppe") {
-        throw std::invalid_argument("--model-family must be yolov8-coco or yolox-ppe");
+    if (options.model_family != "yolov8-coco" && options.model_family != "yolox-ppe" &&
+        options.model_family != "constructelligence-ppe") {
+        throw std::invalid_argument(
+            "--model-family must be yolov8-coco, yolox-ppe, or constructelligence-ppe");
     }
     if (options.ppe_confirmation_frames == 0 || options.ppe_confirmation_frames > 10000 ||
         options.ppe_cooldown.count() < 0 || options.conflict_dwell.count() < 0) {
@@ -964,7 +1009,9 @@ int main(int argc, char** argv) {
 
         const ModelFamily model_family = options.model_family == "yolox-ppe"
             ? ModelFamily::YoloXPpe
-            : ModelFamily::YoloV8Coco;
+            : options.model_family == "constructelligence-ppe"
+                ? ModelFamily::ConstructelligencePpe
+                : ModelFamily::YoloV8Coco;
         if (model_family == ModelFamily::YoloV8Coco && init_post_process() != 0) {
             throw std::runtime_error("failed to load COCO labels from ./model/coco_80_labels_list.txt");
         }
@@ -1178,7 +1225,7 @@ int main(int argc, char** argv) {
             edge::IoUTracker tracker;
             edge::RoiEventMachine roi_event_machine(options.dwell_threshold,
                                                     options.roi_debounce_frames,
-                                                    model_family == ModelFamily::YoloXPpe ? 5 : 0);
+                                  is_ppe_model_family(model_family) ? 5 : 0);
             edge::PPEEventMachine ppe_event_machine(ppe_event_config);
             edge::PPEStatusCounts ppe_status_counts;
             std::uint64_t processed_stream_epoch = 0;
@@ -1284,7 +1331,7 @@ int main(int argc, char** argv) {
                             std::chrono::duration<double, std::milli>(event_time_ms));
                     auto transitions = roi_event_machine.update(observations, active, event_time);
                     std::vector<edge::PPEEventTransition> safety_transitions;
-                    if (model_family == ModelFamily::YoloXPpe) {
+                    if (is_ppe_model_family(model_family)) {
                         safety_transitions = ppe_event_machine.update(
                             tracked, active, frame.media.width, frame.media.height, event_time);
                     }

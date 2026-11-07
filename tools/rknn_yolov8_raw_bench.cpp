@@ -125,7 +125,8 @@ std::vector<CandidateDetection> decode_yolov8(const float* values,
                                                const rknn_tensor_attr& attr,
                                                int width, int height,
                                                const LetterboxInfo& letterbox,
-                                               const std::map<int, int>& class_map) {
+                                               const std::map<int, int>& class_map,
+                                               float nms_threshold) {
     if (values == nullptr || attr.n_dims != 3 || attr.dims[0] != 1) {
         throw std::runtime_error("YOLOv8 candidate output must be one rank-3 tensor");
     }
@@ -151,13 +152,18 @@ std::vector<CandidateDetection> decode_yolov8(const float* values,
                 source_class = cls;
             }
         }
-        if (score < 0.001F) continue;
+        if (!std::isfinite(score) || score < 0.001F) continue;
         const auto mapping = class_map.find(source_class);
         if (mapping == class_map.end()) continue;
         const float center_x = value_at(0, anchor);
         const float center_y = value_at(1, anchor);
         const float box_width = value_at(2, anchor);
         const float box_height = value_at(3, anchor);
+        if (!std::isfinite(center_x) || !std::isfinite(center_y) ||
+            !std::isfinite(box_width) || !std::isfinite(box_height) ||
+            box_width <= 0.0F || box_height <= 0.0F) {
+            continue;
+        }
         CandidateDetection detection;
         detection.class_id = mapping->second;
         detection.score = score;
@@ -169,7 +175,9 @@ std::vector<CandidateDetection> decode_yolov8(const float* values,
                                                         letterbox.scale), 0.0F, static_cast<float>(width));
         detection.bottom = std::clamp(static_cast<float>((center_y + box_height * 0.5F - letterbox.pad_y) /
                                                          letterbox.scale), 0.0F, static_cast<float>(height));
-        candidates.push_back(detection);
+        if (detection.right > detection.left && detection.bottom > detection.top) {
+            candidates.push_back(detection);
+        }
     }
     std::sort(candidates.begin(), candidates.end(), [](const auto& a, const auto& b) {
         return a.score > b.score;
@@ -179,7 +187,7 @@ std::vector<CandidateDetection> decode_yolov8(const float* values,
     for (const auto& candidate : candidates) {
         bool suppressed = false;
         for (const auto& selected : kept) {
-            if (candidate.class_id == selected.class_id && box_iou(candidate, selected) > 0.45F) {
+            if (candidate.class_id == selected.class_id && box_iou(candidate, selected) > nms_threshold) {
                 suppressed = true;
                 break;
             }
@@ -242,7 +250,7 @@ int main(int argc, char** argv) {
             (args.count("--video") == args.count("--image-manifest"))) {
             std::cerr << "usage: rknn_yolov8_raw_bench --model MODEL.rknn "
                          "(--video INPUT.mp4 | --image-manifest ROOT_AND_FILES.txt) "
-                         "--output-prefix PREFIX [--class-map src:canonical,...]\n";
+                         "--output-prefix PREFIX [--class-map src:target,...] [--nms-iou X]\n";
             return 2;
         }
         const std::string model_path = args.at("--model");
@@ -251,6 +259,10 @@ int main(int argc, char** argv) {
         const std::string input_path = video_mode ? args.at("--video") : args.at("--image-manifest");
         const auto class_map = args.count("--class-map")
             ? parse_class_map(args.at("--class-map")) : std::map<int, int>{};
+        const float nms_threshold = args.count("--nms-iou") ? std::stof(args.at("--nms-iou")) : 0.45F;
+        if (nms_threshold < 0.0F || nms_threshold > 1.0F) {
+            throw std::invalid_argument("--nms-iou must be between 0 and 1");
+        }
         const auto model_bytes = read_file(model_path);
         rknn_context context = 0;
         int status = rknn_init(&context, const_cast<std::uint8_t*>(model_bytes.data()),
@@ -420,7 +432,7 @@ int main(int argc, char** argv) {
                 for (int cls = 0; cls < channels - 4; ++cls) active_map.emplace(cls, cls);
             }
             const auto detections = decode_yolov8(output_values, output_attr,
-                bgr.cols, bgr.rows, letterbox, active_map);
+                bgr.cols, bgr.rows, letterbox, active_map, nms_threshold);
             write_prediction(predictions, static_cast<std::size_t>(frame_count), name,
                              bgr.cols, bgr.rows, detections);
             status = rknn_outputs_release(context, io.n_output, outputs.data());
@@ -443,6 +455,8 @@ int main(int argc, char** argv) {
                << "  \"model\":\"" << model_path << "\",\n"
                << "  \"input\":\"" << input_path << "\",\n"
                << "  \"mode\":\"" << (video_mode ? "video" : "image-manifest") << "\",\n"
+               << "  \"confidence_floor\":0.001,\n"
+               << "  \"nms_iou\":" << nms_threshold << ",\n"
                << "  \"frames\":" << frame_count << ",\n"
                << "  \"nominal_fps\":" << nominal_fps << ",\n"
                << "  \"model_input\":{\"dims\":\"" << dims_string(input_attr)

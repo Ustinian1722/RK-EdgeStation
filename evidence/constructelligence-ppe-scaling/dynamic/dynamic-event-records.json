@@ -1,0 +1,157 @@
+{
+  "model": "constructelligence/construction-site-safety-hazards v0.3 FP RKNN",
+  "model_sha256": "70060dcd34d1a0c212639e786bc6bdb1e31c1c6dd885ff6d8c6a40f889f34645",
+  "qualitative_only": true,
+  "runs": [
+    {
+      "video_id": "haringey_construction",
+      "source_video": "Haringey construction-site clip (CC BY-SA 4.0, Acabashi)",
+      "video_sha256": "e1fe2432f23d816e58d9f8d54770fb5cd994efc013d278ef90cda9306fe71d2b",
+      "pipeline": "gstreamer-mpp+rga+dmabuf+shared RKNN input",
+      "decoded_frames": 510,
+      "processed_frames": 147,
+      "dropped_frames": 363,
+      "throughput_fps": 4.269,
+      "p95_end_to_end_ms": 325.365,
+      "detections_per_class_over_processed_frames": {
+        "Person": 338,
+        "vest": 240,
+        "no_helmet": 1,
+        "helmet": 265,
+        "boots": 1,
+        "gloves": 7
+      },
+      "events_total": 7,
+      "roi_entries": 4,
+      "ppe_violation_events": [],
+      "ppe_violation_count_metric": 0,
+      "ppe_unknown_person_count_metric": 1,
+      "source_copy_bytes_total": 0,
+      "event_types": {
+        "enter": 4,
+        "dwell": 3
+      }
+    },
+    {
+      "video_id": "men_at_work",
+      "source_video": "Men at work in building site (CC0 1.0, Akum20)",
+      "video_sha256": "8b10516bdc76a5bac2601a2e6afbf0286e0c050094cabeea99523d6abdd9d961",
+      "pipeline": "gstreamer-mpp+RGA+mapped NV12 copy+shared RKNN input",
+      "decoded_frames": 79,
+      "processed_frames": 24,
+      "dropped_frames": 55,
+      "throughput_fps": 4.3,
+      "p95_end_to_end_ms": 321.047,
+      "detections_per_class_over_processed_frames": {
+        "Person": 54,
+        "no_helmet": 12,
+        "no_vest": 26,
+        "helmet": 10
+      },
+      "events_total": 10,
+      "roi_entries": 7,
+      "ppe_violation_events": [
+        {
+          "type": "event",
+          "schema_version": 1,
+          "event_id": "evt-1794028331369-8-3-1-ppe_violation",
+          "event_type": "ppe_violation",
+          "state": "active",
+          "transition_reason": "ppe_violation_persisted",
+          "severity": "high",
+          "timestamp_utc": "2026-11-07T05:12:11.399Z",
+          "source_id": "local-file",
+          "frame_sequence": 8,
+          "source_pts_ms": 466.6667,
+          "track_id": 3,
+          "related_track_id": 1,
+          "person_association": "matched",
+          "ppe_status": "violation",
+          "confirmation_frames": 3,
+          "class_id": 11,
+          "label": "no_vest",
+          "confidence": 0.5879,
+          "box": [
+            501,
+            2,
+            610,
+            152
+          ],
+          "model": "constructelligence-v0.3-fp-rk3576.rknn",
+          "evidence": "evidence/frame-1794028330661-8.jpg"
+        },
+        {
+          "type": "event",
+          "schema_version": 1,
+          "event_id": "evt-1794028332945-32-13-10-ppe_violation",
+          "event_type": "ppe_violation",
+          "state": "active",
+          "transition_reason": "ppe_violation_persisted",
+          "severity": "high",
+          "timestamp_utc": "2026-11-07T05:12:12.976Z",
+          "source_id": "local-file",
+          "frame_sequence": 32,
+          "source_pts_ms": 2066.6667,
+          "track_id": 13,
+          "related_track_id": 10,
+          "person_association": "matched",
+          "ppe_status": "violation",
+          "confirmation_frames": 3,
+          "class_id": 6,
+          "label": "no_helmet",
+          "confidence": 0.3945,
+          "box": [
+            186,
+            50,
+            271,
+            162
+          ],
+          "model": "constructelligence-v0.3-fp-rk3576.rknn",
+          "evidence": "evidence/frame-1794028330661-32.jpg"
+        },
+        {
+          "type": "event",
+          "schema_version": 1,
+          "event_id": "evt-1794028334606-57-12-10-ppe_violation",
+          "event_type": "ppe_violation",
+          "state": "active",
+          "transition_reason": "ppe_violation_persisted",
+          "severity": "high",
+          "timestamp_utc": "2026-11-07T05:12:14.637Z",
+          "source_id": "local-file",
+          "frame_sequence": 57,
+          "source_pts_ms": 3733.3333,
+          "track_id": 12,
+          "related_track_id": 10,
+          "person_association": "matched",
+          "ppe_status": "violation",
+          "confirmation_frames": 3,
+          "class_id": 11,
+          "label": "no_vest",
+          "confidence": 0.7476,
+          "box": [
+            16,
+            182,
+            235,
+            416
+          ],
+          "model": "constructelligence-v0.3-fp-rk3576.rknn",
+          "evidence": "evidence/frame-1794028330661-57.jpg"
+        }
+      ],
+      "ppe_violation_count_metric": 3,
+      "ppe_unknown_person_count_metric": 1,
+      "source_copy_bytes_total": 86305920,
+      "event_types": {
+        "enter": 7,
+        "ppe_violation": 3
+      }
+    }
+  ],
+  "failed_dmabuf_attempt": {
+    "return_code": 2,
+    "video_sha256": "8b10516bdc76a5bac2601a2e6afbf0286e0c050094cabeea99523d6abdd9d961",
+    "failure_reason": "video input failed: MPP DMA-BUF must expose a valid fd and contiguous linear NV12 planes",
+    "fallback": "GStreamer/MPP mapped NV12 copy + RGA + shared RKNN input"
+  }
+}

@@ -72,6 +72,7 @@ add_executable(rk_edge_worker
     src/roi_events.cpp
     src/ppe_events.cpp
     src/preprocess.cpp
+    src/constructelligence_ppe_postprocess.cpp
     src/yolox_ppe_postprocess.cpp
     src/video_source.cpp
     src/third_party/rknn_model_zoo_v2.0.0/yolov8/postprocess.cc
@@ -152,6 +153,18 @@ if(BUILD_TESTING)
     target_include_directories(edge_core_tests PRIVATE src)
     target_compile_options(edge_core_tests PRIVATE -Wall -Wextra -Wpedantic)
     add_test(NAME edge_core_tests COMMAND edge_core_tests)
+
+    add_executable(constructelligence_ppe_postprocess_tests
+        tests/constructelligence_ppe_postprocess_tests.cpp
+        src/constructelligence_ppe_postprocess.cpp
+    )
+    target_include_directories(constructelligence_ppe_postprocess_tests PRIVATE
+        ${RKNN_INCLUDE_DIR}
+        src
+        src/third_party/rknn_model_zoo_v2.0.0/utils
+    )
+    target_compile_options(constructelligence_ppe_postprocess_tests PRIVATE -Wall -Wextra -Wpedantic)
+    add_test(NAME constructelligence_ppe_postprocess_tests COMMAND constructelligence_ppe_postprocess_tests)
 
     add_executable(edge_media_tests
         tests/media_pipeline_tests.cpp
