@@ -1177,7 +1177,8 @@ int main(int argc, char** argv) {
 
             edge::IoUTracker tracker;
             edge::RoiEventMachine roi_event_machine(options.dwell_threshold,
-                                                    options.roi_debounce_frames);
+                                                    options.roi_debounce_frames,
+                                                    model_family == ModelFamily::YoloXPpe ? 5 : 0);
             edge::PPEEventMachine ppe_event_machine(ppe_event_config);
             edge::PPEStatusCounts ppe_status_counts;
             std::uint64_t processed_stream_epoch = 0;

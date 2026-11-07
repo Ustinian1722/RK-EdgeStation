@@ -102,6 +102,29 @@ target_link_libraries(ppe_rknn_dataset_eval PRIVATE ${OpenCV_LIBS} ${RKNN_LIBRAR
 target_compile_options(ppe_rknn_dataset_eval PRIVATE -Wall -Wextra -Wpedantic)
 set_target_properties(ppe_rknn_dataset_eval PROPERTIES BUILD_RPATH "/lib;/usr/lib/aarch64-linux-gnu")
 
+# Generic raw-output probe for released YOLOv8-style RKNN models. This is a
+# model-selection tool, not a Worker backend: it measures Runtime compatibility
+# and emits the first output tensor for numerical comparison against ONNX.
+add_executable(rknn_yolov8_raw_bench tools/rknn_yolov8_raw_bench.cpp)
+target_include_directories(rknn_yolov8_raw_bench PRIVATE
+    ${RKNN_INCLUDE_DIR}
+    ${OpenCV_INCLUDE_DIRS}
+)
+target_link_libraries(rknn_yolov8_raw_bench PRIVATE ${OpenCV_LIBS} ${RKNN_LIBRARY})
+target_compile_options(rknn_yolov8_raw_bench PRIVATE -Wall -Wextra -Wpedantic)
+set_target_properties(rknn_yolov8_raw_bench PROPERTIES BUILD_RPATH "/lib;/usr/lib/aarch64-linux-gnu")
+
+# Replays host-exported candidate detections through the production tracker and
+# PPE state machine so model comparisons use the same event confirmation and
+# cooldown semantics as the Worker without changing the live inference path.
+add_executable(replay_ppe_prediction_events
+    tools/replay_ppe_prediction_events.cpp
+    src/tracker.cpp
+    src/ppe_events.cpp
+)
+target_include_directories(replay_ppe_prediction_events PRIVATE src)
+target_compile_options(replay_ppe_prediction_events PRIVATE -Wall -Wextra -Wpedantic)
+
 target_include_directories(rk_edge_worker PRIVATE
     ${RKNN_INCLUDE_DIR}
     ${OpenCV_INCLUDE_DIRS}

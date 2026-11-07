@@ -152,6 +152,29 @@ int main() {
     }
     {
         using namespace std::chrono_literals;
+        edge::RoiEventMachine events(1000ms, 1, 5);
+        const auto start = edge::RoiEventMachine::Clock::time_point{};
+        const std::set<std::uint64_t> active{1, 2, 3, 4};
+        const edge::Detection helmet{0, 0.9F, 15, 10, 35, 28, "helmet"};
+        const edge::Detection vest{2, 0.9F, 10, 35, 40, 70, "vest"};
+        const edge::Detection no_helmet{6, 0.9F, 16, 10, 34, 27, "no_helmet"};
+        CHECK(events.update({{2, helmet, true}, {3, vest, true}, {4, no_helmet, true}},
+                            active, start).empty());
+        CHECK(events.occupancy_count() == 0);
+        CHECK(events.cumulative_entries() == 0);
+
+        const edge::Detection person{5, 0.95F, 5, 5, 50, 90, "Person"};
+        auto transitions = events.update({{1, person, true}, {2, helmet, true},
+                                          {3, vest, true}, {4, no_helmet, true}},
+                                         active, start + 100ms);
+        CHECK(transitions.size() == 1);
+        CHECK(transitions[0].track_id == 1);
+        CHECK(transitions[0].type == edge::RoiEventType::Enter);
+        CHECK(events.occupancy_count() == 1);
+        CHECK(events.cumulative_entries() == 1);
+    }
+    {
+        using namespace std::chrono_literals;
         edge::PPEEventConfig config;
         config.danger_zone = {0.4, 0.0, 0.6, 1.0};
         config.conflict_zone = {0.4, 0.0, 0.6, 1.0};
@@ -237,6 +260,57 @@ int main() {
         events.update(violation, violation_active, 100, 120, start + 500ms);
         CHECK(events.person_status_counts().violation_people == 1);
         CHECK(events.person_status_counts().unknown_people == 0);
+    }
+    {
+        using namespace std::chrono_literals;
+        edge::PPEEventConfig config;
+        config.confirmation_frames = 2;
+        config.cooldown = 1000ms;
+        edge::PPEEventMachine events(config);
+        const auto start = edge::PPEEventMachine::Clock::time_point{};
+        const edge::Detection person{5, 0.95F, 0, 0, 100, 120, "Person"};
+        const edge::Detection violation{6, 0.90F, 30, 8, 60, 30, "no_helmet"};
+        auto frame = [&](std::uint64_t violation_track) {
+            return std::vector<edge::TrackedDetection>{{11, person, false},
+                                                       {violation_track, violation, true}};
+        };
+        const auto first = frame(33);
+        const std::set<std::uint64_t> first_active{11, 33};
+        CHECK(events.update(first, first_active, 100, 120, start).empty());
+        auto transitions = events.update(first, first_active, 100, 120, start + 100ms);
+        CHECK(transitions.size() == 1);
+        CHECK(transitions[0].event_type == "ppe_violation");
+        CHECK(transitions[0].track_id == 33);
+        CHECK(transitions[0].related_track_id == std::optional<std::uint64_t>(11));
+
+        // The violation detection receives a fresh tracker ID while the same
+        // Person Track ID is maintained; the Person keyed cooldown must persist.
+        const auto changed_violation_track = frame(34);
+        const std::set<std::uint64_t> changed_active{11, 34};
+        transitions = events.update(changed_violation_track, changed_active,
+                                    100, 120, start + 200ms);
+        CHECK(transitions.empty());
+        CHECK(events.ppe_violations() == 1);
+        transitions = events.update(changed_violation_track, changed_active,
+                                    100, 120, start + 600ms);
+        CHECK(transitions.empty());
+        CHECK(events.ppe_violations() == 1);
+
+        // A second violation category on the same person is independent: the
+        // identity key is Person Track ID plus violation class, not either box
+        // track ID alone and not one shared all-PPE cooldown bucket.
+        const edge::Detection no_vest{11, 0.90F, 20, 40, 80, 100, "no_vest"};
+        auto both_violations = changed_violation_track;
+        both_violations.push_back({35, no_vest, true});
+        const std::set<std::uint64_t> both_active{11, 34, 35};
+        CHECK(events.update(both_violations, both_active, 100, 120, start + 700ms).empty());
+        transitions = events.update(both_violations, both_active, 100, 120, start + 800ms);
+        CHECK(transitions.size() == 1);
+        CHECK(transitions[0].event_type == "ppe_violation");
+        CHECK(transitions[0].track_id == 35);
+        CHECK(transitions[0].related_track_id == std::optional<std::uint64_t>(11));
+        CHECK(transitions[0].detection.class_id == 11);
+        CHECK(events.ppe_violations() == 2);
     }
     std::cout << "core tests passed\n";
     return 0;

@@ -1,0 +1,368 @@
+{
+  "covered_classes": [
+    "Person",
+    "boots",
+    "forklift",
+    "gloves",
+    "goggles",
+    "helmet",
+    "no_boots",
+    "no_gloves",
+    "no_goggle",
+    "no_helmet",
+    "no_vest",
+    "vest"
+  ],
+  "count": 20,
+  "selected_images": [
+    {
+      "classes": [
+        "Person",
+        "boots",
+        "forklift",
+        "gloves",
+        "goggles",
+        "helmet",
+        "no_boots",
+        "no_gloves",
+        "no_goggle",
+        "no_helmet",
+        "no_vest",
+        "vest"
+      ],
+      "file_name": "ultralytics-ppe-nov2026-139.jpg",
+      "image_id": 348,
+      "sha256": "d25f5a83df3c02583fc0054f187576c3947258a2a793838b710ce3cc08fd9544"
+    },
+    {
+      "classes": [
+        "Person",
+        "boots",
+        "forklift",
+        "gloves",
+        "goggles",
+        "helmet",
+        "no_boots",
+        "no_gloves",
+        "no_goggle",
+        "no_helmet",
+        "no_vest",
+        "vest"
+      ],
+      "file_name": "source-012007571544d108ad62099e53b8a827.jpg",
+      "image_id": 1,
+      "sha256": "c01f98b97d0d9ca25253424259db6df3f99e3a81988c79d4135599758ad0f8fc"
+    },
+    {
+      "classes": [
+        "Person",
+        "boots",
+        "forklift",
+        "gloves",
+        "helmet",
+        "no_boots",
+        "no_gloves",
+        "no_goggle",
+        "no_helmet",
+        "no_vest",
+        "vest"
+      ],
+      "file_name": "source-e32b16f1f50be861a165bdfdfcf4c520.jpg",
+      "image_id": 212,
+      "sha256": "03d48a2a6ae4e193f8f6368d85018a175014129f31ed36573a793cd5c4b774c2"
+    },
+    {
+      "classes": [
+        "Person",
+        "boots",
+        "forklift",
+        "gloves",
+        "goggles",
+        "helmet",
+        "no_gloves",
+        "no_goggle",
+        "no_helmet",
+        "no_vest",
+        "vest"
+      ],
+      "file_name": "source-01472cb50a6610833e564bd5add532ee.jpg",
+      "image_id": 2,
+      "sha256": "7cda1bb378c8e01f6c06364f4b2f9248c2795144601871f6a63f86faa5d911dd"
+    },
+    {
+      "classes": [
+        "Person",
+        "boots",
+        "forklift",
+        "gloves",
+        "goggles",
+        "helmet",
+        "no_boots",
+        "no_gloves",
+        "no_helmet",
+        "no_vest",
+        "vest"
+      ],
+      "file_name": "ultralytics-ppe-nov2026-028.jpg",
+      "image_id": 257,
+      "sha256": "8cd668ec8afa0c2a41e2f5e187207f6aa057a7dc43660cb6e0db6c01e27446bb"
+    },
+    {
+      "classes": [
+        "Person",
+        "boots",
+        "gloves",
+        "goggles",
+        "helmet",
+        "no_boots",
+        "no_gloves",
+        "no_goggle",
+        "no_helmet",
+        "no_vest",
+        "vest"
+      ],
+      "file_name": "ultralytics-ppe-nov2026-617.jpg",
+      "image_id": 731,
+      "sha256": "652a40ec83b477bb16e24eda61105fa75195e718eaaf1cd7d97d9a0508f6bab1"
+    },
+    {
+      "classes": [
+        "Person",
+        "boots",
+        "gloves",
+        "goggles",
+        "helmet",
+        "no_boots",
+        "no_gloves",
+        "no_goggle",
+        "no_helmet",
+        "no_vest",
+        "vest"
+      ],
+      "file_name": "ultralytics-ppe-nov2026-539.jpg",
+      "image_id": 668,
+      "sha256": "c295d373cc5374a4e659629249310aef7a08ab1e41841cf4a019ced15f437681"
+    },
+    {
+      "classes": [
+        "Person",
+        "boots",
+        "gloves",
+        "goggles",
+        "helmet",
+        "no_boots",
+        "no_gloves",
+        "no_goggle",
+        "no_helmet",
+        "no_vest",
+        "vest"
+      ],
+      "file_name": "ultralytics-ppe-nov2026-339.jpg",
+      "image_id": 508,
+      "sha256": "ca336d5d01e931817a27e6e9e1f7fcaa8b35f9b1d526b5213c86ad512e830414"
+    },
+    {
+      "classes": [
+        "Person",
+        "boots",
+        "forklift",
+        "gloves",
+        "no_boots",
+        "no_gloves",
+        "no_goggle",
+        "no_helmet",
+        "no_vest",
+        "vest"
+      ],
+      "file_name": "source-76c5536c698f0876c67f76c14c3c2e96.jpg",
+      "image_id": 118,
+      "sha256": "49b5c327196e0e427a92601e7e7ec3f5c52ad745079f28a73ebf828eac7b8963"
+    },
+    {
+      "classes": [
+        "Person",
+        "forklift",
+        "gloves",
+        "helmet",
+        "no_boots",
+        "no_gloves",
+        "no_goggle",
+        "no_helmet",
+        "no_vest",
+        "vest"
+      ],
+      "file_name": "ultralytics-ppe-nov2026-419.jpg",
+      "image_id": 573,
+      "sha256": "95e74b20a106f7802dda44486671da490b69c01054f1ecf2a817907f31f151b1"
+    },
+    {
+      "classes": [
+        "Person",
+        "boots",
+        "forklift",
+        "gloves",
+        "goggles",
+        "helmet",
+        "no_gloves",
+        "no_goggle",
+        "no_helmet",
+        "no_vest"
+      ],
+      "file_name": "ultralytics-ppe-nov2026-207.jpg",
+      "image_id": 401,
+      "sha256": "1cbdd19c3daaddf08c973343a1d966845a8fb09b84e2d500be04eb6e1b7d20aa"
+    },
+    {
+      "classes": [
+        "Person",
+        "boots",
+        "forklift",
+        "gloves",
+        "goggles",
+        "helmet",
+        "no_goggle",
+        "no_helmet",
+        "no_vest",
+        "vest"
+      ],
+      "file_name": "ultralytics-ppe-nov2026-027.jpg",
+      "image_id": 256,
+      "sha256": "eee25890b0404a0d81256055f7e4a9290ebf4962ae455e3e8c596bf9123d621c"
+    },
+    {
+      "classes": [
+        "Person",
+        "boots",
+        "forklift",
+        "gloves",
+        "helmet",
+        "no_boots",
+        "no_gloves",
+        "no_helmet",
+        "no_vest",
+        "vest"
+      ],
+      "file_name": "source-46bf35b89356017177174a7dd0b35186.jpg",
+      "image_id": 67,
+      "sha256": "328cdf9c78b46db58f98f7aaedf0dfa395ec371ae73eb9a569d1b0bf1009e4dc"
+    },
+    {
+      "classes": [
+        "Person",
+        "gloves",
+        "goggles",
+        "helmet",
+        "no_boots",
+        "no_gloves",
+        "no_goggle",
+        "no_helmet",
+        "no_vest",
+        "vest"
+      ],
+      "file_name": "ultralytics-ppe-nov2026-036.jpg",
+      "image_id": 265,
+      "sha256": "782271976ec1ff1217fd9d573ae49200530c58376331c61ab6bf8cf89573efc2"
+    },
+    {
+      "classes": [
+        "Person",
+        "boots",
+        "forklift",
+        "gloves",
+        "goggles",
+        "helmet",
+        "no_gloves",
+        "no_goggle",
+        "no_vest",
+        "vest"
+      ],
+      "file_name": "ultralytics-ppe-nov2026-557.jpg",
+      "image_id": 681,
+      "sha256": "766f89b0c9850ebedbbb69bbfee458bd98906940e0b0f59988d8856a95ef7bd8"
+    },
+    {
+      "classes": [
+        "Person",
+        "boots",
+        "forklift",
+        "gloves",
+        "goggles",
+        "helmet",
+        "no_gloves",
+        "no_goggle",
+        "no_vest",
+        "vest"
+      ],
+      "file_name": "ultralytics-ppe-nov2026-029.jpg",
+      "image_id": 258,
+      "sha256": "dc3ca51bfd28964214143f12dee6745eab81a4f1423645e81a9d651d21c2cf5d"
+    },
+    {
+      "classes": [
+        "Person",
+        "boots",
+        "gloves",
+        "goggles",
+        "helmet",
+        "no_boots",
+        "no_goggle",
+        "no_helmet",
+        "no_vest",
+        "vest"
+      ],
+      "file_name": "ultralytics-ppe-nov2026-010.jpg",
+      "image_id": 244,
+      "sha256": "e272ce74e7b6a56accd6c50492173bc42b0df35b9059df687cf2f81837b2a54a"
+    },
+    {
+      "classes": [
+        "Person",
+        "forklift",
+        "helmet",
+        "no_boots",
+        "no_gloves",
+        "no_goggle",
+        "no_helmet",
+        "no_vest",
+        "vest"
+      ],
+      "file_name": "source-8c4bd5367bc76d76cd877bc769fbd70a.jpg",
+      "image_id": 137,
+      "sha256": "908f6b6c3e07fc3108db38e5b3eb13b0a1332302b19708b536713e37f34145a4"
+    },
+    {
+      "classes": [
+        "Person",
+        "boots",
+        "gloves",
+        "goggles",
+        "helmet",
+        "no_boots",
+        "no_gloves",
+        "no_goggle",
+        "no_helmet",
+        "vest"
+      ],
+      "file_name": "ultralytics-ppe-nov2026-117.jpg",
+      "image_id": 331,
+      "sha256": "90e45ff38b435f46ae6fdabba1f3819263fe615bd7f3ca11774700b3c4decdeb"
+    },
+    {
+      "classes": [
+        "Person",
+        "boots",
+        "gloves",
+        "goggles",
+        "helmet",
+        "no_boots",
+        "no_gloves",
+        "no_goggle",
+        "no_vest",
+        "vest"
+      ],
+      "file_name": "ultralytics-ppe-nov2026-639.jpg",
+      "image_id": 748,
+      "sha256": "7e2f13e2a9fdc4aa1a243e923f2c4794ba1c691ed297c575b9858c6de21a8476"
+    }
+  ]
+}

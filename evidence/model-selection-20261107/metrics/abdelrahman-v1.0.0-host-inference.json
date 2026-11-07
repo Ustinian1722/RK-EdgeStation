@@ -1,0 +1,50 @@
+{
+  "class_map_source_to_canonical": {
+    "0": 0,
+    "1": 6,
+    "2": 11,
+    "3": 5,
+    "4": 2
+  },
+  "image_count": 200,
+  "images_per_second": 9.36094611745546,
+  "input": {
+    "color_order": "RGB",
+    "dtype": "tensor(float)",
+    "letterbox_color": 114,
+    "range": "float32 0..1",
+    "shape": [
+      1,
+      3,
+      640,
+      640
+    ]
+  },
+  "max_detections": 300,
+  "model": "/mnt/d/RK-EdgeStation/.work/model-selection/abdelrahman-v1.0.0/ppe_yolo.onnx",
+  "model_sha256": "abac0b618f38d3a887c1ab95c5756ab498575f6055cb4bd23bc9383cd8b1b1a7",
+  "nms_iou": 0.45,
+  "outputs": [
+    {
+      "dtype": "tensor(float)",
+      "name": "output0",
+      "shape": [
+        1,
+        9,
+        8400
+      ]
+    }
+  ],
+  "predictions_sha256": "3089353b0ff55c468d30a83ca0571db6ea58a31f36645b8932bfae37f767ee49",
+  "score_floor": 0.001,
+  "wall_ms_per_image": {
+    "inference_mean": 72.56585863499936,
+    "inference_p50": 70.7312509998701,
+    "inference_p95": 86.31698885002378,
+    "postprocess_mean": 2.3808984949982914,
+    "postprocess_p95": 2.7716117500517607,
+    "preprocess_mean": 2.2074646550026955,
+    "preprocess_p95": 3.2862693000538448
+  },
+  "wall_seconds": 21.36536173699983
+}

@@ -1,0 +1,17 @@
+{
+  "scope":"isolated-rknn-offline-no-pacing",
+  "model":"constructelligence-v0.3-int8-rk3576.rknn",
+  "input":"board-val-30-manifest.txt",
+  "mode":"image-manifest",
+  "frames":30,
+  "nominal_fps":0.0000,
+  "model_input":{"dims":"[1,640,640,3]","format":1,"type":2,"qnt_type":2,"scale":0.0039,"zero_point":-128,"size":1228800,"width":640,"height":640,"color_order":"RGB","input_pixels":"uint8 0..255; Toolkit2 mean=0 std=255"},
+  "outputs":[{"index":0,"dims":"[1,18,8400]","format":3,"type":2,"qnt_type":2,"scale":2.5020,"zero_point":-128,"elements":151200}],
+  "timing_ms":{"preprocess_p50":8.1105,"preprocess_p95":12.4119,"input_set_p50":0.8199,"input_set_p95":0.9330,"run_p50":114.4931,"run_p95":123.0827,"fetch_p50":0.2695,"fetch_p95":0.3407},
+  "wall_seconds":5.7732,
+  "throughput_fps":5.1965,
+  "process_cpu_core_percent":64.9801,
+  "process_cpu_system_percent":8.1225,
+  "process_cpu_seconds":3.7514,
+  "peak_rss_kb":122980
+}

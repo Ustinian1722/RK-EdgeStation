@@ -75,12 +75,13 @@ PPEEventMachine::PPEEventMachine(PPEEventConfig config) : config_(std::move(conf
     }
 }
 
-void PPEEventMachine::observe(const std::string& key, const PPEEventTransition& candidate,
+void PPEEventMachine::observe(const std::string& key, std::uint64_t identity_track_id,
+                              const PPEEventTransition& candidate,
                               std::chrono::milliseconds dwell, Clock::time_point now,
                               std::vector<PPEEventTransition>& events) {
     auto& state = states_[key];
     if (state.consecutive_frames == 0) state.first_seen = now;
-    state.track_id = candidate.track_id;
+    state.track_id = identity_track_id;
     state.related_track_id = candidate.related_track_id;
     state.last_seen_update = update_index_;
     ++state.consecutive_frames;
@@ -167,7 +168,10 @@ std::vector<PPEEventTransition> PPEEventMachine::update(
             event.track_id = item.track_id;
             event.related_track_id = person_id;
             event.detection = detection;
-            observe("ppe:" + std::to_string(item.track_id), event,
+            const auto identity_track_id = person_id.value_or(item.track_id);
+            const std::string event_key = "ppe:" + std::to_string(identity_track_id) + ":" +
+                                          std::to_string(detection.class_id);
+            observe(event_key, identity_track_id, event,
                     std::chrono::milliseconds::zero(), now, events);
         }
 
@@ -181,7 +185,7 @@ std::vector<PPEEventTransition> PPEEventMachine::update(
             event.person_association = "not_applicable";
             event.track_id = item.track_id;
             event.detection = detection;
-            observe("zone:" + std::to_string(item.track_id), event,
+            observe("zone:" + std::to_string(item.track_id), item.track_id, event,
                     std::chrono::milliseconds::zero(), now, events);
         }
     }
@@ -207,7 +211,7 @@ std::vector<PPEEventTransition> PPEEventMachine::update(
                 event.track_id = forklift.track_id;
                 event.related_track_id = person.track_id;
                 event.detection = forklift_detection;
-                observe(pair_key(forklift.track_id, person.track_id), event,
+                observe(pair_key(forklift.track_id, person.track_id), forklift.track_id, event,
                         config_.conflict_dwell, now, events);
             }
         }
@@ -219,7 +223,10 @@ std::vector<PPEEventTransition> PPEEventMachine::update(
         const bool related_active = !state.related_track_id.has_value() ||
                                     active_track_ids.count(*state.related_track_id) != 0;
         const bool stale = update_index_ > state.last_seen_update + 10;
-        if (!primary_active || !related_active || stale) {
+        const bool ppe_cooldown_active = it->first.rfind("ppe:", 0) == 0 &&
+                                         state.last_emitted.has_value() &&
+                                         now - *state.last_emitted < config_.cooldown;
+        if (!primary_active || !related_active || (stale && !ppe_cooldown_active)) {
             it = states_.erase(it);
         } else if (state.last_seen_update != update_index_) {
             it->second.consecutive_frames = 0;

@@ -28,9 +28,11 @@ const char* roi_event_reason(RoiEventType type) noexcept {
 }
 
 RoiEventMachine::RoiEventMachine(std::chrono::milliseconds dwell_threshold,
-                                 std::size_t debounce_frames)
-    : dwell_threshold_(dwell_threshold), debounce_frames_(debounce_frames) {
-    if (dwell_threshold_.count() <= 0 || debounce_frames_ == 0 || debounce_frames_ > 10000) {
+                                 std::size_t debounce_frames, int person_class_id)
+    : dwell_threshold_(dwell_threshold), debounce_frames_(debounce_frames),
+      person_class_id_(person_class_id) {
+    if (dwell_threshold_.count() <= 0 || debounce_frames_ == 0 || debounce_frames_ > 10000 ||
+        person_class_id_ < 0) {
         throw std::invalid_argument("dwell threshold and ROI debounce frames must be positive and bounded");
     }
 }
@@ -48,6 +50,7 @@ std::vector<RoiEventTransition> RoiEventMachine::update(
     events.reserve(observations.size());
 
     for (const auto& observation : observations) {
+        if (observation.detection.class_id != person_class_id_) continue;
         auto& state = tracks_[observation.track_id];
         if (observation.inside) {
             state.consecutive_outside = 0;

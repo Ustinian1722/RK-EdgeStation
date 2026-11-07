@@ -1,0 +1,87 @@
+{
+  "baseline_commit": "a0beba7cab484ad32af9a76f6cf8bb01bf9e5af2",
+  "branch": "research/dynamic-video-dmabuf-20261107",
+  "board": {
+    "model": "KICKPI K7 / RK3576",
+    "os": "Ubuntu 24.04.3",
+    "kernel": "Linux 6.1.75 aarch64",
+    "rknn_runtime": "2.0.0b0",
+    "rknn_driver": "0.9.7"
+  },
+  "toolkit": "RKNN-Toolkit2 2.0.0b0+9bab5682",
+  "dataset": {
+    "name": "Construction-PPE development validation split",
+    "images": 200,
+    "common_classes": ["Person", "helmet", "vest", "no_helmet", "no_vest"],
+    "candidate_annotation_sha256": "0bbbef1bc3f5febbc224b12b3f37fde62d8a4835aac0edc7b887fd0ae8dab6e1",
+    "baseline_int8_reserialized_annotation_sha256": "bcec4c400a5c75ceb1146c41a2fd5b0f6fd7b22c90131189f89ec93f22c484ea",
+    "warning": "development-validation split used during baseline FP checkpoint selection; not independent test data"
+  },
+  "models": [
+    {
+      "name": "YOLOX-S PPE FP RKNN",
+      "bytes": 20710742,
+      "sha256": "64cc93f556816286f17c9e21f69cd2f818c3602ef13dbb2d13ed48616f74482b",
+      "role": "retained production baseline"
+    },
+    {
+      "name": "YOLOX-S PPE INT8 RKNN",
+      "bytes": 11566602,
+      "sha256": "88b10ac2711f4b00d2859dfa0e1089ccb34ebd78a73b7dc46bd51a56c92c502c",
+      "role": "retained existing selectable baseline"
+    },
+    {
+      "name": "Constructelligence construction-site-safety-hazards v0.3 ONNX",
+      "bytes": 44766819,
+      "sha256": "55f4dd2f53158eac4ff093d938b9fbda80c99454a03672145bbc36f539988249",
+      "hf_revision": "79673cff5a8bb249fc8ec9cca3daa19e2ef95191",
+      "license": "AGPL-3.0 weights; CC BY 4.0 training data"
+    },
+    {
+      "name": "Constructelligence v0.3 RKNN FP",
+      "bytes": 26915585,
+      "sha256": "70060dcd34d1a0c212639e786bc6bdb1e31c1c6dd885ff6d8c6a40f889f34645"
+    },
+    {
+      "name": "Constructelligence v0.3 RKNN INT8",
+      "bytes": 14724763,
+      "sha256": "d66b438547f71108897a9ec14dfa4f72248a17704c616cf6c1677d2c95b8dd76",
+      "result": "conversion succeeded; output class scores collapsed under output quantization"
+    },
+    {
+      "name": "Abdelrahman-cs19 PPE release v1.0.0 PyTorch",
+      "bytes": 22521315,
+      "sha256": "8f125b787557db8d9cb25d97305ebed2f30c9e63818131d0f8f947b9ed2ce9e8",
+      "release_commit": "c03642b",
+      "checkpoint_license": "not separately stated in release; no redistribution"
+    },
+    {
+      "name": "Abdelrahman-cs19 locally exported ONNX",
+      "bytes": 44725485,
+      "sha256": "abac0b618f38d3a887c1ab95c5756ab498575f6055cb4bd23bc9383cd8b1b1a7",
+      "exporter": "Ultralytics 8.4.171"
+    }
+  ],
+  "videos": [
+    {
+      "name": "Haringey construction-site clip",
+      "license": "CC BY-SA 4.0",
+      "sha256": "e1fe2432f23d816e58d9f8d54770fb5cd994efc013d278ef90cda9306fe71d2b",
+      "frames": 510,
+      "fps": 15,
+      "resolution": "1280x720",
+      "annotation_scope": "sparse qualitative review; PPE mostly unlabeled"
+    },
+    {
+      "name": "Men at work in building site derivative",
+      "author": "Akum20",
+      "license": "CC0-1.0",
+      "sha256": "8b10516bdc76a5bac2601a2e6afbf0286e0c050094cabeea99523d6abdd9d961",
+      "frames": 79,
+      "fps": 15,
+      "resolution": "640x1138",
+      "annotation_scope": "foreground worker visibly missing helmet and vest; other PPE states not exhaustively labeled"
+    }
+  ],
+  "production_decision": "retain YOLOX-S PPE; neither released candidate meets common-class quality gate"
+}

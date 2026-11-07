@@ -1,0 +1,60 @@
+{
+  "class_map_source_to_canonical": {
+    "0": 5,
+    "1": 0,
+    "11": 4,
+    "12": 7,
+    "13": 8,
+    "2": 6,
+    "3": 2,
+    "4": 11,
+    "6": 1,
+    "7": 3
+  },
+  "event_replay_input": "/mnt/d/RK-EdgeStation/.work/model-selection/results/dynamic-host/hf-moira.event-input.csv",
+  "event_replay_input_sha256": "61a9e51b78abcc0f7536c0431e3c9b95e95dc54eca5e7d3623d06833f4a67955",
+  "frames_per_second": 12.199431362717414,
+  "input": {
+    "color_order": "RGB",
+    "dtype": "tensor(float)",
+    "frames": 510,
+    "letterbox_color": 114,
+    "range": "float32 0..1",
+    "shape": [
+      1,
+      3,
+      640,
+      640
+    ],
+    "source_fps": 15.0,
+    "video": "/mnt/d/RK-EdgeStation/.work/model-selection/video/construction-clip.mp4",
+    "video_sha256": "e1fe2432f23d816e58d9f8d54770fb5cd994efc013d278ef90cda9306fe71d2b"
+  },
+  "max_detections": 300,
+  "model": "/mnt/d/RK-EdgeStation/.work/model-selection/constructelligence-v0.3/buildvision-hazards-v0.3.onnx",
+  "model_sha256": "55f4dd2f53158eac4ff093d938b9fbda80c99454a03672145bbc36f539988249",
+  "nms_iou": 0.45,
+  "outputs": [
+    {
+      "dtype": "tensor(float)",
+      "name": "output0",
+      "shape": [
+        1,
+        18,
+        8400
+      ]
+    }
+  ],
+  "predictions_sha256": "9e759196caaa32adf0f9338849d820e6484fc3b3da6053ec617860e317a22c59",
+  "score_floor": 0.25,
+  "wall_ms_per_frame": {
+    "inference_mean": 72.71206690392025,
+    "inference_p50": 72.1249485000044,
+    "inference_p95": 81.76656535003985,
+    "postprocess_mean": 2.3303743333331917,
+    "postprocess_p95": 2.532803800033889,
+    "preprocess_mean": 5.858654992155108,
+    "preprocess_p95": 8.232113750091228
+  },
+  "wall_seconds": 41.80522721400007
+}

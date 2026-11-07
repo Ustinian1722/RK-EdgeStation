@@ -1,0 +1,55 @@
+{
+  "class_map_source_to_canonical": {
+    "0": 5,
+    "1": 0,
+    "11": 4,
+    "12": 7,
+    "13": 8,
+    "2": 6,
+    "3": 2,
+    "4": 11,
+    "6": 1,
+    "7": 3
+  },
+  "image_count": 200,
+  "images_per_second": 9.326063671053847,
+  "input": {
+    "color_order": "RGB",
+    "dtype": "tensor(float)",
+    "letterbox_color": 114,
+    "range": "float32 0..1",
+    "shape": [
+      1,
+      3,
+      640,
+      640
+    ]
+  },
+  "max_detections": 300,
+  "model": "/mnt/d/RK-EdgeStation/.work/model-selection/constructelligence-v0.3/buildvision-hazards-v0.3.onnx",
+  "model_sha256": "55f4dd2f53158eac4ff093d938b9fbda80c99454a03672145bbc36f539988249",
+  "nms_iou": 0.45,
+  "outputs": [
+    {
+      "dtype": "tensor(float)",
+      "name": "output0",
+      "shape": [
+        1,
+        18,
+        8400
+      ]
+    }
+  ],
+  "predictions_sha256": "914d8a8e71283c02a334f49d120421824a9e3f56640b6a04c283bd4064072d42",
+  "score_floor": 0.001,
+  "wall_ms_per_image": {
+    "inference_mean": 72.40095172999645,
+    "inference_p50": 70.84243999997852,
+    "inference_p95": 88.0254088499555,
+    "postprocess_mean": 2.5544760150035017,
+    "postprocess_p95": 3.0385411998850027,
+    "preprocess_mean": 2.208510389991716,
+    "preprocess_p95": 3.3077588499850203
+  },
+  "wall_seconds": 21.445274990000144
+}
