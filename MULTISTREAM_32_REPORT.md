@@ -74,7 +74,7 @@ The source attribution and license notes remain in [the earlier dynamic evaluati
 - The 18 clean runs, aligned raw telemetry, compressed Worker records, model/config/Worker hashes, and per-camera counters are in [`evidence/multistream-32-20261109/`](evidence/multistream-32-20261109/). The clean test matrix contains 3 runs at each of 1, 2, 4, 8, 16, and 32 sources.
 - An earlier 18-run attempt is preserved in [`confounded-prior/`](evidence/multistream-32-20261109/confounded-prior/), but excluded: its API smoke was left alive by a harness that killed an intermediate shell instead of the Python server, so a second Worker ran concurrently. The issue was identified from board `/proc` state and SQLite timestamps; both residual processes were stopped, the empty-board idle probe was repeated, and all reported scale results above were then rerun. See the accompanying [exclusion note](evidence/multistream-32-20261109/confounded-prior/NOTE.md).
 
-Python service/storage tests passed 16/16 runnable tests (one POSIX-only `RLIMIT_FSIZE` test is skipped on Windows). On RK3576, the worker and C++ tests built in an isolated project staging directory and CTest passed 2/2. The live multistream matrix passed 18/18 Worker exits; the controlled dynamic API smoke exited cleanly with no leftover Worker and a valid SQLite database.
+Python service/storage tests ran 16 cases: 15 passed and one POSIX-only `RLIMIT_FSIZE` case was skipped on Windows. On RK3576, the worker and C++ tests built in an isolated project staging directory and CTest passed 2/2. The live multistream matrix passed 18/18 Worker exits; the controlled dynamic API smoke exited cleanly with no leftover Worker and a valid SQLite database.
 
 ## Assessment
 
