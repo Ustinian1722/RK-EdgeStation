@@ -13,6 +13,8 @@ class EventStoreTests(unittest.TestCase):
                 "event_id": "evt-test-1",
                 "timestamp_utc": "2026-11-05T00:00:00.000Z",
                 "event_type": "enter",
+                "camera_id": "line-a-cam-1",
+                "algorithm_id": "roi",
                 "frame_sequence": 4,
                 "track_id": 2,
                 "label": "person",
@@ -29,6 +31,8 @@ class EventStoreTests(unittest.TestCase):
 
             self.assertEqual(store.event_count(), 1)
             self.assertEqual(store.events(10), [event])
+            self.assertEqual(store.events(10, camera_id="line-a-cam-1", algorithm_id="roi"), [event])
+            self.assertEqual(store.events(10, camera_id="missing"), [])
             self.assertEqual(store.latest_metric()["processed_frames"], 4)
 
 

@@ -68,6 +68,7 @@ endif()
 
 add_executable(rk_edge_worker
     src/main.cpp
+    src/multistream.cpp
     src/tracker.cpp
     src/roi_events.cpp
     src/ppe_events.cpp
@@ -181,4 +182,9 @@ if(BUILD_TESTING)
     target_link_libraries(edge_media_tests PRIVATE ${OpenCV_LIBS})
     target_compile_options(edge_media_tests PRIVATE -Wall -Wextra -Wpedantic)
     add_test(NAME edge_media_tests COMMAND edge_media_tests)
+
+    add_executable(multistream_tests tests/multistream_tests.cpp src/multistream.cpp)
+    target_include_directories(multistream_tests PRIVATE src)
+    target_compile_options(multistream_tests PRIVATE -Wall -Wextra -Wpedantic)
+    add_test(NAME multistream_tests COMMAND multistream_tests)
 endif()

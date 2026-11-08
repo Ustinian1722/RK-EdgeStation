@@ -1,0 +1,345 @@
+{
+  "run": "dynamic PPE integration smoke, not accuracy evaluation",
+  "started_utc": null,
+  "duration_s": 20,
+  "worker_exit_code": 0,
+  "leftover_workers": [],
+  "video_sources": [
+    "construction-clip.mp4",
+    "men-at-work-ppe-640x1138-15fps.mp4"
+  ],
+  "api_health": {
+    "status": "running",
+    "worker_pid": 72335,
+    "worker_exit_code": null,
+    "model": "constructelligence-v0.3-fp-rk3576.rknn",
+    "source": "configured cameras",
+    "uptime_seconds": 20.167,
+    "event_count": 35,
+    "storage_status": "available",
+    "storage_last_error": null,
+    "storage_failures": 0,
+    "event_write_failures": 0,
+    "metric_write_failures": 0,
+    "metrics": {
+      "camera_count": 2,
+      "throughput_fps": 4.031,
+      "processed_frames": 60,
+      "decoded_frames": 446,
+      "dropped_frames": 384,
+      "p95_end_to_end_ms": 343.991
+    },
+    "camera_config": "/home/kickpi/projects/RK-EdgeStation/.work/multistream-32-20261109/dynamic-api-clean-20261109/cameras.json",
+    "cameras": [
+      {
+        "camera_id": "ppe-1",
+        "source": "construction-clip.mp4",
+        "enabled": true,
+        "tasks": [
+          "ppe",
+          "roi"
+        ],
+        "weight": 1,
+        "max_fps": 0,
+        "type": "camera_metric",
+        "source_status": "connected",
+        "reconnect_attempts": 0,
+        "stream_epoch": 0,
+        "status": "running",
+        "processed_frames": 30,
+        "inference_calls": 30,
+        "decoded_frames": 225,
+        "nominal_input_fps": 15.0,
+        "input_fps": 15.013,
+        "throughput_fps": 2.002,
+        "detections": 140,
+        "dropped_frames": 194,
+        "drop_rate_percent": 86.222,
+        "pending_frames": 1,
+        "queue_dropped_frames": 194,
+        "sampled_dropped_frames": 0,
+        "backend_dropped_frames": 0,
+        "queue_depth": 1,
+        "queue_capacity": 1,
+        "queue_policy": "latest",
+        "source_copy_bytes_total": 311040000,
+        "last_source_copy_bytes": 1382400,
+        "model_input_bytes": 1228800,
+        "last_decode_ms": 1.673,
+        "last_preprocess_ms": 3.5,
+        "last_rknn_input_set_ms": 48.491,
+        "last_rknn_input_sync_ms": 0.0,
+        "last_rknn_run_ms": 147.749,
+        "last_rknn_output_fetch_ms": 0.838,
+        "last_postprocess_ms": 1.569,
+        "rknn_run_p50_ms": 185.633,
+        "rknn_run_p95_ms": 211.784,
+        "queue_wait_p95_ms": 61.26,
+        "end_to_end_p50_ms": 263.836,
+        "end_to_end_p95_ms": 319.055,
+        "process_rss_kb": 144440,
+        "process_cpu_core_percent": 62.391,
+        "process_cpu_system_percent": 7.799,
+        "npu_utilization": "unavailable",
+        "model": "constructelligence-v0.3-fp-rk3576.rknn"
+      },
+      {
+        "camera_id": "ppe-2",
+        "source": "men-at-work-ppe-640x1138-15fps.mp4",
+        "enabled": true,
+        "tasks": [
+          "ppe",
+          "roi"
+        ],
+        "weight": 1,
+        "max_fps": 0,
+        "type": "camera_metric",
+        "source_status": "connected",
+        "reconnect_attempts": 0,
+        "stream_epoch": 2,
+        "status": "running",
+        "processed_frames": 30,
+        "inference_calls": 30,
+        "decoded_frames": 221,
+        "nominal_input_fps": 15.0,
+        "input_fps": 14.948,
+        "throughput_fps": 2.029,
+        "detections": 133,
+        "dropped_frames": 190,
+        "drop_rate_percent": 85.973,
+        "pending_frames": 1,
+        "queue_dropped_frames": 190,
+        "sampled_dropped_frames": 0,
+        "backend_dropped_frames": 0,
+        "queue_depth": 1,
+        "queue_capacity": 1,
+        "queue_policy": "latest",
+        "source_copy_bytes_total": 241438080,
+        "last_source_copy_bytes": 1092480,
+        "model_input_bytes": 1228800,
+        "last_decode_ms": 3.114,
+        "last_preprocess_ms": 3.511,
+        "last_rknn_input_set_ms": 50.22,
+        "last_rknn_input_sync_ms": 0.0,
+        "last_rknn_run_ms": 148.953,
+        "last_rknn_output_fetch_ms": 0.906,
+        "last_postprocess_ms": 1.538,
+        "rknn_run_p50_ms": 174.123,
+        "rknn_run_p95_ms": 204.725,
+        "queue_wait_p95_ms": 63.703,
+        "end_to_end_p50_ms": 295.623,
+        "end_to_end_p95_ms": 343.991,
+        "process_rss_kb": 144440,
+        "process_cpu_core_percent": 62.574,
+        "process_cpu_system_percent": 7.822,
+        "npu_utilization": "unavailable",
+        "model": "constructelligence-v0.3-fp-rk3576.rknn"
+      }
+    ]
+  },
+  "api_cameras": {
+    "cameras": [
+      {
+        "camera_id": "ppe-1",
+        "source": "construction-clip.mp4",
+        "enabled": true,
+        "tasks": [
+          "ppe",
+          "roi"
+        ],
+        "weight": 1,
+        "max_fps": 0,
+        "type": "camera_metric",
+        "source_status": "connected",
+        "reconnect_attempts": 0,
+        "stream_epoch": 0,
+        "status": "running",
+        "processed_frames": 30,
+        "inference_calls": 30,
+        "decoded_frames": 225,
+        "nominal_input_fps": 15.0,
+        "input_fps": 15.013,
+        "throughput_fps": 2.002,
+        "detections": 140,
+        "dropped_frames": 194,
+        "drop_rate_percent": 86.222,
+        "pending_frames": 1,
+        "queue_dropped_frames": 194,
+        "sampled_dropped_frames": 0,
+        "backend_dropped_frames": 0,
+        "queue_depth": 1,
+        "queue_capacity": 1,
+        "queue_policy": "latest",
+        "source_copy_bytes_total": 311040000,
+        "last_source_copy_bytes": 1382400,
+        "model_input_bytes": 1228800,
+        "last_decode_ms": 1.673,
+        "last_preprocess_ms": 3.5,
+        "last_rknn_input_set_ms": 48.491,
+        "last_rknn_input_sync_ms": 0.0,
+        "last_rknn_run_ms": 147.749,
+        "last_rknn_output_fetch_ms": 0.838,
+        "last_postprocess_ms": 1.569,
+        "rknn_run_p50_ms": 185.633,
+        "rknn_run_p95_ms": 211.784,
+        "queue_wait_p95_ms": 61.26,
+        "end_to_end_p50_ms": 263.836,
+        "end_to_end_p95_ms": 319.055,
+        "process_rss_kb": 144440,
+        "process_cpu_core_percent": 62.391,
+        "process_cpu_system_percent": 7.799,
+        "npu_utilization": "unavailable",
+        "model": "constructelligence-v0.3-fp-rk3576.rknn"
+      },
+      {
+        "camera_id": "ppe-2",
+        "source": "men-at-work-ppe-640x1138-15fps.mp4",
+        "enabled": true,
+        "tasks": [
+          "ppe",
+          "roi"
+        ],
+        "weight": 1,
+        "max_fps": 0,
+        "type": "camera_metric",
+        "source_status": "connected",
+        "reconnect_attempts": 0,
+        "stream_epoch": 2,
+        "status": "running",
+        "processed_frames": 30,
+        "inference_calls": 30,
+        "decoded_frames": 221,
+        "nominal_input_fps": 15.0,
+        "input_fps": 14.948,
+        "throughput_fps": 2.029,
+        "detections": 133,
+        "dropped_frames": 190,
+        "drop_rate_percent": 85.973,
+        "pending_frames": 1,
+        "queue_dropped_frames": 190,
+        "sampled_dropped_frames": 0,
+        "backend_dropped_frames": 0,
+        "queue_depth": 1,
+        "queue_capacity": 1,
+        "queue_policy": "latest",
+        "source_copy_bytes_total": 241438080,
+        "last_source_copy_bytes": 1092480,
+        "model_input_bytes": 1228800,
+        "last_decode_ms": 3.114,
+        "last_preprocess_ms": 3.511,
+        "last_rknn_input_set_ms": 50.22,
+        "last_rknn_input_sync_ms": 0.0,
+        "last_rknn_run_ms": 148.953,
+        "last_rknn_output_fetch_ms": 0.906,
+        "last_postprocess_ms": 1.538,
+        "rknn_run_p50_ms": 174.123,
+        "rknn_run_p95_ms": 204.725,
+        "queue_wait_p95_ms": 63.703,
+        "end_to_end_p50_ms": 295.623,
+        "end_to_end_p95_ms": 343.991,
+        "process_rss_kb": 144440,
+        "process_cpu_core_percent": 62.574,
+        "process_cpu_system_percent": 7.822,
+        "npu_utilization": "unavailable",
+        "model": "constructelligence-v0.3-fp-rk3576.rknn"
+      }
+    ]
+  },
+  "algorithms": {
+    "algorithms": [
+      {
+        "algorithm_id": "roi",
+        "status": "ready",
+        "model_required": false
+      },
+      {
+        "algorithm_id": "ppe",
+        "status": "ready",
+        "model_required": true
+      },
+      {
+        "algorithm_id": "fire_smoke",
+        "status": "not_ready",
+        "reason": "no license- and accuracy-validated RKNN model is integrated"
+      }
+    ]
+  },
+  "api_event_sample_count": 35,
+  "db_integrity": "ok",
+  "db_event_count": 35,
+  "db_event_counts": [
+    [
+      "dwell",
+      "roi",
+      "ppe-1",
+      2
+    ],
+    [
+      "enter",
+      "roi",
+      "ppe-1",
+      4
+    ],
+    [
+      "enter",
+      "roi",
+      "ppe-2",
+      18
+    ],
+    [
+      "ppe_violation",
+      "ppe",
+      "ppe-2",
+      11
+    ]
+  ],
+  "db_label_counts": [
+    [
+      "dwell",
+      "Person",
+      2,
+      2
+    ],
+    [
+      "enter",
+      "Person",
+      22,
+      20
+    ],
+    [
+      "ppe_violation",
+      "no_helmet",
+      4,
+      4
+    ],
+    [
+      "ppe_violation",
+      "no_vest",
+      7,
+      7
+    ]
+  ],
+  "evidence_groups": [
+    [
+      "enter",
+      "ppe-2",
+      "evidence/ppe-2-frame-1794162251460-9.jpg"
+    ],
+    [
+      "enter",
+      "ppe-1",
+      "evidence/ppe-1-frame-1794162251460-14.jpg"
+    ],
+    [
+      "ppe_violation",
+      "ppe-2",
+      "evidence/ppe-2-frame-1794162251460-17.jpg"
+    ],
+    [
+      "dwell",
+      "ppe-1",
+      "evidence/ppe-1-frame-1794162251460-96.jpg"
+    ]
+  ],
+  "model_path": "/home/kickpi/projects/RK-EdgeStation/.work/model-selection-20261107/constructelligence-v0.3-fp-rk3576.rknn"
+}

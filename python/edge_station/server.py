@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
+import os
+import re
 import signal
 import sqlite3
 import subprocess
@@ -31,6 +34,7 @@ class AppState:
         evidence_dir: Path,
         store_path: Path | None = None,
         storage_error: str | None = None,
+        camera_config_path: Path | None = None,
     ):
         self.store = store
         self.store_path = Path(store_path) if store_path is not None else None
@@ -38,6 +42,8 @@ class AppState:
         self.started_at = time.monotonic()
         self.lock = threading.Lock()
         self.storage_init_lock = threading.Lock()
+        self.camera_config_path = Path(camera_config_path).resolve() if camera_config_path else None
+        self.camera_config_lock = threading.RLock()
         self.storage_status = "available" if store is not None else "unavailable"
         self.storage_error = storage_error
         self.storage_failures = 1 if storage_error else 0
@@ -50,6 +56,8 @@ class AppState:
         self.worker_exit_code: int | None = None
         self.worker_failure = threading.Event()
         self.metrics: dict[str, Any] = {}
+        self.camera_metrics: dict[str, dict[str, Any]] = {}
+        self.camera_statuses: dict[str, dict[str, Any]] = {}
         self.model_name = ""
         self.video_name = ""
         self.process: subprocess.Popen[str] | None = None
@@ -90,9 +98,11 @@ class AppState:
             self._mark_storage_available()
             return self.store
 
-    def read_events(self, limit: int) -> list[dict[str, Any]]:
+    def read_events(
+        self, limit: int, camera_id: str | None = None, algorithm_id: str | None = None
+    ) -> list[dict[str, Any]]:
         try:
-            events = self._get_store().events(limit)
+            events = self._get_store().events(limit, camera_id=camera_id, algorithm_id=algorithm_id)
         except StorageUnavailable:
             raise
         except (OSError, sqlite3.Error, ValueError, TypeError) as error:
@@ -112,9 +122,9 @@ class AppState:
         self._mark_storage_available()
         return found
 
-    def start_worker(self, command: list[str], model: Path, video: Path | str) -> None:
+    def start_worker(self, command: list[str], model: Path, video: Path | str | None) -> None:
         self.model_name = model.name
-        self.video_name = display_source(str(video))
+        self.video_name = display_source(str(video)) if video is not None else "configured cameras"
         self.worker_status = "starting"
         self.process = subprocess.Popen(
             command,
@@ -151,6 +161,49 @@ class AppState:
                     # Keep reconnect state visible between frames without storing every retry.
                     with self.lock:
                         self.metrics.update(message)
+                elif message.get("type") == "camera_status":
+                    camera_id = str(message.get("camera_id", ""))
+                    if camera_id:
+                        if isinstance(message.get("source"), str):
+                            message["source"] = display_source(message["source"])
+                        with self.lock:
+                            self.camera_statuses[camera_id] = dict(message)
+                elif message.get("type") == "camera_metric":
+                    camera_id = str(message.get("camera_id", ""))
+                    if camera_id:
+                        if isinstance(message.get("source"), str):
+                            message["source"] = display_source(message["source"])
+                        with self.lock:
+                            self.camera_metrics[camera_id] = dict(message)
+                            self.metrics["camera_count"] = len(self.camera_metrics)
+                            self.metrics["throughput_fps"] = sum(
+                                float(item.get("throughput_fps", 0.0))
+                                for item in self.camera_metrics.values()
+                            )
+                            self.metrics["processed_frames"] = sum(
+                                int(item.get("processed_frames", 0))
+                                for item in self.camera_metrics.values()
+                            )
+                            self.metrics["decoded_frames"] = sum(
+                                int(item.get("decoded_frames", 0))
+                                for item in self.camera_metrics.values()
+                            )
+                            self.metrics["dropped_frames"] = sum(
+                                int(item.get("dropped_frames", 0))
+                                for item in self.camera_metrics.values()
+                            )
+                            self.metrics["p95_end_to_end_ms"] = max(
+                                (float(item.get("end_to_end_p95_ms", 0.0))
+                                 for item in self.camera_metrics.values()), default=0.0
+                            )
+                        try:
+                            self._get_store().add_metric(message)
+                        except StorageUnavailable as error:
+                            self._mark_storage_failure("write camera metric", error)
+                        except (OSError, sqlite3.Error, TypeError, ValueError) as error:
+                            self._mark_storage_failure("write camera metric", error)
+                        else:
+                            self._mark_storage_available()
                 elif message.get("type") == "metric":
                     with self.lock:
                         self.metrics = message
@@ -181,6 +234,24 @@ class AppState:
             self._mark_storage_available()
         with self.lock:
             metrics = dict(self.metrics)
+            camera_ids = set(self.camera_statuses) | set(self.camera_metrics)
+            cameras = {}
+            for camera_id in camera_ids:
+                camera = dict(self.camera_statuses.get(camera_id, {}))
+                camera.update(self.camera_metrics.get(camera_id, {}))
+                cameras[camera_id] = camera
+            camera_metrics = list(self.camera_metrics.values())
+            if camera_metrics:
+                metrics["camera_count"] = len(camera_metrics)
+                for field in ("processed_frames", "decoded_frames", "dropped_frames"):
+                    metrics[field] = sum(int(item.get(field, 0)) for item in camera_metrics)
+                metrics["throughput_fps"] = sum(
+                    float(item.get("throughput_fps", 0.0)) for item in camera_metrics
+                )
+                metrics["p95_end_to_end_ms"] = max(
+                    (float(item.get("end_to_end_p95_ms", 0.0)) for item in camera_metrics),
+                    default=0.0,
+                )
             status = self.worker_status
             pid = self.worker_pid
             exit_code = self.worker_exit_code
@@ -189,6 +260,28 @@ class AppState:
             storage_failures = self.storage_failures
             event_write_failures = self.event_write_failures
             metric_write_failures = self.metric_write_failures
+        if self.camera_config_path is not None:
+            try:
+                config = json.loads(self.camera_config_path.read_text(encoding="utf-8"))
+                entries = config.get("cameras", []) if isinstance(config, dict) else []
+                for entry in entries:
+                    if not isinstance(entry, dict) or not isinstance(entry.get("id"), str):
+                        continue
+                    camera_id = entry["id"]
+                    configured = {
+                        "camera_id": camera_id,
+                        "source": display_source(str(entry.get("source", ""))),
+                        "enabled": bool(entry.get("enabled", True)),
+                        "tasks": entry.get("tasks", ["ppe", "roi"]),
+                        "weight": entry.get("weight", 1),
+                        "max_fps": entry.get("max_fps", 0),
+                    }
+                    configured.update(cameras.get(camera_id, {}))
+                    if not configured.get("source_status"):
+                        configured["source_status"] = "connecting" if configured["enabled"] else "disabled"
+                    cameras[camera_id] = configured
+            except (OSError, json.JSONDecodeError, TypeError):
+                pass
         return {
             "status": status,
             "worker_pid": pid,
@@ -203,7 +296,99 @@ class AppState:
             "event_write_failures": event_write_failures,
             "metric_write_failures": metric_write_failures,
             "metrics": metrics,
+            "camera_config": str(self.camera_config_path) if self.camera_config_path else None,
+            "cameras": [cameras[key] for key in sorted(cameras)],
         }
+
+    def update_camera_config(self, config: dict[str, Any]) -> int:
+        path = self.camera_config_path
+        if path is None:
+            raise RuntimeError("camera configuration is not enabled for this service")
+        cameras = config.get("cameras") if isinstance(config, dict) else None
+        if not isinstance(cameras, list) or not (1 <= len(cameras) <= 32):
+            raise ValueError("camera config must contain 1..32 camera entries")
+        identifiers: set[str] = set()
+        enabled_count = 0
+        for camera in cameras:
+            if not isinstance(camera, dict):
+                raise ValueError("each camera must be a JSON object")
+            camera_id = camera.get("id")
+            source = camera.get("source")
+            if (not isinstance(camera_id, str) or not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", camera_id)
+                    or camera_id in (".", "..")):
+                raise ValueError("camera id must contain 1..64 safe ASCII characters")
+            if camera_id in identifiers:
+                raise ValueError("camera ids must be unique")
+            identifiers.add(camera_id)
+            if not isinstance(source, str) or not source or len(source) > 2048:
+                raise ValueError("camera source must contain 1..2048 characters")
+            enabled = camera.get("enabled", True)
+            if not isinstance(enabled, bool):
+                raise ValueError("camera enabled must be a boolean")
+            enabled_count += int(enabled)
+            tasks = camera.get("tasks", ["ppe", "roi"])
+            if (not isinstance(tasks, list) or not tasks or
+                    any(task not in ("ppe", "roi") for task in tasks) or
+                    len(set(tasks)) != len(tasks)):
+                raise ValueError("camera tasks must contain ppe and/or roi")
+            max_fps = camera.get("max_fps", 0)
+            if isinstance(max_fps, bool) or not isinstance(max_fps, (int, float)) or not math.isfinite(max_fps) or not 0 <= max_fps <= 120:
+                raise ValueError("max_fps must be between 0 and 120")
+            weight = camera.get("weight", 1)
+            if isinstance(weight, bool) or not isinstance(weight, int) or not 1 <= weight <= 64:
+                raise ValueError("weight must be an integer between 1 and 64")
+            capacity = camera.get("queue_capacity", 1)
+            if isinstance(capacity, bool) or not isinstance(capacity, int) or not 1 <= capacity <= 8:
+                raise ValueError("queue_capacity must be an integer between 1 and 8")
+            roi = camera.get("roi")
+            if roi is not None:
+                if (not isinstance(roi, list) or len(roi) != 4 or
+                        any(isinstance(value, bool) or not isinstance(value, (int, float)) or
+                            not math.isfinite(value) for value in roi)):
+                    raise ValueError("roi must contain four finite numbers")
+                x, y, width, height = roi
+                if x < 0 or y < 0 or width <= 0 or height <= 0 or x + width > 1 or y + height > 1:
+                    raise ValueError("roi must be a normalized rectangle inside the frame")
+        if enabled_count == 0:
+            raise ValueError("at least one camera must be enabled")
+        payload = json.dumps(config, ensure_ascii=False, separators=(",", ":")) + "\n"
+        with self.camera_config_lock:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            temporary = path.with_name(path.name + f".{os.getpid()}.tmp")
+            try:
+                temporary.write_text(payload, encoding="utf-8")
+                os.chmod(temporary, 0o600)
+                os.replace(temporary, path)
+            finally:
+                try:
+                    temporary.unlink(missing_ok=True)
+                except OSError:
+                    pass
+            process = self.process
+            if process is not None and process.poll() is None:
+                reload_signal = getattr(signal, "SIGUSR1", None)
+                if reload_signal is None:
+                    raise RuntimeError("this platform cannot signal the worker to reload configuration")
+                process.send_signal(reload_signal)
+        return len(cameras)
+
+    def set_camera_enabled(self, camera_id: str, enabled: bool) -> int:
+        path = self.camera_config_path
+        if path is None:
+            raise RuntimeError("camera configuration is not enabled for this service")
+        with self.camera_config_lock:
+            try:
+                config = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as error:
+                raise RuntimeError("camera configuration could not be read") from error
+            cameras = config.get("cameras") if isinstance(config, dict) else None
+            if not isinstance(cameras, list):
+                raise RuntimeError("camera configuration is invalid")
+            for camera in cameras:
+                if isinstance(camera, dict) and camera.get("id") == camera_id:
+                    camera["enabled"] = enabled
+                    return self.update_camera_config(config)
+            raise KeyError(camera_id)
 
     def stop(self) -> None:
         process = self.process
@@ -246,10 +431,30 @@ def make_handler(state: AppState):
             if parsed.path == "/api/metrics":
                 self._json(200, state.snapshot().get("metrics", {}))
                 return
+            if parsed.path == "/api/cameras":
+                self._json(200, {"cameras": state.snapshot().get("cameras", [])})
+                return
+            if parsed.path == "/api/algorithms":
+                self._json(200, {"algorithms": [
+                    {"algorithm_id": "roi", "status": "ready", "model_required": False},
+                    {"algorithm_id": "ppe", "status": "ready", "model_required": True},
+                    {"algorithm_id": "fire_smoke", "status": "not_ready",
+                     "reason": "no license- and accuracy-validated RKNN model is integrated"},
+                ]})
+                return
             if parsed.path == "/api/events":
-                limit = parse_qs(parsed.query).get("limit", ["100"])[0]
+                query = parse_qs(parsed.query)
+                limit = query.get("limit", ["100"])[0]
+                camera_id = query.get("camera_id", [None])[0]
+                algorithm_id = query.get("algorithm_id", [None])[0]
+                if camera_id is not None and (not camera_id or len(camera_id) > 64):
+                    self._json(400, {"error": "camera_id must contain 1..64 characters"})
+                    return
+                if algorithm_id is not None and (not algorithm_id or len(algorithm_id) > 64):
+                    self._json(400, {"error": "algorithm_id must contain 1..64 characters"})
+                    return
                 try:
-                    events = state.read_events(int(limit))
+                    events = state.read_events(int(limit), camera_id, algorithm_id)
                 except ValueError:
                     self._json(400, {"error": "limit must be an integer"})
                     return
@@ -273,6 +478,33 @@ def make_handler(state: AppState):
 
         def do_POST(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
             parsed = urlparse(self.path)
+            camera_prefix = "/api/cameras/"
+            camera_suffix = "/enabled"
+            if parsed.path.startswith(camera_prefix) and parsed.path.endswith(camera_suffix):
+                camera_id = unquote(parsed.path[len(camera_prefix):-len(camera_suffix)])
+                if not camera_id or "/" in camera_id:
+                    self._json(400, {"error": "invalid camera id"})
+                    return
+                try:
+                    body_size = int(self.headers.get("Content-Length", "0"))
+                    if body_size < 0 or body_size > 8192:
+                        raise ValueError("request body must be at most 8192 bytes")
+                    payload = json.loads(self.rfile.read(body_size) or b"{}")
+                    if not isinstance(payload, dict) or not isinstance(payload.get("enabled"), bool):
+                        raise ValueError("enabled must be a boolean")
+                    count = state.set_camera_enabled(camera_id, payload["enabled"])
+                except KeyError:
+                    self._json(404, {"error": "camera not found"})
+                    return
+                except (ValueError, json.JSONDecodeError) as error:
+                    self._json(400, {"error": str(error)})
+                    return
+                except RuntimeError as error:
+                    self._json(409, {"error": str(error)})
+                    return
+                self._json(200, {"camera_id": camera_id, "enabled": payload["enabled"],
+                                 "configured_camera_count": count, "reload_requested": True})
+                return
             prefix = "/api/events/"
             suffix = "/ack"
             if not parsed.path.startswith(prefix) or not parsed.path.endswith(suffix):
@@ -304,6 +536,27 @@ def make_handler(state: AppState):
                 return
             self._json(200, {"event_id": event_id, "acknowledged": True})
 
+        def do_PUT(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
+            parsed = urlparse(self.path)
+            if parsed.path != "/api/cameras/config":
+                self._json(404, {"error": "not found"})
+                return
+            try:
+                body_size = int(self.headers.get("Content-Length", "0"))
+                if body_size < 0 or body_size > 65536:
+                    raise ValueError("request body must be at most 65536 bytes")
+                payload = json.loads(self.rfile.read(body_size) or b"{}")
+                if not isinstance(payload, dict):
+                    raise ValueError("camera config must be a JSON object")
+                count = state.update_camera_config(payload)
+            except (ValueError, json.JSONDecodeError) as error:
+                self._json(400, {"error": str(error)})
+                return
+            except RuntimeError as error:
+                self._json(409, {"error": str(error)})
+                return
+            self._json(200, {"configured_camera_count": count, "reload_requested": True})
+
         def log_message(self, fmt: str, *args: Any) -> None:
             print(f"http {self.address_string()} {fmt % args}", file=sys.stderr)
 
@@ -313,8 +566,10 @@ def make_handler(state: AppState):
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="RK-EdgeStation local dashboard")
     parser.add_argument("--model", type=Path)
-    parser.add_argument("--model-family", choices=("yolov8-coco", "yolox-ppe"), default="yolov8-coco")
+    parser.add_argument("--model-family", choices=("yolov8-coco", "yolox-ppe", "constructelligence-ppe"), default="yolov8-coco")
     parser.add_argument("--video")
+    parser.add_argument("--camera-config", type=Path,
+                        help="local JSON camera list for the single-process shared inference worker")
     parser.add_argument("--video-backend", choices=("opencv", "gstreamer-mpp"), default="opencv")
     parser.add_argument("--preprocess-backend", choices=("cpu", "rga"), default="cpu")
     parser.add_argument("--input-pacing", choices=("media", "none"), default="media")
@@ -337,9 +592,9 @@ def parse_args() -> argparse.Namespace:
 
 
 def build_worker_command(args: argparse.Namespace, worker: Path, model: Path,
-                         video: Path | str, state_dir: Path) -> list[str]:
+                         video: Path | str | None, state_dir: Path) -> list[str]:
     command = [
-        str(worker), "--model", str(model), "--video", str(video),
+        str(worker), "--model", str(model),
         "--model-family", args.model_family,
         "--video-backend", args.video_backend,
         "--preprocess-backend", args.preprocess_backend,
@@ -352,6 +607,12 @@ def build_worker_command(args: argparse.Namespace, worker: Path, model: Path,
         "--ppe-cooldown-ms", str(args.ppe_cooldown_ms),
         "--conflict-dwell-ms", str(args.conflict_dwell_ms),
     ]
+    if args.camera_config is not None:
+        command.extend(("--camera-config", str(args.camera_config)))
+    elif video is not None:
+        command.extend(("--video", str(video)))
+    else:
+        raise ValueError("either a video source or camera config is required")
     if args.danger_zone:
         command.extend(("--danger-zone", args.danger_zone))
     if args.conflict_zone:
@@ -363,8 +624,10 @@ def build_worker_command(args: argparse.Namespace, worker: Path, model: Path,
 
 def main() -> int:
     args = parse_args()
-    if (args.model is None) != (args.video is None):
-        print("--model and --video must be supplied together", file=sys.stderr)
+    single_source = args.video is not None
+    multi_source = args.camera_config is not None
+    if (args.model is None and (single_source or multi_source)) or (args.model is not None and single_source == multi_source):
+        print("--model must be supplied with exactly one of --video or --camera-config", file=sys.stderr)
         return 2
     if not (1 <= args.port <= 65535):
         print("port must be between 1 and 65535", file=sys.stderr)
@@ -401,18 +664,22 @@ def main() -> int:
     except (OSError, sqlite3.Error) as error:
         store = None
         storage_error = f"{type(error).__name__}: {error}"
-    state = AppState(store, evidence_dir, database, storage_error)
+    camera_config = args.camera_config.resolve() if args.camera_config is not None else None
+    if camera_config is not None and not camera_config.is_file():
+        print("camera config file must exist", file=sys.stderr)
+        return 2
+    state = AppState(store, evidence_dir, database, storage_error, camera_config)
 
     server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(state))
     server.daemon_threads = True
     server.timeout = 0.5
-    if args.model is not None and args.video is not None:
+    if args.model is not None:
         model = args.model.resolve()
-        video = resolve_worker_source(args.video)
+        video = resolve_worker_source(args.video) if single_source else None
         worker = args.worker.resolve()
         if (not model.is_file() or not worker.is_file() or
-                (not is_rtsp_source(video) and not Path(video).is_file())):
-            print("model, video, and worker must all exist", file=sys.stderr)
+                (single_source and not is_rtsp_source(str(video)) and not Path(str(video)).is_file())):
+            print("model, selected video source, and worker must all exist", file=sys.stderr)
             return 2
         command = build_worker_command(args, worker, model, video, state_dir)
         state.start_worker(command, model, video)

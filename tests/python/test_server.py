@@ -41,8 +41,17 @@ class LocalApiTests(unittest.TestCase):
                     "evidence": "evidence/frame-1.jpg",
                 }
             )
+            app_state = AppState(store, state_dir / "evidence")
+            app_state.camera_statuses["cam-a"] = {
+                "camera_id": "cam-a", "source_status": "connected",
+                "source": "rtsp://camera-a:554",
+            }
+            app_state.camera_metrics["cam-a"] = {
+                "camera_id": "cam-a", "status": "running", "throughput_fps": 2.5,
+                "end_to_end_p95_ms": 400.0,
+            }
             server = ThreadingHTTPServer(
-                ("127.0.0.1", 0), make_handler(AppState(store, state_dir / "evidence"))
+                ("127.0.0.1", 0), make_handler(app_state)
             )
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()
@@ -52,6 +61,16 @@ class LocalApiTests(unittest.TestCase):
                     health = json.load(response)
                 self.assertEqual(health["status"], "idle")
                 self.assertEqual(health["event_count"], 1)
+                self.assertEqual(health["cameras"][0]["camera_id"], "cam-a")
+                self.assertEqual(health["metrics"]["throughput_fps"], 2.5)
+
+                with urlopen(base + "/api/cameras", timeout=3) as response:
+                    cameras = json.load(response)["cameras"]
+                self.assertEqual(cameras[0]["source_status"], "connected")
+                with urlopen(base + "/api/algorithms", timeout=3) as response:
+                    algorithms = json.load(response)["algorithms"]
+                self.assertEqual(next(a for a in algorithms if a["algorithm_id"] == "fire_smoke")["status"],
+                                 "not_ready")
 
                 with urlopen(base + "/api/events?limit=5", timeout=3) as response:
                     events = json.load(response)["events"]
@@ -88,6 +107,44 @@ class LocalApiTests(unittest.TestCase):
                 thread.join(timeout=3)
 
 
+class CameraConfigApiTests(unittest.TestCase):
+    def test_camera_toggle_is_persisted_and_source_credentials_are_redacted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config_path = root / "cameras.json"
+            config_path.write_text(json.dumps({"version": 1, "cameras": [
+                {"id": "cam-a", "source": "rtsp://user:secret@camera-a:554/live", "enabled": True,
+                 "tasks": ["ppe", "roi"]},
+                {"id": "cam-b", "source": "rtsp://camera-b:554/live", "enabled": True,
+                 "tasks": ["ppe"]},
+            ]}), encoding="utf-8")
+            state = AppState(EventStore(root / "events.sqlite3"), root / "evidence",
+                             camera_config_path=config_path)
+            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(state))
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            base = f"http://127.0.0.1:{server.server_port}"
+            try:
+                request = Request(base + "/api/cameras/cam-a/enabled",
+                                  data=json.dumps({"enabled": False}).encode("utf-8"),
+                                  headers={"Content-Type": "application/json"}, method="POST")
+                with urlopen(request, timeout=3) as response:
+                    self.assertFalse(json.load(response)["enabled"])
+                stored = json.loads(config_path.read_text(encoding="utf-8"))
+                self.assertFalse(stored["cameras"][0]["enabled"])
+
+                with urlopen(base + "/api/cameras", timeout=3) as response:
+                    cameras = json.load(response)["cameras"]
+                cam_a = next(camera for camera in cameras if camera["camera_id"] == "cam-a")
+                self.assertEqual(cam_a["source"], "rtsp://camera-a")
+                self.assertEqual(cam_a["source_status"], "disabled")
+                self.assertNotIn("secret", json.dumps(cameras))
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=3)
+
+
 class ServerQueuePolicyTests(unittest.TestCase):
     def test_default_and_fifo_policy_reach_worker_command(self):
         with patch("sys.argv", ["edge_station.server"]):
@@ -97,6 +154,7 @@ class ServerQueuePolicyTests(unittest.TestCase):
         self.assertEqual(default_args.preprocess_backend, "cpu")
         self.assertEqual(default_args.input_pacing, "media")
         self.assertFalse(default_args.loop_video)
+        self.assertIsNone(default_args.camera_config)
 
         with patch("sys.argv", ["edge_station.server", "--queue-policy", "fifo"]):
             fifo_args = parse_args()
@@ -146,6 +204,15 @@ class ServerQueuePolicyTests(unittest.TestCase):
             Path("state"),
         )
         self.assertEqual(command[command.index("--video") + 1], source)
+
+    def test_camera_config_reaches_single_process_worker_command(self):
+        with patch("sys.argv", ["edge_station.server", "--camera-config", "deploy/cameras.json",
+                                "--model-family", "constructelligence-ppe"]):
+            args = parse_args()
+        command = build_worker_command(
+            args, Path("worker"), Path("model.rknn"), None, Path("state"))
+        self.assertEqual(command[command.index("--camera-config") + 1], str(Path("deploy/cameras.json")))
+        self.assertNotIn("--video", command)
 
     def test_invalid_rtsp_uri_requires_host(self):
         with self.assertRaises(ValueError):
