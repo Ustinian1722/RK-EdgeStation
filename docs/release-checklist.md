@@ -16,7 +16,7 @@ The first public version is a source release with historical board evidence. A n
 
 ## Before changing visibility
 
-- [ ] Review automated history audit results, including historical refs and any findings; review anything the scanner cannot inspect. This is a best-effort screening, not proof of absence of secrets.
+- [x] Automated history audit passed on d085e98 (run 43707994903): 1,058 text/gzip blobs screened; no credential-pattern findings, flagged asset paths or oversized/invalid blobs. The one earlier RTSP finding was a synthetic unit-test fixture. This is best-effort screening, not proof of absence of secrets; binary contents and legal authorization require separate judgment.
 - [ ] Confirm permission to publish project-authored source and retained third-party assets under their respective terms. Model weights, original datasets/videos and proprietary SDKs are not distributed.
 - [ ] Publish the approved main branch and version notes. Changing visibility exposes existing branches, tags and Git history, not only the latest main tree.
 

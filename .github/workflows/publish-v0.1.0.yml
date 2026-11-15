@@ -1,0 +1,42 @@
+name: Publish v0.1.0
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/publish-v0.1.0.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: git fetch origin '+refs/heads/*:refs/remotes/origin/*' --tags
+      - run: python3 scripts/audit_release_history.py
+      - run: python -m pip install -r requirements-test.txt
+      - run: bash scripts/test_host.sh
+  publish:
+    needs: verify
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create experimental release if absent
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v0.1.0 >/dev/null 2>&1; then
+            echo "Release already exists; not modifying it."
+          else
+            gh release create v0.1.0 --target "$GITHUB_SHA" --title "RK-EdgeStation v0.1.0 — Experimental" --notes-file RELEASE_NOTES.md --prerelease
+          fi
