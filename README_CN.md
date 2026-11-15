@@ -45,4 +45,4 @@ bash scripts/run_demo.sh /path/to/model.rknn /path/to/input.mp4
 
 32 路接入不等于 32 路实时推理；DMA-BUF 路径不是全链路零拷贝；现有 PPE 数据不能证明真实工厂的独立事件准确率。明火/烟雾未集成可用模型，真实摄像头、长时间运行及可靠 NPU 占用率尚待验证。本项目不是经认证的工业安全系统。
 
-源码采用 Apache-2.0；外部模型和数据另有许可，详见 [第三方声明](THIRD_PARTY_NOTICES.md)。当前为 v0.1.0 发布候选版本，尚待完成 [发布验收](docs/release-checklist.md)。
+源码采用 Apache-2.0；外部模型和数据另有许可，详见 [第三方声明](THIRD_PARTY_NOTICES.md)。当前定位为 v0.1.0 实验性源码版本。保留历史板端实验，新增板端验收和演示为可选项。见 [发布清单](docs/release-checklist.md)。

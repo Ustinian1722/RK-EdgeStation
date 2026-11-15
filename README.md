@@ -77,4 +77,4 @@ Open the board's local dashboard at http://127.0.0.1:8080. See [quick start](doc
 
 Project source is Apache-2.0; see [LICENSE](LICENSE) and [third-party notices](THIRD_PARTY_NOTICES.md). Model weights, datasets, videos and vendor runtime components have separate terms. No commercial suitability or redistribution rights for external assets are implied.
 
-Status: **v0.1.0 release candidate**, pending release gates in [docs/release-checklist.md](docs/release-checklist.md).
+Status: **v0.1.0 experimental source release**. Historical board evidence is retained; fresh board acceptance and demonstration are optional. See [release checklist](docs/release-checklist.md).

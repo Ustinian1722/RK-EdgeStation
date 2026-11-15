@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — v0.1.0 release candidate
+## v0.1.0 — experimental source release
 
 - Consolidates the original single-stream, DMA-BUF research and multistream research lineage in one candidate.
 - Documents the C++17 worker, MPP/RGA/RKNN backends, event service and model families.
@@ -9,4 +9,4 @@
 - Adds bilingual README, current documentation/benchmark indexes, architecture diagram, host test entry point and release gates.
 - Historical board measurements are retained; no new board qualification is implied.
 
-The candidate is not a published release. See [release checklist](docs/release-checklist.md).
+Source release scope: historical board evidence and host checks. A fresh board acceptance run or demo is optional; no production qualification is implied. See [release checklist](docs/release-checklist.md).
