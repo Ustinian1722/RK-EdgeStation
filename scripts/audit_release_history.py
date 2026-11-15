@@ -79,6 +79,8 @@ def main():
                 findings.add((rule, path))
         for match in re.finditer(rb"(?i)rtsps?://([^/\s@]+):([^/\s@]+)@", data):
             user, password = match.groups()
+            if path == "tests/python/test_server.py" and (user, password) == (b"u", b"p") and data[match.end():].startswith(b"camera.example:8554/live?x=1"):
+                continue  # Verified synthetic credential-redaction test fixture.
             if user.lower() not in {b"user", b"username", b"admin", b"camera_user", b"test", b"demo"} or password.lower() not in {b"pass", b"password", b"secret", b"camera_password", b"test", b"demo", b"p", b"pw", b"pwd"}:
                 findings.add(("rtsp-userinfo-review", path))
     print(f"Reachable Git objects: {len(objects)}; scanned text/gzip blobs: {scanned}")
