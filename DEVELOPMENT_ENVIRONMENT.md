@@ -1,5 +1,7 @@
 # Development environments
 
+> Historical development setup: local paths and workstation bootstrap steps below are records of the original environment, not requirements for a fresh clone. See [quick start](docs/quickstart.md).
+
 Status: the Windows/WSL Toolkit2 setup and the native RK3576 build path were verified on 2026-11-05 and used for the PPE conversion and board run on 2026-11-06.
 
 ## Which machine does what

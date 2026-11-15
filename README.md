@@ -1,72 +1,80 @@
 # RK-EdgeStation
 
-RK-EdgeStation is an independent, single-board RK3576 edge-vision project. Its target is a maintainable industrial vision terminal that accepts local video or RTSP, runs a Rockchip NPU model, tracks objects, emits evidence-backed events, and exposes a local management interface. It has no Jetson dependency or second compute board.
+**Hardware-accelerated industrial edge vision on Rockchip RK3576**
 
-The default RK3576 demo remains a single-stream loop: MP4/RTSP input, RKNN inference, tracking, ROI and safety events, evidence images, SQLite history, local REST API, and a web dashboard. The research branch also adds a selectable single-Worker multistream mode with independent camera capture threads and bounded Latest queues feeding one shared RKNN context. A board test connected 1/2/4/8/16/32 synthetic RTSP sources; the NPU model path stayed near 4 aggregate FPS, so this verifies source scaling and scheduler behavior, not 32-channel full-rate PPE capacity. See the [multistream board report](MULTISTREAM_32_REPORT.md). The existing YOLOv8n COCO model remains the fast general-object baseline. A separate 12-class YOLOX-S PPE/person/forklift candidate was trained, converted to RKNN, and exercised on the board. A label-grounded replay evaluator matched expected PPE-event presence in 2/2 fixed-scene clips; both clips repeat one development-validation image, so this remains a workflow check rather than an independent or temporal accuracy estimate. A 2026-11-07 comparison tested two released PPE models on the same 200-image development-validation split and retained YOLOX-S because both public candidates were materially weaker on the common PPE classes. The associated report documents model I/O, license status, RKNN conversion, board speed, dynamic video replay and the limits of the small labeled sample. See the [PPE acceptance report](PPE_ACCEPTANCE_REPORT.md), [event evaluation record](evidence/ppe/event-level-replay-evaluation.json), and [released-model selection report](MODEL_SELECTION_REPORT.md).
+[简体中文](README_CN.md) · [Quick start](docs/quickstart.md) · [Architecture](docs/architecture.md) · [Benchmarks](benchmarks/README.md) · [Release checklist](docs/release-checklist.md)
 
-The selectable MPP/RGA Worker path has been measured end to end against the OpenCV/CPU reference. Earlier matched tests found modest decode/preprocess gains and a same-graph PPE INT8 speedup, with a measurable `no_vest` recall tradeoff on a development-validation split. A new 2026-11-07 follow-up adds an optional partial low-copy path: GStreamer/MPP DMA-BUF → RGA → RKNN-owned input memory. On a 15-FPS dynamic construction clip, the three-run media-clock median was 8.046 FPS with 184.9 ms decode-to-result P95, versus 7.937 FPS and 186.0 ms for the stable Z0 path; explicit inference-ingress source copies fell from 1.3824 MB/frame to zero. The throughput gain is small, so Z0 remains the default. See [zero-copy feasibility](ZERO_COPY_FEASIBILITY.md), [implementation details](ZERO_COPY_IMPLEMENTATION.md), [benchmark results](ZERO_COPY_BENCHMARK_REPORT.md), and [dynamic event evaluation](DYNAMIC_VIDEO_EVALUATION.md).
+RK-EdgeStation is a C++17/Python edge-vision platform combining hardware video decoding, RGA preprocessing, RKNN inference, bounded scheduling and local industrial event management on a single Rockchip board. The release candidate is validated against KICKPI K7 / RK3576, not all Rockchip SoCs.
 
-## Current target and findings
+![Pipeline architecture](assets/architecture.svg)
 
-- Board: KICKPI K7; device tree identifies Rockchip RK3576.
-- OS/kernel: Ubuntu 24.04.3, vendor Linux 6.1.75, aarch64, 8 GiB RAM.
-- Present: GCC 13.3, CMake 3.28, OpenCV 4.6, MPP 1.5, RGA 2.2, GStreamer 1.24, RKNN Runtime 2.0.0b0.
-- MPP decoder and RGA device nodes are present. No connected camera sensor or USB camera was identified; `/dev/video0` cannot be opened.
-- The official RKNN C API sample and project YOLOv8n worker ran with Runtime 2.0.0b0 / driver 0.9.7. One repeated-still run recorded shared NPU/IOMMU interrupts +5,096 during the worker and 0 during a two-second idle check. A dynamic-run counter later read lower than its captured in-run value, so IRQ data remains exploratory; `/dev/rknpu*` nodes were not visible, per-core utilization is unavailable, and devfreq stayed at 300 MHz.
-- The board has about 44 GiB free on its root filesystem. Host conversion uses an isolated Ubuntu 22.04 x86-64 WSL2 distro and authorized Toolkit2 2.0.0b0. The host needs no Rockchip silicon or runtime: conversion is optional tooling, while native build and inference use the RK3576 board. See [development environments](DEVELOPMENT_ENVIRONMENT.md) and the workstation bootstrap guide at `D:\WSL\RK-EdgeStation-bootstrap\README.md`.
+## Features
 
-Evidence: [hardware audit](HARDWARE_AUDIT.md), [captured output](evidence/p0/hardware-audit.txt).
+- MP4 and H.264 RTSP ingest, selectable OpenCV/FFmpeg and GStreamer/MPP backends.
+- CPU or RGA letterbox/color conversion; optional DMA-BUF-to-RKNN shared-input path.
+- RKNN FP and INT8 model experiments with stage profiling, accuracy evaluation and reproducible benchmark records.
+- Bounded Latest/FIFO queues, per-camera capture/reconnect and weighted fair multistream scheduling.
+- Object tracking, PPE association, ROI entry/leave/dwell and image-space person/forklift risk cues.
+- Local REST API, web dashboard, SQLite event history, evidence images and user-level systemd recovery.
 
-## System scope
+## Board results
 
-The planned product has six cooperating subsystems:
+These are historical measured results from the cited configurations, not new release-candidate runs.
 
-1. C++17 video ingest and media processing for MP4/RTSP, with camera input enabled only after a physical device is verified.
-2. RKNN C API inference, with a CPU/OpenCV reference path, model and tensor checks, safe resource ownership, and measured preprocessing/inference/postprocessing.
-3. Detection, lightweight tracking, ROI and safety-zone rules, PPE association/status, forklift/person co-occurrence alerts, enter/leave/dwell/count events, and timestamped evidence.
-4. Bounded multithread scheduling, backpressure, FIFO/latest-frame modes, expiry and timeout handling, and separate latency/age/throughput/drop metrics.
-5. Local REST and web management, SQLite, structured logs, authentication, recovery, and systemd integration.
-6. RKNN-OptLab for graph/conversion inspection, FP16/INT8 comparisons, runtime profiling, attribution, and reports.
+| Experiment | Result | Scope |
+| --- | --- | --- |
+| COCO FP vs INT8 pipeline | 7.656 → 9.991 FPS; P95 236.6 → 106.3 ms | Single 10-FPS H.264 input; CPU/FP vs MPP/RGA/INT8 |
+| YOLOX-S PPE FP vs INT8 | 4.593 → 7.975 FPS; AP50:95 46.77% → 45.76% | Repeated-image 15-FPS video; AP on 200 development-validation images |
+| DMA-BUF shared input | 1,382,400 → 0 explicit ingress copy bytes/frame; 7.937 → 8.046 FPS | 720p moving video, PPE INT8, three media-clock runs |
+| Multistream scheduling | 32/32 synthetic RTSP mounts connected; 4.09 aggregate FPS; 95.14% drops | One shared serialized FP model, short 32-source test, not real-time 32-camera detection |
 
-The implemented selectable pipeline is in [ARCHITECTURE.md](ARCHITECTURE.md). OpenCV/FFmpeg plus CPU preprocessing remains the reference. GStreamer/MPP offers a stable NV12 row-copy path and an optional RGA path; Z2 retains the MPP GstSample, imports its DMA-BUF into RGA, and writes directly to an RKNN-allocated input buffer. This removes the Worker's visible NV12 CPU row-copy, but internal driver/runtime transfers are not observable and full zero-copy is not claimed.
+[Detailed results and raw evidence](benchmarks/README.md)
 
-RKNN inference and the service run on the RK3576. Windows/WSL is used for model training/export/conversion; after a compatible `.rknn` exists, the host is not required for board inference. Latest-frame remains the default bounded-queue mode. A real-motion construction-site clip exercises tracking and events: the historical pre-fix run had three apparent false PPE alerts and one unknown alert; after the ROI and cooldown fixes, the current run had one apparent false vest alert and one unknown helmet alert, with 10 Person-only ROI entries. The independent short CC0 clip supplies visible no-helmet/no-vest evidence, but its sparse/latest-frame Worker run dropped 56/79 frames. These videos do not establish independent PPE accuracy. Real-camera behavior, per-core NPU utilization, and production performance remain open. Forklift/person co-occurrence is an image-space risk cue, not a physical-distance estimate.
+![Matched board optimization results](evidence/flagship/flagship-ablation.png)
 
-## Phases
+## Quick start
 
-| Phase | Scope | State |
-|---|---|---|
-| P0 | Hardware audit, license review, requirements, official RKNN smoke | Complete; official RK3576 C API sample passed |
-| P1 | Single-stream detection, events, persistence, and local UI | MP4 and synthetic RTSP paths, ROI transitions, PPE rules, SQLite/API history and acknowledgement exercised on the board. Repeated still and one dynamic construction clip provide workflow/diagnostic evidence only; no independent PPE event accuracy is established |
-| P2 | Media paths, quantization, scheduling, and profiling | OpenCV and GStreamer/MPP sources plus CPU/RGA preprocessing are integrated. Z0/Z1/Z2 board comparisons cover unpaced FIFO and media-clock Latest modes. Z2 is a validated partial low-copy option, not full zero-copy; Z0 remains default |
-| P3 | Recovery and handoff | Manual restart, synthetic RTSP reconnect, and temporary systemd user-service recovery passed. A 24-hour soak is outside this project's acceptance scope; the earlier exploratory run stopped after 4 h 52 min and is not a completed soak |
+Verified target: KICKPI K7, RK3576, Ubuntu 24.04.3 aarch64, vendor Linux 6.1.75, RKNN Runtime 2.0.0b0, OpenCV 4.6, GStreamer 1.24, MPP and RGA.
 
-## Documentation
+On the board, with compatible development headers and runtime installed:
 
-- [Build and deploy](BUILD_AND_DEPLOY.md)
-- [Development environments](DEVELOPMENT_ENVIRONMENT.md)
-- [Model conversion](MODEL_CONVERSION.md)
-- [P1 acceptance report](P1_ACCEPTANCE_REPORT.md)
-- [PPE training protocol](TRAINING_PPE.md) and [PPE acceptance report](PPE_ACCEPTANCE_REPORT.md)
-- [PPE event replay video generator](scripts/generate_ppe_replay_videos.py) and [label-grounded replay evaluator](scripts/evaluate_ppe_replay_events.py)
-- [Four-group board performance report](PERFORMANCE_COMPARISON_REPORT.md)
-- [Flagship MPP/RGA/INT8 optimization report](FLAGSHIP_OPTIMIZATION_REPORT.md)
-- [DMA-BUF feasibility audit](ZERO_COPY_FEASIBILITY.md), [implementation](ZERO_COPY_IMPLEMENTATION.md), and [Z0/Z1/Z2 benchmark report](ZERO_COPY_BENCHMARK_REPORT.md)
-- [Dynamic video and event evaluation](DYNAMIC_VIDEO_EVALUATION.md) and the board ablation runner / summarizer at [`scripts/run_zero_copy_ablation.py`](scripts/run_zero_copy_ablation.py) and [`scripts/summarize_zero_copy_ablation.py`](scripts/summarize_zero_copy_ablation.py)
-- [Constructelligence v0.3 PPE model and RK3576 1/2/4-process scaling report](CONSTRUCTELLIGENCE_PPE_SCALING_REPORT.md) with the RKNN test-split metrics, dynamic Worker event records, and aligned board resource-monitor curves.
-- [Single-Worker 1/2/4/8/16/32 RTSP scaling report](MULTISTREAM_32_REPORT.md), [example camera config](deploy/cameras.example.json), [RTSP source fixture](scripts/rtsp_multisource_test_server.py), [board monitor runner](scripts/run_multistream_benchmark.py), and [result summarizer](scripts/summarize_multistream_benchmark.py). The raw one-second board telemetry and per-camera Worker JSON are under `evidence/multistream-32-20261109/`.
-- [Released PPE model selection and RK3576 validation](MODEL_SELECTION_REPORT.md), including same-split metrics, license review, dynamic event replay, and candidate model board timings
-- [Board PPE RKNN validation tools](scripts/make_ppe_rknn_image_manifest.py), [`ppe_rknn_dataset_eval`](tools/ppe_rknn_dataset_eval.cpp), and [metric evaluator](scripts/evaluate_ppe_rknn_predictions.py)
-- [Optional long-run diagnostic and deployment controls](BUILD_AND_DEPLOY.md#optional-monitored-long-run-probe)
-- [P3 graceful restart recovery probe](scripts/restart_recovery_smoke.py)
-- `build/bin/create_static_video` creates and verifies a deterministic repeated-frame AVI test source for long-run experiments.
-- [Benchmark protocol](BENCHMARK_PROTOCOL.md)
-- [Optimization report](OPTIMIZATION_REPORT.md)
-- [Test plan](TEST_PLAN.md) and [results](TEST_RESULTS.md)
-- [P3 reliability and release acceptance](P3_ACCEPTANCE_REPORT.md)
-- [Open-source references](OPEN_SOURCE_REFERENCES.md)
-- [Interview guide](INTERVIEW_GUIDE.md)
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+cmake --build build --parallel 4
+ctest --test-dir build --output-on-failure
+```
 
-## Repository hygiene
+Supply your own compatible, appropriately licensed RKNN model and video:
 
-Model weights, videos, build output, local logs, and credentials are excluded from Git. Hardware evidence committed here is deliberately limited to sanitized audit output and reproducible reports. The board workspace is `/home/kickpi/projects/RK-EdgeStation`; existing board projects and system configuration are outside the project scope.
+```bash
+bash scripts/run_demo.sh /path/to/model.rknn /path/to/input.mp4
+```
+
+Open the board's local dashboard at http://127.0.0.1:8080. See [quick start](docs/quickstart.md) for model families, RTSP, remote viewing, multistream and host-only tests. Models, source videos and vendor SDK binaries are not bundled.
+
+## Project layout
+
+| Location | Purpose |
+| --- | --- |
+| `src/` | C++ worker, video, preprocessing, tracking, event logic, multistream scheduler |
+| `python/edge_station/`, `web/` | Local service, storage and dashboard |
+| `deploy/`, `scripts/`, `tools/` | Example configuration, deployment and experiment utilities |
+| `tests/`, `training/`, `model/` | Tests, training configuration and labels |
+| `docs/`, `benchmarks/` | Current documentation and benchmark index |
+| `evidence/` | Historical experimental records, including explicitly excluded runs |
+
+[Full documentation index](docs/README.md)
+
+## Scope and limitations
+
+- Partial low-copy only: internal driver/runtime transfers are unobservable. Copy mode remains the default; unsupported DMA-BUF layouts require the copy path.
+- Thirty-two synthetic RTSP mounts are a connection/scheduling result, not a throughput or production-capacity claim.
+- PPE results are development or small-sample experiments. Independent event accuracy, physical-camera behavior, reliable NPU utilization and long-duration production stability are not established.
+- Fire/smoke is not ready; no safety-rated or certified alarm behavior is claimed. Image-space risk is not physical distance.
+- The service is local-only by default. Do not expose it directly to untrusted networks.
+
+## License
+
+Project source is Apache-2.0; see [LICENSE](LICENSE) and [third-party notices](THIRD_PARTY_NOTICES.md). Model weights, datasets, videos and vendor runtime components have separate terms. No commercial suitability or redistribution rights for external assets are implied.
+
+Status: **v0.1.0 release candidate**, pending release gates in [docs/release-checklist.md](docs/release-checklist.md).

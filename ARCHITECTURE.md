@@ -1,5 +1,7 @@
 # Architecture
 
+> This document describes the historical copy-path baseline. For the current candidate, including optional DMA-BUF and multistream, see [current architecture](docs/architecture.md). The original text below is retained as experimental provenance.
+
 Status: the selectable GStreamer/MPP decoder and RGA preprocessing path are integrated into the RK3576 C++ worker and have passed three-repeat board matrices. OpenCV/FFmpeg plus CPU preprocessing remains the reference fallback. The implementation copies decoded frames between stages; DMA-BUF import and zero-copy are not implemented. Exact end-to-end tradeoffs and validation limits are in [FLAGSHIP_OPTIMIZATION_REPORT.md](FLAGSHIP_OPTIMIZATION_REPORT.md).
 
 ## End-to-end path
