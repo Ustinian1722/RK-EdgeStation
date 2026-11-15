@@ -20,3 +20,15 @@ The project uses the upstream postprocessing routine for compatibility with the 
 ## YOLOv8 pretrained model
 
 The official Model Zoo example identifies `airockchip/ultralytics_yolov8` as the model source. That repository presents AGPL-3.0 and Enterprise licensing options. The pretrained model is used only as a local P1 validation artifact and is kept outside Git. Before redistribution or a commercial product release, select a model license compatible with that use or replace the model and revalidate the pipeline. See the project [open-source review](OPEN_SOURCE_REFERENCES.md).
+
+## Additional research model and media
+
+- Constructelligence construction-site-safety-hazards v0.3 weights are described as AGPL-3.0 in the [evaluation report](CONSTRUCTELLIGENCE_PPE_SCALING_REPORT.md); the project does not distribute those weights. Review the model card and applicable license obligations before redistribution or deployment.
+- Roboflow v1 test data is described as CC BY 4.0; Haringey footage by Acabashi is CC BY-SA 4.0, and the short Men at work clip by Akum20 is CC0 1.0. See [dynamic-video attribution](DYNAMIC_VIDEO_EVALUATION.md). Original video and dataset files are not distributed. Review retained derivative evidence before publication.
+- Vendor RKNN/MPP/RGA runtimes and external tools remain subject to their own terms. Project source licensing does not grant rights to unrelated model or SDK assets.
+
+### Retained evidence image
+
+The image `evidence/multistream-32-20261109/dynamic-api-clean-20261109/ppe-2-ppe-violation.jpg` is an annotated event frame derived from Akum20's [Men at work in building site](https://commons.wikimedia.org/wiki/File:Men_at_work_in_building_site.webm), dedicated under CC0 1.0. The image includes project-generated annotations. See the [multistream report](MULTISTREAM_32_REPORT.md) for context. The source footage is not bundled.
+
+The separately evaluated Abdelrahman-cs19 model's checkpoint does not have a separately stated license in its release; it is not redistributed. See [model selection](MODEL_SELECTION_REPORT.md).

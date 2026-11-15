@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "cameras": [
+    {
+      "id": "line-01",
+      "source": "rtsp://192.168.1.101/live/ch00_0",
+      "enabled": true,
+      "tasks": ["ppe", "roi"],
+      "max_fps": 5,
+      "weight": 1,
+      "queue_capacity": 1,
+      "roi": [0.0, 0.0, 1.0, 1.0]
+    },
+    {
+      "id": "line-02",
+      "source": "rtsp://192.168.1.102/live/ch00_0",
+      "enabled": false,
+      "tasks": ["ppe"],
+      "max_fps": 3,
+      "weight": 1,
+      "queue_capacity": 1,
+      "roi": [0.1, 0.1, 0.8, 0.8]
+    }
+  ]
+}

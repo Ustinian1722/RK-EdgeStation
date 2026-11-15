@@ -1,0 +1,6 @@
+2026-11-06T19:03:44+00:00
+schedutil
+1416000
+25923
+c97d49fd60776ebbd41d6f356337dcf7b20d0976983a6709b82720392040f8b4  perf-segment-18-26.mp4
+88b10ac2711f4b00d2859dfa0e1089ccb34ebd78a73b7dc46bd51a56c92c502c  /home/kickpi/projects/RK-EdgeStation/.work/flagship-models/yolox-s-ppe-int8.rknn

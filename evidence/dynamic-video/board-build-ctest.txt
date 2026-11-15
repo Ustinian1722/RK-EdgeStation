@@ -1,0 +1,19 @@
+[  8%] Built target gst_mpp_lifecycle_probe
+[ 14%] Built target gst_dmabuf_probe
+[ 28%] Built target rknn_shared_input_probe
+[ 54%] Built target rk_edge_worker
+[ 60%] Built target create_static_video
+[ 74%] Built target ppe_rknn_dataset_eval
+[ 88%] Built target edge_core_tests
+[100%] Built target edge_media_tests
+Internal ctest changing into directory: /home/kickpi/projects/RK-EdgeStation/.work/zero-copy-probes/build
+Test project /home/kickpi/projects/RK-EdgeStation/.work/zero-copy-probes/build
+    Start 1: edge_core_tests
+1/2 Test #1: edge_core_tests ..................   Passed    0.01 sec
+    Start 2: edge_media_tests
+2/2 Test #2: edge_media_tests .................   Passed    0.47 sec
+
+100% tests passed, 0 tests failed out of 2
+
+Total Test time (real) =   0.48 sec
+617a2dc21d1bb4e3155c90ea1cbc16f23071011f3a61504253588fc587fdeab0  .work/zero-copy-probes/build/bin/rk_edge_worker

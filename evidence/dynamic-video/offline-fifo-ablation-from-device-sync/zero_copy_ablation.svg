@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="650" viewBox="0 0 1000 650">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<style>text{font-family:Arial,sans-serif;fill:#263238}.title{font-size:20px;font-weight:bold}.axis{font-size:12px}.value{font-size:13px;font-weight:bold}</style>
+<text x="30" y="32" class="title">RK3576 dynamic H.264 Worker A/B comparison (median of three runs)</text>
+<text x="30" y="77" class="title" font-size="16">Effective Worker throughput (FPS)</text>
+<line x1="80" y1="265" x2="435" y2="265" stroke="#455a64"/>
+<line x1="80" y1="265.0" x2="435" y2="265.0" stroke="#e0e0e0"/>
+<text x="72" y="269.0" text-anchor="end" class="axis">0.0</text>
+<line x1="80" y1="210.0" x2="435" y2="210.0" stroke="#e0e0e0"/>
+<text x="72" y="214.0" text-anchor="end" class="axis">2.7</text>
+<line x1="80" y1="155.0" x2="435" y2="155.0" stroke="#e0e0e0"/>
+<text x="72" y="159.0" text-anchor="end" class="axis">5.4</text>
+<line x1="80" y1="100.0" x2="435" y2="100.0" stroke="#e0e0e0"/>
+<text x="72" y="104.0" text-anchor="end" class="axis">8.1</text>
+<rect x="122" y="100.5" width="65" height="164.5" fill="#4C78A8"/>
+<text x="154.5" y="94.5" text-anchor="middle" class="value">8.10</text>
+<text x="154.5" y="285" text-anchor="middle" class="axis">Z0</text>
+<rect x="230" y="100.0" width="65" height="165.0" fill="#F2A541"/>
+<text x="262.5" y="94.0" text-anchor="middle" class="value">8.12</text>
+<text x="262.5" y="285" text-anchor="middle" class="axis">Z1</text>
+<rect x="338" y="100.3" width="65" height="164.7" fill="#54A24B"/>
+<text x="370.5" y="94.3" text-anchor="middle" class="value">8.10</text>
+<text x="370.5" y="285" text-anchor="middle" class="axis">Z2</text>
+<text x="525" y="77" class="title" font-size="16">Decode-to-result latency P95 (ms)</text>
+<line x1="575" y1="265" x2="930" y2="265" stroke="#455a64"/>
+<line x1="575" y1="265.0" x2="930" y2="265.0" stroke="#e0e0e0"/>
+<text x="567" y="269.0" text-anchor="end" class="axis">0.0</text>
+<line x1="575" y1="210.0" x2="930" y2="210.0" stroke="#e0e0e0"/>
+<text x="567" y="214.0" text-anchor="end" class="axis">4610.7</text>
+<line x1="575" y1="155.0" x2="930" y2="155.0" stroke="#e0e0e0"/>
+<text x="567" y="159.0" text-anchor="end" class="axis">9221.4</text>
+<line x1="575" y1="100.0" x2="930" y2="100.0" stroke="#e0e0e0"/>
+<text x="567" y="104.0" text-anchor="end" class="axis">13832.2</text>
+<rect x="617" y="101.0" width="65" height="164.0" fill="#4C78A8"/>
+<text x="649.5" y="95.0" text-anchor="middle" class="value">13752.11</text>
+<text x="649.5" y="285" text-anchor="middle" class="axis">Z0</text>
+<rect x="725" y="101.9" width="65" height="163.1" fill="#F2A541"/>
+<text x="757.5" y="95.9" text-anchor="middle" class="value">13673.09</text>
+<text x="757.5" y="285" text-anchor="middle" class="axis">Z1</text>
+<rect x="833" y="100.0" width="65" height="165.0" fill="#54A24B"/>
+<text x="865.5" y="94.0" text-anchor="middle" class="value">13832.16</text>
+<text x="865.5" y="285" text-anchor="middle" class="axis">Z2</text>
+<text x="30" y="377" class="title" font-size="16">Worker CPU load (% of one core)</text>
+<line x1="80" y1="565" x2="435" y2="565" stroke="#455a64"/>
+<line x1="80" y1="565.0" x2="435" y2="565.0" stroke="#e0e0e0"/>
+<text x="72" y="569.0" text-anchor="end" class="axis">0.0</text>
+<line x1="80" y1="510.0" x2="435" y2="510.0" stroke="#e0e0e0"/>
+<text x="72" y="514.0" text-anchor="end" class="axis">17.1</text>
+<line x1="80" y1="455.0" x2="435" y2="455.0" stroke="#e0e0e0"/>
+<text x="72" y="459.0" text-anchor="end" class="axis">34.2</text>
+<line x1="80" y1="400.0" x2="435" y2="400.0" stroke="#e0e0e0"/>
+<text x="72" y="404.0" text-anchor="end" class="axis">51.3</text>
+<rect x="122" y="400.0" width="65" height="165.0" fill="#4C78A8"/>
+<text x="154.5" y="394.0" text-anchor="middle" class="value">51.28</text>
+<text x="154.5" y="585" text-anchor="middle" class="axis">Z0</text>
+<rect x="230" y="400.9" width="65" height="164.1" fill="#F2A541"/>
+<text x="262.5" y="394.9" text-anchor="middle" class="value">50.99</text>
+<text x="262.5" y="585" text-anchor="middle" class="axis">Z1</text>
+<rect x="338" y="403.7" width="65" height="161.3" fill="#54A24B"/>
+<text x="370.5" y="397.7" text-anchor="middle" class="value">50.12</text>
+<text x="370.5" y="585" text-anchor="middle" class="axis">Z2</text>
+<text x="525" y="377" class="title" font-size="16">Resident memory (MiB)</text>
+<line x1="575" y1="565" x2="930" y2="565" stroke="#455a64"/>
+<line x1="575" y1="565.0" x2="930" y2="565.0" stroke="#e0e0e0"/>
+<text x="567" y="569.0" text-anchor="end" class="axis">0.0</text>
+<line x1="575" y1="510.0" x2="930" y2="510.0" stroke="#e0e0e0"/>
+<text x="567" y="514.0" text-anchor="end" class="axis">86.5</text>
+<line x1="575" y1="455.0" x2="930" y2="455.0" stroke="#e0e0e0"/>
+<text x="567" y="459.0" text-anchor="end" class="axis">173.0</text>
+<line x1="575" y1="400.0" x2="930" y2="400.0" stroke="#e0e0e0"/>
+<text x="567" y="404.0" text-anchor="end" class="axis">259.5</text>
+<rect x="617" y="400.0" width="65" height="165.0" fill="#4C78A8"/>
+<text x="649.5" y="394.0" text-anchor="middle" class="value">259.51</text>
+<text x="649.5" y="585" text-anchor="middle" class="axis">Z0</text>
+<rect x="725" y="401.0" width="65" height="164.0" fill="#F2A541"/>
+<text x="757.5" y="395.0" text-anchor="middle" class="value">257.96</text>
+<text x="757.5" y="585" text-anchor="middle" class="axis">Z1</text>
+<rect x="833" y="500.8" width="65" height="64.2" fill="#54A24B"/>
+<text x="865.5" y="494.8" text-anchor="middle" class="value">100.92</text>
+<text x="865.5" y="585" text-anchor="middle" class="axis">Z2</text>
+<text x="30" y="640" class="axis">Z0: MPP → CPU NV12 copy → RGA → rknn_inputs_set; Z1: copied NV12 → RGA writes shared RKNN input; Z2: MPP DMA-BUF → RGA → shared RKNN input.</text>
+</svg>

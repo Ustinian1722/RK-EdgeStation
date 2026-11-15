@@ -1,0 +1,5 @@
+{"type":"event","frame_index":2,"source_pts_ms":133.333,"event_type":"ppe_violation","class_id":11,"label":"no_vest","confidence":0.441485,"track_id":4,"person_association":"matched","related_track_id":1,"confirmation_frames":3}
+{"type":"event","frame_index":23,"source_pts_ms":1533.33,"event_type":"ppe_violation","class_id":11,"label":"no_vest","confidence":0.396856,"track_id":9,"person_association":"matched","related_track_id":7,"confirmation_frames":3}
+{"type":"event","frame_index":25,"source_pts_ms":1666.67,"event_type":"ppe_violation","class_id":6,"label":"no_helmet","confidence":0.456739,"track_id":10,"person_association":"matched","related_track_id":7,"confirmation_frames":3}
+{"type":"event","frame_index":65,"source_pts_ms":4333.33,"event_type":"ppe_violation","class_id":11,"label":"no_vest","confidence":0.451761,"track_id":19,"person_association":"matched","related_track_id":22,"confirmation_frames":3}
+{"type":"summary","frames":79,"source_detections":337,"event_count":4,"ppe_violation_count":4,"confirmation_frames":3,"cooldown_ms":30000}

@@ -1,0 +1,55 @@
+{
+  "class_map_source_to_canonical": {
+    "0": 0,
+    "1": 6,
+    "2": 11,
+    "3": 5,
+    "4": 2
+  },
+  "event_replay_input": "/mnt/d/RK-EdgeStation/.work/model-selection/results/dynamic-host/github-moira.event-input.csv",
+  "event_replay_input_sha256": "f0ceadd9fc3ff88197312cd269803e0eb69e291648f3489b8957dbf4faabd8b7",
+  "frames_per_second": 13.146377458071644,
+  "input": {
+    "color_order": "RGB",
+    "dtype": "tensor(float)",
+    "frames": 510,
+    "letterbox_color": 114,
+    "range": "float32 0..1",
+    "shape": [
+      1,
+      3,
+      640,
+      640
+    ],
+    "source_fps": 15.0,
+    "video": "/mnt/d/RK-EdgeStation/.work/model-selection/video/construction-clip.mp4",
+    "video_sha256": "e1fe2432f23d816e58d9f8d54770fb5cd994efc013d278ef90cda9306fe71d2b"
+  },
+  "max_detections": 300,
+  "model": "/mnt/d/RK-EdgeStation/.work/model-selection/abdelrahman-v1.0.0/ppe_yolo.onnx",
+  "model_sha256": "abac0b618f38d3a887c1ab95c5756ab498575f6055cb4bd23bc9383cd8b1b1a7",
+  "nms_iou": 0.45,
+  "outputs": [
+    {
+      "dtype": "tensor(float)",
+      "name": "output0",
+      "shape": [
+        1,
+        9,
+        8400
+      ]
+    }
+  ],
+  "predictions_sha256": "820a70c6488171fff1ea0065c98008e60261d7c4acd1d20a9d4f53ce88ae0c59",
+  "score_floor": 0.25,
+  "wall_ms_per_frame": {
+    "inference_mean": 67.90098850001011,
+    "inference_p50": 67.97724199998356,
+    "inference_p95": 74.01960895003867,
+    "postprocess_mean": 1.9492984156890016,
+    "postprocess_p95": 2.110989650043393,
+    "preprocess_mean": 5.289846813726916,
+    "preprocess_p95": 7.397326950035675
+  },
+  "wall_seconds": 38.79395686199996
+}

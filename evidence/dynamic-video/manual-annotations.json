@@ -1,0 +1,174 @@
+{
+  "annotation_protocol": {
+    "unit": "source_pts_ms relative to the 34-second transcode",
+    "review": "single manual visual review of 4-second samples and all emitted PPE-event frames",
+    "rules": [
+      "Annotate only visible motion and PPE that can be seen; use unknown when equipment or body is occluded.",
+      "Do not treat detector predictions as ground truth.",
+      "This is a short qualitative review, not a dense frame-by-frame annotation set."
+    ],
+    "worker_roi_used_by_event_run": {
+      "x": 0.0,
+      "y": 0.45,
+      "width": 0.3,
+      "height": 0.55
+    }
+  },
+  "source": {
+    "title": "Building construction Moira Close Broadwater Farm Haringey 2025 16.webm",
+    "url": "https://commons.wikimedia.org/wiki/File:Building_construction_Moira_Close_Broadwater_Farm_Haringey_2025_16.webm",
+    "author": "Acabashi",
+    "date": "2025-05-12",
+    "license": "CC BY-SA 4.0",
+    "original_sha256": "EAA00F488604C2626637CB41577A74CB092FF34065EFC11EADFE643ECE5CEEA8",
+    "original_bytes": 169159761,
+    "original_format": "WebM VP9/Opus, 1920x1080, 30000/1001 fps, 362.088 s"
+  },
+  "derived_clip": {
+    "source_interval_s": [
+      236,
+      270
+    ],
+    "clip_duration_s": 34.0,
+    "format": "MP4 H.264, 1280x720, 15 fps, 510 frames",
+    "transcode_command": "ffmpeg -ss 236 -t 34 -i commons-source.webm -vf scale=1280:-2,fps=15 -c:v libx264 -preset veryfast -crf 26 -pix_fmt yuv420p -movflags +faststart -an construction-clip.mp4",
+    "sha256": "E1FE2432F23D816E58D9F8D54770FB5CD994EFC013D278EF90CDA9306FE71D2B",
+    "bytes": 9456539,
+    "unique_decoded_frame_hashes": 510,
+    "distribution": "Not committed; local test asset only."
+  },
+  "performance_segment": {
+    "clip_interval_s": [
+      18,
+      26
+    ],
+    "duration_s": 8.0,
+    "format": "MP4 H.264, 1280x720, 15 fps, 120 frames",
+    "transcode_command": "ffmpeg -i construction-clip.mp4 -ss 18 -t 8 -vf fps=15 -c:v libx264 -preset veryfast -crf 26 -pix_fmt yuv420p -movflags +faststart -an perf-segment-18-26.mp4",
+    "sha256": "C97D49FD60776EBBD41D6F356337DCF7B20D0976983A6709B82720392040F8B4"
+  },
+  "manual_observations": [
+    {
+      "start_s": 0.0,
+      "end_s": 34.0,
+      "subject": "construction workers in frame",
+      "observation": "Real camera motion is not required for the clip to be dynamic: workers move across the lower work area and upper platform, bend and carry boards/materials. All 510 decoded frames have distinct hashes.",
+      "ppe_label": "unknown between sampled frames"
+    },
+    {
+      "start_s": 0.0,
+      "end_s": 32.0,
+      "subject": "visibly equipped workers at sampled points 0, 4, 8, 12, 16, 20, 24, 28, 32 s",
+      "observation": "Visible heads show hard hats and visible torsos show high-visibility clothing at the sampled timestamps. Parts of workers are intermittently hidden by the concrete wall, platform edge, stacked material or carried boards.",
+      "ppe_label": "helmet and high-visibility vest visibly present at sampled points; no continuous interval annotation"
+    },
+    {
+      "start_s": 0.0,
+      "end_s": 4.667,
+      "subject": "Person track 1 candidate, lower work area",
+      "observation": "The visible person box center moves from just outside the configured ROI right boundary on the first frame to inside by the ROI-enter record at 4.667 s.",
+      "event_label": "coarse ROI entry interval; sparse-frame boundary time"
+    },
+    {
+      "start_s": 14.7,
+      "end_s": 15.467,
+      "subject": "Person track 113 candidate, lower work area",
+      "observation": "A person is visible near the left edge and enters the configured ROI no later than the 15.467 s processed frame.",
+      "event_label": "coarse ROI entry; exact onset partly occluded"
+    },
+    {
+      "start_s": 18.0,
+      "end_s": 20.0,
+      "subject": "Person track 113 candidate, lower work area",
+      "observation": "The worker carrying material moves right; the tracked box center is outside the ROI by 19.467 s and the 20 s sampled frame shows the worker farther right.",
+      "event_label": "coarse ROI exit interval"
+    },
+    {
+      "start_s": 20.0,
+      "end_s": 29.0,
+      "subject": "workers carrying boards/materials",
+      "observation": "Bodies and PPE are intermittently occluded by stacked boards and the concrete wall; fully visible equipment status is not assigned during those occlusions.",
+      "event_label": "short/partial occlusion"
+    },
+    {
+      "start_s": 0.0,
+      "end_s": 34.0,
+      "subject": "forklift/person conflict",
+      "observation": "No forklift is visible in this clip.",
+      "event_label": "not evaluable"
+    }
+  ],
+  "ppe_event_visual_reviews": [
+    {
+      "source_pts_ms": 1666.6667,
+      "predicted_label": "no_helmet",
+      "confidence": 0.6999,
+      "track_id": 7,
+      "related_person_track_id": 1,
+      "manual_review": "Head/equipment is partly obscured by the low wall and overlapping detector annotations in the event frame; status unknown. Not counted as confirmed violation or false alert."
+    },
+    {
+      "source_pts_ms": 6600.0,
+      "predicted_label": "no_vest",
+      "confidence": 0.8659,
+      "track_id": 27,
+      "related_person_track_id": 1,
+      "manual_review": "Visible worker wears high-visibility clothing; apparent false alert."
+    },
+    {
+      "source_pts_ms": 12133.3333,
+      "predicted_label": "no_vest",
+      "confidence": 0.7782,
+      "track_id": 99,
+      "related_person_track_id": 1,
+      "manual_review": "Visible workers wear high-visibility clothing; apparent false alert."
+    },
+    {
+      "source_pts_ms": 15200.0,
+      "predicted_label": "no_vest",
+      "confidence": 0.7652,
+      "track_id": 115,
+      "related_person_track_id": 1,
+      "manual_review": "Visible worker wears high-visibility clothing; apparent false alert."
+    }
+  ],
+  "worker_event_run": {
+    "software": {
+      "worker_sha256": "617a2dc21d1bb4e3155c90ea1cbc16f23071011f3a61504253588fc587fdeab0",
+      "model_sha256": "88b10ac2711f4b00d2859dfa0e1089ccb34ebd78a73b7dc46bd51a56c92c502c"
+    },
+    "configuration": {
+      "video_backend": "gstreamer-mpp",
+      "preprocess_backend": "rga",
+      "video_memory_mode": "dmabuf",
+      "rknn_input_mode": "shared",
+      "input_pacing": "media",
+      "queue_policy": "latest",
+      "queue_capacity": 1,
+      "confidence": 0.35,
+      "roi": [
+        0.0,
+        0.45,
+        0.3,
+        0.55
+      ],
+      "roi_debounce_frames": 1,
+      "ppe_confirmation_frames": 3,
+      "ppe_cooldown_ms": 30000
+    },
+    "decoded_frames": 510,
+    "processed_frames": 233,
+    "dropped_frames": 277,
+    "event_records": 239,
+    "events_by_type": {
+      "enter": 191,
+      "dwell": 39,
+      "leave": 5,
+      "ppe_violation": 4
+    },
+    "track_log": "event-run/raw/tracks.jsonl",
+    "worker_metrics_log": "event-run/raw/worker.stdout.jsonl",
+    "worker_stdout_log": "event-run/raw/worker.stdout.raw.log",
+    "note": "Performance is instrumentation-heavy and is excluded from the Z0/Z1/Z2 performance matrix."
+  }
+}

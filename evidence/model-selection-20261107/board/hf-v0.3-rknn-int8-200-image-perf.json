@@ -1,0 +1,17 @@
+{
+  "scope":"isolated-rknn-offline-no-pacing",
+  "model":"/home/kickpi/projects/RK-EdgeStation/.work/model-selection-20261107/constructelligence-v0.3-int8-rk3576.rknn",
+  "input":"/home/kickpi/projects/RK-EdgeStation/.work/model-selection-20261107/board-val-image-manifest.txt",
+  "mode":"image-manifest",
+  "frames":200,
+  "nominal_fps":0.0000,
+  "model_input":{"dims":"[1,640,640,3]","format":1,"type":2,"qnt_type":2,"scale":0.0039,"zero_point":-128,"size":1228800,"width":640,"height":640,"color_order":"RGB","input_pixels":"uint8 0..255; Toolkit2 mean=0 std=255"},
+  "outputs":[{"index":0,"dims":"[1,18,8400]","format":3,"type":2,"qnt_type":2,"scale":2.5020,"zero_point":-128,"elements":151200}],
+  "timing_ms":{"preprocess_p50":8.2003,"preprocess_p95":14.4580,"input_set_p50":0.8254,"input_set_p95":0.9059,"run_p50":113.7885,"run_p95":124.8401,"fetch_p50":0.2666,"fetch_p95":0.3360},
+  "wall_seconds":38.0919,
+  "throughput_fps":5.2505,
+  "process_cpu_core_percent":66.4651,
+  "process_cpu_system_percent":8.3081,
+  "process_cpu_seconds":25.3178,
+  "peak_rss_kb":126308
+}

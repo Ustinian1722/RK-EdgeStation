@@ -36,7 +36,8 @@ public:
     using Clock = std::chrono::steady_clock;
 
     explicit RoiEventMachine(std::chrono::milliseconds dwell_threshold = std::chrono::seconds(5),
-                             std::size_t debounce_frames = 2);
+                             std::size_t debounce_frames = 2,
+                             int person_class_id = 0);
 
     std::vector<RoiEventTransition> update(const std::vector<RoiObservation>& observations,
                                            const std::set<std::uint64_t>& active_track_ids,
@@ -60,6 +61,7 @@ private:
 
     std::chrono::milliseconds dwell_threshold_;
     std::size_t debounce_frames_;
+    int person_class_id_;
     std::uint64_t cumulative_entries_ = 0;
     std::map<std::uint64_t, TrackState> tracks_;
 };

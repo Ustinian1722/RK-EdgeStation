@@ -1,0 +1,55 @@
+{
+  "class_map_source_to_canonical": {
+    "0": 0,
+    "1": 6,
+    "2": 11,
+    "3": 5,
+    "4": 2
+  },
+  "event_replay_input": "/mnt/d/RK-EdgeStation/.work/model-selection/results/dynamic-host/github-men-at-work.event-input.csv",
+  "event_replay_input_sha256": "722bd38adf808683d952f3dfeb8c14c44f1a62f7d80deac5e495024600ba3dc6",
+  "frames_per_second": 12.713452427047255,
+  "input": {
+    "color_order": "RGB",
+    "dtype": "tensor(float)",
+    "frames": 79,
+    "letterbox_color": 114,
+    "range": "float32 0..1",
+    "shape": [
+      1,
+      3,
+      640,
+      640
+    ],
+    "source_fps": 15.0,
+    "video": "/mnt/d/RK-EdgeStation/.work/model-selection/video/men-at-work-ppe-640x1138-15fps.mp4",
+    "video_sha256": "8b10516bdc76a5bac2601a2e6afbf0286e0c050094cabeea99523d6abdd9d961"
+  },
+  "max_detections": 300,
+  "model": "/mnt/d/RK-EdgeStation/.work/model-selection/abdelrahman-v1.0.0/ppe_yolo.onnx",
+  "model_sha256": "abac0b618f38d3a887c1ab95c5756ab498575f6055cb4bd23bc9383cd8b1b1a7",
+  "nms_iou": 0.45,
+  "outputs": [
+    {
+      "dtype": "tensor(float)",
+      "name": "output0",
+      "shape": [
+        1,
+        9,
+        8400
+      ]
+    }
+  ],
+  "predictions_sha256": "0e9dab12976af1640ba42e9227c3516c9d5f20c4d9f4df365d94c0f3249d7522",
+  "score_floor": 0.25,
+  "wall_ms_per_frame": {
+    "inference_mean": 69.3089617974652,
+    "inference_p50": 68.1142280000131,
+    "inference_p95": 76.41245679997155,
+    "postprocess_mean": 1.876056658228306,
+    "postprocess_p95": 2.021449299991218,
+    "preprocess_mean": 6.184629746819236,
+    "preprocess_p95": 9.198235599910731
+  },
+  "wall_seconds": 6.2138904010000715
+}

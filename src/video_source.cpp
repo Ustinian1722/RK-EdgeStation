@@ -15,6 +15,7 @@
 #include <cstdlib>
 
 #ifdef EDGE_HAS_GSTREAMER
+#include <gst/allocators/gstdmabuf.h>
 #include <gst/app/gstappsink.h>
 #include <gst/gst.h>
 #include <gst/video/video.h>
@@ -106,6 +107,7 @@ private:
 
 class GstMppVideoSource final : public VideoSource {
 public:
+    explicit GstMppVideoSource(bool retain_dmabuf) : retain_dmabuf_(retain_dmabuf) {}
     ~GstMppVideoSource() override { close(); }
 
     bool open(const std::string& source, QueuePolicy, std::string& error) override {
@@ -292,6 +294,58 @@ public:
             error = "NV12 frame has invalid or odd dimensions";
             return FrameReadStatus::Error;
         }
+
+        frame = {};
+        frame.width = width;
+        frame.height = height;
+        const GstClockTime pts = GST_BUFFER_PTS(buffer);
+        if (GST_CLOCK_TIME_IS_VALID(pts)) {
+            const GstSegment* segment = gst_sample_get_segment(sample);
+            const GstClockTime running_time = segment != nullptr && segment->format == GST_FORMAT_TIME
+                ? gst_segment_to_running_time(segment, GST_FORMAT_TIME, pts) : pts;
+            if (GST_CLOCK_TIME_IS_VALID(running_time)) {
+                frame.pts_ms = static_cast<double>(running_time) / static_cast<double>(GST_MSECOND);
+            }
+        }
+        const int fps_n = GST_VIDEO_INFO_FPS_N(&info);
+        const int fps_d = GST_VIDEO_INFO_FPS_D(&info);
+        fps_ = fps_d > 0 ? static_cast<double>(fps_n) / fps_d : 0.0;
+        if (retain_dmabuf_) {
+            if (gst_buffer_n_memory(buffer) != 1) {
+                gst_sample_unref(sample);
+                error = "retained DMA-BUF mode requires exactly one GstMemory per NV12 frame";
+                return FrameReadStatus::Error;
+            }
+            GstMemory* memory = gst_buffer_peek_memory(buffer, 0);
+            const GstVideoMeta* video_meta = gst_buffer_get_video_meta(buffer);
+            gsize memory_offset = 0;
+            gsize maxsize = 0;
+            gst_memory_get_sizes(memory, &memory_offset, &maxsize);
+            const int fd = gst_is_dmabuf_memory(memory) ? gst_dmabuf_memory_get_fd(memory) : -1;
+            if (fd < 0 || video_meta == nullptr || video_meta->n_planes < 2 || memory_offset != 0 ||
+                video_meta->stride[0] < width || video_meta->stride[1] < width ||
+                video_meta->stride[0] != video_meta->stride[1] || video_meta->offset[0] != 0 ||
+                video_meta->offset[1] != static_cast<gsize>(video_meta->stride[0]) * height ||
+                maxsize == 0) {
+                gst_sample_unref(sample);
+                error = "MPP DMA-BUF must expose a valid fd and contiguous linear NV12 planes";
+                return FrameReadStatus::Error;
+            }
+            frame.dma_buf_fd = fd;
+            frame.dma_buf_size = maxsize;
+            frame.dma_buf_offset = memory_offset;
+            frame.dma_buf_y_stride = video_meta->stride[0];
+            frame.dma_buf_uv_stride = video_meta->stride[1];
+            frame.dma_buf_uv_offset = video_meta->offset[1];
+            frame.dma_buf_lifetime = std::shared_ptr<void>(sample, [](void* value) {
+                gst_sample_unref(static_cast<GstSample*>(value));
+            });
+            frame.decoded_at = SteadyClock::now();
+            frame.decode_ms = std::chrono::duration<double, std::milli>(frame.decoded_at - start).count();
+            frame.source_copy_bytes = 0;
+            return FrameReadStatus::Frame;
+        }
+
         GstVideoFrame mapped{};
         if (!gst_video_frame_map(&mapped, &info, buffer, GST_MAP_READ)) {
             gst_sample_unref(sample);
@@ -299,9 +353,6 @@ public:
             return FrameReadStatus::Error;
         }
 
-        frame = {};
-        frame.width = width;
-        frame.height = height;
         frame.nv12.create(height * 3 / 2, width, CV_8UC1);
         const auto* source_y = static_cast<const std::uint8_t*>(GST_VIDEO_FRAME_PLANE_DATA(&mapped, 0));
         const auto* source_uv = static_cast<const std::uint8_t*>(GST_VIDEO_FRAME_PLANE_DATA(&mapped, 1));
@@ -324,18 +375,6 @@ public:
         }
         gst_video_frame_unmap(&mapped);
         frame.source_copy_bytes = frame.nv12.total() * frame.nv12.elemSize();
-        const GstClockTime pts = GST_BUFFER_PTS(buffer);
-        if (GST_CLOCK_TIME_IS_VALID(pts)) {
-            const GstSegment* segment = gst_sample_get_segment(sample);
-            const GstClockTime running_time = segment != nullptr && segment->format == GST_FORMAT_TIME
-                ? gst_segment_to_running_time(segment, GST_FORMAT_TIME, pts) : pts;
-            if (GST_CLOCK_TIME_IS_VALID(running_time)) {
-                frame.pts_ms = static_cast<double>(running_time) / static_cast<double>(GST_MSECOND);
-            }
-        }
-        const int fps_n = GST_VIDEO_INFO_FPS_N(&info);
-        const int fps_d = GST_VIDEO_INFO_FPS_D(&info);
-        fps_ = fps_d > 0 ? static_cast<double>(fps_n) / fps_d : 0.0;
         frame.decoded_at = SteadyClock::now();
         frame.decode_ms = std::chrono::duration<double, std::milli>(frame.decoded_at - start).count();
         gst_sample_unref(sample);
@@ -456,19 +495,21 @@ private:
     bool live_ = false;
     double fps_ = 0.0;
     SteadyClock::time_point last_sample_at_{};
+    bool retain_dmabuf_ = false;
 };
 
 #endif
 
 }  // namespace
 
-std::unique_ptr<VideoSource> make_video_source(VideoBackend backend) {
+std::unique_ptr<VideoSource> make_video_source(VideoBackend backend, bool retain_dmabuf) {
     switch (backend) {
         case VideoBackend::OpenCvFfmpeg:
+            if (retain_dmabuf) throw std::invalid_argument("DMA-BUF output is only available for GStreamer/MPP");
             return std::make_unique<OpenCvVideoSource>();
         case VideoBackend::GStreamerMpp:
 #ifdef EDGE_HAS_GSTREAMER
-            return std::make_unique<GstMppVideoSource>();
+            return std::make_unique<GstMppVideoSource>(retain_dmabuf);
 #else
             throw std::runtime_error("GStreamer support was not built; configure with EDGE_ENABLE_GSTREAMER=ON");
 #endif
@@ -503,6 +544,49 @@ cv::Mat nv12_to_bgr(const cv::Mat& nv12, int width, int height) {
     cv::Mat bgr;
     cv::cvtColorTwoPlane(y, uv, bgr, cv::COLOR_YUV2BGR_NV12);
     return bgr;
+}
+
+cv::Mat frame_to_bgr(const DecodedFrame& frame) {
+    if (!frame.bgr.empty()) return frame.bgr;
+    if (!frame.nv12.empty()) return nv12_to_bgr(frame.nv12, frame.width, frame.height);
+#ifdef EDGE_HAS_GSTREAMER
+    if (frame.dma_buf_fd >= 0 && frame.dma_buf_lifetime) {
+        auto* sample = static_cast<GstSample*>(frame.dma_buf_lifetime.get());
+        GstCaps* caps = gst_sample_get_caps(sample);
+        GstBuffer* buffer = gst_sample_get_buffer(sample);
+        GstVideoInfo info{};
+        if (caps == nullptr || buffer == nullptr || !gst_video_info_from_caps(&info, caps) ||
+            GST_VIDEO_INFO_FORMAT(&info) != GST_VIDEO_FORMAT_NV12) {
+            throw std::runtime_error("retained MPP frame no longer has valid NV12 metadata");
+        }
+        GstVideoFrame mapped{};
+        if (!gst_video_frame_map(&mapped, &info, buffer, GST_MAP_READ)) {
+            throw std::runtime_error("could not map retained MPP frame for event evidence");
+        }
+        cv::Mat nv12(frame.height * 3 / 2, frame.width, CV_8UC1);
+        const auto* source_y = static_cast<const std::uint8_t*>(GST_VIDEO_FRAME_PLANE_DATA(&mapped, 0));
+        const auto* source_uv = static_cast<const std::uint8_t*>(GST_VIDEO_FRAME_PLANE_DATA(&mapped, 1));
+        const int y_stride = GST_VIDEO_FRAME_PLANE_STRIDE(&mapped, 0);
+        const int uv_stride = GST_VIDEO_FRAME_PLANE_STRIDE(&mapped, 1);
+        if (source_y == nullptr || source_uv == nullptr || y_stride < frame.width ||
+            uv_stride < frame.width) {
+            gst_video_frame_unmap(&mapped);
+            throw std::runtime_error("retained MPP frame has invalid NV12 planes");
+        }
+        for (int row = 0; row < frame.height; ++row) {
+            std::memcpy(nv12.ptr(row), source_y + static_cast<std::ptrdiff_t>(row) * y_stride,
+                        static_cast<std::size_t>(frame.width));
+        }
+        for (int row = 0; row < frame.height / 2; ++row) {
+            std::memcpy(nv12.ptr(frame.height + row),
+                        source_uv + static_cast<std::ptrdiff_t>(row) * uv_stride,
+                        static_cast<std::size_t>(frame.width));
+        }
+        gst_video_frame_unmap(&mapped);
+        return nv12_to_bgr(nv12, frame.width, frame.height);
+    }
+#endif
+    throw std::invalid_argument("decoded frame has no CPU image or retained DMA-BUF");
 }
 
 }  // namespace edge

@@ -1,0 +1,12 @@
+{
+  "captured_at_utc": "2026-11-06T20:39:18.926444+00:00",
+  "platform": "Linux-6.1.75-aarch64-with-glibc2.39",
+  "machine": "aarch64",
+  "cpu_count": 8,
+  "gstreamer": "gst-launch-1.0 version 1.24.2\nGStreamer 1.24.2\nhttps://launchpad.net/ubuntu/+source/gstreamer1.0",
+  "rknn_runtime_library": "librknnrt.so (libc6,AArch64) => /lib/librknnrt.so",
+  "cpu_governor": "schedutil",
+  "cpu_frequency_khz": "1800000",
+  "thermal_zone0_millicelsius": "25923",
+  "memory_meminfo": "MemTotal:        8105812 kB\nMemFree:         2447980 kB\nMemAvailable:    7449264 kB\nBuffers:          231228 kB\nCached:          4462504 kB\nSwapCached:            0 kB\nActive:          1507684 kB\nInactive:        3598636 kB\nActive(anon):       1820 kB\nInactive(anon):   416660 kB\nActive(file):    1505864 kB\nInactive(file):  3181976 kB\nUnevictable:        3168 kB\nMlocked:              64 kB\nSwapTotal:             0 kB\nSwapFree:              0 kB\nDirty:               328 kB\nWriteback:             0 kB\nAnonPages:        415776 kB\nMapped:           240328 kB\nShmem:              5892 kB\nKReclaimable:     399800 kB\nSlab:             451892 kB\nSReclaimable:     399800 kB\nSUnreclaim:        52092 kB\nKernelStack:        8076 kB\nPageTables:        12580 kB\nSecPageTables:         0 kB\nNFS_Unstable:          0 kB\nBounce:                0 kB\nWritebackTmp:          0 kB\nCommitLimit:     4052904 kB\nCommitted_AS:    3007228 kB\nVmallocTotal:   259653632 kB\nVmallocUsed:       17720 kB\nVmallocChunk:          0 kB\nPercpu:             1472 kB\nCmaTotal:          16384 kB\nCmaAllocated:       5744 kB\nCmaReleased:       10640 kB\nCmaFree:           10640 kB"
+}

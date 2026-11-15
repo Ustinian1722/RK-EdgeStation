@@ -1,0 +1,198 @@
+{
+  "AP50": 0.24010293800808213,
+  "AP50_95": 0.1260498173170854,
+  "annotation_sha256": "0bbbef1bc3f5febbc224b12b3f37fde62d8a4835aac0edc7b887fd0ae8dab6e1",
+  "confidence_threshold_for_operating_recall": 0.25,
+  "dataset_split": "development validation; the FP epoch selection split, not an independent test set",
+  "image_count": 200,
+  "iou_thresholds": [
+    0.5,
+    0.55,
+    0.6,
+    0.65,
+    0.7,
+    0.75,
+    0.8,
+    0.85,
+    0.9,
+    0.95
+  ],
+  "metric_definition": "101-point interpolated AP per class, averaged over classes with GT; AP50:95 averages IoU 0.50 to 0.95 in 0.05 steps",
+  "operating_point_iou_0_50": {
+    "Person": {
+      "false_negatives_at_iou_0_50": 136,
+      "false_positives_at_iou_0_50": 18,
+      "ground_truth": 481,
+      "predictions_at_confidence_threshold": 363,
+      "recall_at_confidence_threshold": 0.7172557172557172,
+      "true_positives_at_iou_0_50": 345
+    },
+    "boots": {
+      "false_negatives_at_iou_0_50": 481,
+      "false_positives_at_iou_0_50": 0,
+      "ground_truth": 481,
+      "predictions_at_confidence_threshold": 0,
+      "recall_at_confidence_threshold": 0.0,
+      "true_positives_at_iou_0_50": 0
+    },
+    "forklift": {
+      "false_negatives_at_iou_0_50": 73,
+      "false_positives_at_iou_0_50": 0,
+      "ground_truth": 73,
+      "predictions_at_confidence_threshold": 0,
+      "recall_at_confidence_threshold": 0.0,
+      "true_positives_at_iou_0_50": 0
+    },
+    "gloves": {
+      "false_negatives_at_iou_0_50": 381,
+      "false_positives_at_iou_0_50": 0,
+      "ground_truth": 381,
+      "predictions_at_confidence_threshold": 0,
+      "recall_at_confidence_threshold": 0.0,
+      "true_positives_at_iou_0_50": 0
+    },
+    "goggles": {
+      "false_negatives_at_iou_0_50": 139,
+      "false_positives_at_iou_0_50": 0,
+      "ground_truth": 139,
+      "predictions_at_confidence_threshold": 0,
+      "recall_at_confidence_threshold": 0.0,
+      "true_positives_at_iou_0_50": 0
+    },
+    "helmet": {
+      "false_negatives_at_iou_0_50": 122,
+      "false_positives_at_iou_0_50": 30,
+      "ground_truth": 294,
+      "predictions_at_confidence_threshold": 202,
+      "recall_at_confidence_threshold": 0.5850340136054422,
+      "true_positives_at_iou_0_50": 172
+    },
+    "no_boots": {
+      "false_negatives_at_iou_0_50": 178,
+      "false_positives_at_iou_0_50": 0,
+      "ground_truth": 178,
+      "predictions_at_confidence_threshold": 0,
+      "recall_at_confidence_threshold": 0.0,
+      "true_positives_at_iou_0_50": 0
+    },
+    "no_gloves": {
+      "false_negatives_at_iou_0_50": 203,
+      "false_positives_at_iou_0_50": 0,
+      "ground_truth": 203,
+      "predictions_at_confidence_threshold": 0,
+      "recall_at_confidence_threshold": 0.0,
+      "true_positives_at_iou_0_50": 0
+    },
+    "no_goggle": {
+      "false_negatives_at_iou_0_50": 82,
+      "false_positives_at_iou_0_50": 0,
+      "ground_truth": 82,
+      "predictions_at_confidence_threshold": 0,
+      "recall_at_confidence_threshold": 0.0,
+      "true_positives_at_iou_0_50": 0
+    },
+    "no_helmet": {
+      "false_negatives_at_iou_0_50": 156,
+      "false_positives_at_iou_0_50": 18,
+      "ground_truth": 179,
+      "predictions_at_confidence_threshold": 41,
+      "recall_at_confidence_threshold": 0.12849162011173185,
+      "true_positives_at_iou_0_50": 23
+    },
+    "no_vest": {
+      "false_negatives_at_iou_0_50": 68,
+      "false_positives_at_iou_0_50": 12,
+      "ground_truth": 130,
+      "predictions_at_confidence_threshold": 74,
+      "recall_at_confidence_threshold": 0.47692307692307695,
+      "true_positives_at_iou_0_50": 62
+    },
+    "vest": {
+      "false_negatives_at_iou_0_50": 132,
+      "false_positives_at_iou_0_50": 1,
+      "ground_truth": 340,
+      "predictions_at_confidence_threshold": 209,
+      "recall_at_confidence_threshold": 0.611764705882353,
+      "true_positives_at_iou_0_50": 208
+    }
+  },
+  "per_class": {
+    "Person": {
+      "AP50": 0.7656355195150304,
+      "AP50_95": 0.4010544688785543,
+      "ground_truth": 481,
+      "predictions_at_low_score_threshold": 2663
+    },
+    "boots": {
+      "AP50": 0.0,
+      "AP50_95": 0.0,
+      "ground_truth": 481,
+      "predictions_at_low_score_threshold": 0
+    },
+    "forklift": {
+      "AP50": 0.0,
+      "AP50_95": 0.0,
+      "ground_truth": 73,
+      "predictions_at_low_score_threshold": 0
+    },
+    "gloves": {
+      "AP50": 0.0,
+      "AP50_95": 0.0,
+      "ground_truth": 381,
+      "predictions_at_low_score_threshold": 0
+    },
+    "goggles": {
+      "AP50": 0.0,
+      "AP50_95": 0.0,
+      "ground_truth": 139,
+      "predictions_at_low_score_threshold": 0
+    },
+    "helmet": {
+      "AP50": 0.6141856657823079,
+      "AP50_95": 0.3811900953353206,
+      "ground_truth": 294,
+      "predictions_at_low_score_threshold": 712
+    },
+    "no_boots": {
+      "AP50": 0.0,
+      "AP50_95": 0.0,
+      "ground_truth": 178,
+      "predictions_at_low_score_threshold": 0
+    },
+    "no_gloves": {
+      "AP50": 0.0,
+      "AP50_95": 0.0,
+      "ground_truth": 203,
+      "predictions_at_low_score_threshold": 0
+    },
+    "no_goggle": {
+      "AP50": 0.0,
+      "AP50_95": 0.0,
+      "ground_truth": 82,
+      "predictions_at_low_score_threshold": 0
+    },
+    "no_helmet": {
+      "AP50": 0.22009915516695577,
+      "AP50_95": 0.05503189496759202,
+      "ground_truth": 179,
+      "predictions_at_low_score_threshold": 159
+    },
+    "no_vest": {
+      "AP50": 0.5404884843837328,
+      "AP50_95": 0.24056028384885528,
+      "ground_truth": 130,
+      "predictions_at_low_score_threshold": 327
+    },
+    "vest": {
+      "AP50": 0.7408264312489587,
+      "AP50_95": 0.43476106477470244,
+      "ground_truth": 340,
+      "predictions_at_low_score_threshold": 378
+    }
+  },
+  "predictions_sha256": "3089353b0ff55c468d30a83ca0571db6ea58a31f36645b8932bfae37f767ee49",
+  "required_violation_class_recall": {
+    "no_helmet": 0.12849162011173185,
+    "no_vest": 0.47692307692307695
+  }
+}

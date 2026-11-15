@@ -1,0 +1,2 @@
+{"type":"event","frame_index":123,"source_pts_ms":8200,"event_type":"ppe_violation","class_id":11,"label":"no_vest","confidence":0.279812,"track_id":13,"person_association":"matched","related_track_id":10,"confirmation_frames":3}
+{"type":"summary","frames":510,"source_detections":2572,"event_count":1,"ppe_violation_count":1,"confirmation_frames":3,"cooldown_ms":30000}

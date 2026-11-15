@@ -19,6 +19,8 @@ class EventStore:
                     event_id TEXT PRIMARY KEY,
                     timestamp_utc TEXT NOT NULL,
                     event_type TEXT NOT NULL,
+                    camera_id TEXT NOT NULL DEFAULT 'camera-0',
+                    algorithm_id TEXT NOT NULL DEFAULT 'unknown',
                     frame_sequence INTEGER NOT NULL,
                     track_id INTEGER NOT NULL,
                     label TEXT NOT NULL,
@@ -37,10 +39,21 @@ class EventStore:
                 """
             )
             columns = {row["name"] for row in connection.execute("PRAGMA table_info(events)")}
+            if "camera_id" not in columns:
+                connection.execute("ALTER TABLE events ADD COLUMN camera_id TEXT NOT NULL DEFAULT 'camera-0'")
+            if "algorithm_id" not in columns:
+                connection.execute("ALTER TABLE events ADD COLUMN algorithm_id TEXT NOT NULL DEFAULT 'unknown'")
             if "acknowledged_at" not in columns:
                 connection.execute("ALTER TABLE events ADD COLUMN acknowledged_at TEXT")
             if "acknowledged_by" not in columns:
                 connection.execute("ALTER TABLE events ADD COLUMN acknowledged_by TEXT")
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_events_camera_time ON events(camera_id, timestamp_utc DESC)"
+            )
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_events_camera_algorithm_time "
+                "ON events(camera_id, algorithm_id, timestamp_utc DESC)"
+            )
 
     @contextmanager
     def _connection(self) -> Iterator[sqlite3.Connection]:
@@ -59,13 +72,15 @@ class EventStore:
         with self._connection() as connection:
             connection.execute(
                 """INSERT OR IGNORE INTO events
-                   (event_id, timestamp_utc, event_type, frame_sequence, track_id,
-                    label, confidence, evidence, payload_json)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (event_id, timestamp_utc, event_type, camera_id, algorithm_id,
+                    frame_sequence, track_id, label, confidence, evidence, payload_json)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     event["event_id"],
                     event["timestamp_utc"],
                     event["event_type"],
+                    str(event.get("camera_id", "camera-0")),
+                    str(event.get("algorithm_id", "unknown")),
                     int(event["frame_sequence"]),
                     int(event["track_id"]),
                     event["label"],
@@ -82,12 +97,27 @@ class EventStore:
                 (json.dumps(metric, separators=(",", ":")),),
             )
 
-    def events(self, limit: int = 100) -> list[dict[str, Any]]:
+    def events(
+        self,
+        limit: int = 100,
+        camera_id: str | None = None,
+        algorithm_id: str | None = None,
+    ) -> list[dict[str, Any]]:
         limit = max(1, min(int(limit), 500))
+        filters: list[str] = []
+        parameters: list[Any] = []
+        if camera_id:
+            filters.append("camera_id = ?")
+            parameters.append(camera_id)
+        if algorithm_id:
+            filters.append("algorithm_id = ?")
+            parameters.append(algorithm_id)
+        where = " WHERE " + " AND ".join(filters) if filters else ""
+        parameters.append(limit)
         with self._connection() as connection:
             rows = connection.execute(
                 "SELECT payload_json, acknowledged_at, acknowledged_by FROM events "
-                "ORDER BY timestamp_utc DESC LIMIT ?", (limit,)
+                + where + " ORDER BY timestamp_utc DESC LIMIT ?", parameters
             ).fetchall()
         events = []
         for row in rows:

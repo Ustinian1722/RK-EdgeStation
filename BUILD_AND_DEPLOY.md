@@ -1,5 +1,7 @@
 # Build and deploy
 
+> For current release-candidate commands, see [quick start](docs/quickstart.md). The original guide below includes historical board-specific paths and the earlier copy-path implementation; use the current guide for DMA-BUF and multistream.
+
 Status: native RK3576 build/tests pass with OpenCV/FFmpeg, GStreamer/MPP and RGA enabled. The worker supports selectable video/preprocessing backends, bounded latest/FIFO scheduling and media-clock or unpaced file input. Dynamic PPE accuracy, tracker continuity, real-camera behavior and reliable per-core NPU utilization remain open.
 
 ## Current supported development path

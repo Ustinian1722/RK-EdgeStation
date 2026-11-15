@@ -1,4 +1,6 @@
 #include "bounded_queue.hpp"
+#include "constructelligence_ppe_postprocess.hpp"
+#include "multistream.hpp"
 #include "ppe_events.hpp"
 #include "preprocess.hpp"
 #include "roi_events.hpp"
@@ -29,6 +31,7 @@
 #include <memory>
 #include <mutex>
 #include <numeric>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -43,9 +46,11 @@ using Clock = std::chrono::steady_clock;
 namespace {
 
 volatile std::sig_atomic_t shutdown_requested = 0;
+volatile std::sig_atomic_t camera_reload_requested = 0;
 std::mutex stdout_mutex;
 
 void request_shutdown(int) { shutdown_requested = 1; }
+void request_camera_reload(int) { camera_reload_requested = 1; }
 
 bool is_rtsp_source(const std::string& source) {
     std::string prefix = source.substr(0, std::min<std::size_t>(source.size(), 8));
@@ -64,6 +69,7 @@ bool wait_for_retry(std::chrono::milliseconds duration) {
 
 struct Frame {
     edge::DecodedFrame media;
+    std::string camera_id;
     std::uint64_t sequence = 0;
     double pts_ms = 0.0;
     std::uint64_t stream_epoch = 0;
@@ -86,6 +92,7 @@ struct InferenceResult {
     std::vector<edge::Detection> detections;
     double preprocess_ms = 0.0;
     double input_set_ms = 0.0;
+    double input_sync_ms = 0.0;
     double rknn_run_ms = 0.0;
     double output_fetch_ms = 0.0;
     double inference_ms = 0.0;
@@ -93,7 +100,20 @@ struct InferenceResult {
     std::uint64_t model_input_bytes = 0;
 };
 
-enum class ModelFamily { YoloV8Coco, YoloXPpe };
+enum class ModelFamily { YoloV8Coco, YoloXPpe, ConstructelligencePpe };
+
+bool is_ppe_model_family(ModelFamily family) {
+    return family != ModelFamily::YoloV8Coco;
+}
+
+const char* model_family_name(ModelFamily family) {
+    switch (family) {
+        case ModelFamily::YoloV8Coco: return "yolov8-coco";
+        case ModelFamily::YoloXPpe: return "yolox-ppe";
+        case ModelFamily::ConstructelligencePpe: return "constructelligence-ppe";
+    }
+    return "unknown";
+}
 
 std::string json_escape(const std::string& value) {
     std::ostringstream out;
@@ -235,8 +255,9 @@ std::vector<std::uint8_t> read_file(const std::string& path) {
 class RknnYoloEngine {
 public:
     explicit RknnYoloEngine(const std::string& model_path, std::string raw_dump_dir,
-                            ModelFamily model_family)
-        : raw_dump_dir_(std::move(raw_dump_dir)), model_family_(model_family) {
+                            ModelFamily model_family, bool shared_input)
+        : raw_dump_dir_(std::move(raw_dump_dir)), model_family_(model_family),
+          shared_input_(shared_input) {
         try {
             auto model = read_file(model_path);
             int ret = rknn_init(&context_.rknn_ctx, model.data(),
@@ -248,7 +269,8 @@ public:
             ret = rknn_query(context_.rknn_ctx, RKNN_QUERY_IN_OUT_NUM,
                              &context_.io_num, sizeof(context_.io_num));
             if (ret != RKNN_SUCC || context_.io_num.n_input != 1 || context_.io_num.n_output == 0 ||
-                (model_family_ == ModelFamily::YoloXPpe && context_.io_num.n_output != 3)) {
+                (model_family_ == ModelFamily::YoloXPpe && context_.io_num.n_output != 3) ||
+                (model_family_ == ModelFamily::ConstructelligencePpe && context_.io_num.n_output != 1)) {
                 throw std::runtime_error("unsupported RKNN input/output contract");
             }
 
@@ -261,6 +283,40 @@ public:
                                  &input_attrs_[i], sizeof(rknn_tensor_attr));
                 if (ret != RKNN_SUCC) {
                     throw std::runtime_error("failed to query RKNN input tensor");
+                }
+            }
+            if (shared_input_) {
+                native_input_attr_ = {};
+                native_input_attr_.index = 0;
+                ret = rknn_query(context_.rknn_ctx, RKNN_QUERY_NATIVE_INPUT_ATTR,
+                                 &native_input_attr_, sizeof(native_input_attr_));
+                if (ret != RKNN_SUCC) {
+                    throw std::runtime_error("RKNN_QUERY_NATIVE_INPUT_ATTR failed with code " +
+                                             std::to_string(ret));
+                }
+                if (native_input_attr_.fmt != RKNN_TENSOR_NHWC ||
+                    native_input_attr_.dims[0] != 1 || native_input_attr_.dims[3] != 3 ||
+                    native_input_attr_.dims[1] != input_attrs_.front().dims[1] ||
+                    native_input_attr_.dims[2] != input_attrs_.front().dims[2] ||
+                    native_input_attr_.size_with_stride == 0) {
+                    throw std::runtime_error("shared input mode requires a native NHWC image input");
+                }
+                // The deployed preprocessing contract supplies raw uint8 RGB/BGR.
+                // This matches Rockchip's zero-copy image-input example; it does
+                // not claim the Runtime avoids all internal conversions.
+                native_input_attr_.type = RKNN_TENSOR_UINT8;
+                input_memory_ = rknn_create_mem(context_.rknn_ctx,
+                                                native_input_attr_.size_with_stride);
+                if (input_memory_ == nullptr || input_memory_->virt_addr == nullptr ||
+                    input_memory_->fd < 0 ||
+                    input_memory_->size < static_cast<std::uint64_t>(native_input_attr_.w_stride == 0
+                        ? context_.model_width : native_input_attr_.w_stride) *
+                        context_.model_height * 3) {
+                    throw std::runtime_error("rknn_create_mem returned an invalid shared image buffer");
+                }
+                ret = rknn_set_io_mem(context_.rknn_ctx, input_memory_, &native_input_attr_);
+                if (ret != RKNN_SUCC) {
+                    throw std::runtime_error("rknn_set_io_mem failed with code " + std::to_string(ret));
                 }
             }
             for (std::uint32_t i = 0; i < context_.io_num.n_output; ++i) {
@@ -279,6 +335,14 @@ public:
                                       output.dims[3] == 17 && output.fmt == RKNN_TENSOR_NHWC;
                     if (!nchw && !nhwc) {
                         throw std::runtime_error("YOLOX-PPE requires three 17-channel NCHW/NHWC output maps");
+                    }
+                } else if (model_family_ == ModelFamily::ConstructelligencePpe) {
+                    const auto& output = output_attrs_[i];
+                    if (output.n_dims != 3 || output.dims[0] != 1 || output.dims[1] != 18 ||
+                        output.dims[2] != 8400 ||
+                        (output.type != RKNN_TENSOR_FLOAT16 && output.type != RKNN_TENSOR_FLOAT32)) {
+                        throw std::runtime_error(
+                            "Constructelligence PPE requires one floating [1,18,8400] output tensor");
                     }
                 }
             }
@@ -307,9 +371,17 @@ public:
                       << " input_scale=" << input.scale << " input_zero_point=" << input.zp
                       << " outputs=" << context_.io_num.n_output
                       << " quantized=" << (context_.is_quant ? "true" : "false")
-                      << " family=" << (model_family_ == ModelFamily::YoloXPpe ? "yolox-ppe" : "yolov8-coco")
+                      << " family=" << model_family_name(model_family_)
+                      << " input_mode=" << (shared_input_ ? "shared-mem" : "inputs-set")
+                      << (shared_input_ ? " input_mem_fd=" + std::to_string(input_memory_->fd) +
+                                             " input_mem_size=" + std::to_string(input_memory_->size)
+                                       : "")
                       << '\n';
         } catch (...) {
+            if (input_memory_ != nullptr && context_.rknn_ctx != 0) {
+                rknn_destroy_mem(context_.rknn_ctx, input_memory_);
+                input_memory_ = nullptr;
+            }
             if (context_.rknn_ctx != 0) {
                 rknn_destroy(context_.rknn_ctx);
                 context_.rknn_ctx = 0;
@@ -319,6 +391,11 @@ public:
     }
 
     ~RknnYoloEngine() {
+        if (input_memory_ != nullptr && context_.rknn_ctx != 0) {
+            const int ret = rknn_destroy_mem(context_.rknn_ctx, input_memory_);
+            if (ret != RKNN_SUCC) std::cerr << "rknn_destroy_mem returned " << ret << '\n';
+            input_memory_ = nullptr;
+        }
         if (context_.rknn_ctx != 0) {
             const int ret = rknn_destroy(context_.rknn_ctx);
             if (ret != RKNN_SUCC) {
@@ -333,25 +410,49 @@ public:
     InferenceResult infer(const edge::DecodedFrame& frame, float confidence,
                           edge::PreprocessBackend preprocess_backend) {
         InferenceResult result;
-        const bool output_rgb = model_family_ == ModelFamily::YoloV8Coco;
-        auto preprocessed = edge::preprocess_frame(
-            frame, context_.model_width, context_.model_height, output_rgb, preprocess_backend);
+        const bool output_rgb = model_family_ != ModelFamily::YoloXPpe;
+        edge::PreprocessResult preprocessed;
+        if (shared_input_) {
+            const std::uint32_t w_stride = native_input_attr_.w_stride == 0
+                ? static_cast<std::uint32_t>(context_.model_width) : native_input_attr_.w_stride;
+            cv::Mat destination(context_.model_height, context_.model_width, CV_8UC3,
+                                input_memory_->virt_addr,
+                                static_cast<std::size_t>(w_stride) * 3);
+            preprocessed = edge::preprocess_frame_into(
+                frame, context_.model_width, context_.model_height, output_rgb,
+                preprocess_backend, std::move(destination),
+                frame.dma_buf_fd >= 0 ? input_memory_->fd : -1, input_memory_->size);
+            const auto sync_start = Clock::now();
+            const rknn_mem_sync_mode sync_mode = frame.dma_buf_fd >= 0
+                ? RKNN_MEMORY_SYNC_BIDIRECTIONAL : RKNN_MEMORY_SYNC_TO_DEVICE;
+            const int sync_ret = rknn_mem_sync(context_.rknn_ctx, input_memory_, sync_mode);
+            if (sync_ret != RKNN_SUCC) {
+                throw std::runtime_error("rknn_mem_sync failed with code " + std::to_string(sync_ret));
+            }
+            result.input_sync_ms = milliseconds(Clock::now() - sync_start);
+        } else {
+            preprocessed = edge::preprocess_frame(
+                frame, context_.model_width, context_.model_height, output_rgb, preprocess_backend);
+        }
         result.preprocess_ms = preprocessed.elapsed_ms;
         result.model_input_bytes = preprocessed.model_input_bytes;
         const cv::Mat& model_input = preprocessed.model_input;
 
-        rknn_input input{};
-        input.index = 0;
-        input.type = RKNN_TENSOR_UINT8;
-        input.fmt = RKNN_TENSOR_NHWC;
-        input.size = static_cast<std::uint32_t>(model_input.total() * model_input.elemSize());
-        input.buf = model_input.data;
-        const auto input_set_start = Clock::now();
-        int ret = rknn_inputs_set(context_.rknn_ctx, context_.io_num.n_input, &input);
-        if (ret != RKNN_SUCC) {
-            throw std::runtime_error("rknn_inputs_set failed with code " + std::to_string(ret));
+        int ret = RKNN_SUCC;
+        if (!shared_input_) {
+            rknn_input input{};
+            input.index = 0;
+            input.type = RKNN_TENSOR_UINT8;
+            input.fmt = RKNN_TENSOR_NHWC;
+            input.size = static_cast<std::uint32_t>(model_input.total() * model_input.elemSize());
+            input.buf = model_input.data;
+            const auto input_set_start = Clock::now();
+            ret = rknn_inputs_set(context_.rknn_ctx, context_.io_num.n_input, &input);
+            if (ret != RKNN_SUCC) {
+                throw std::runtime_error("rknn_inputs_set failed with code " + std::to_string(ret));
+            }
+            result.input_set_ms = milliseconds(Clock::now() - input_set_start);
         }
-        result.input_set_ms = milliseconds(Clock::now() - input_set_start);
 
         const auto inference_start = Clock::now();
         ret = rknn_run(context_.rknn_ctx, nullptr);
@@ -386,6 +487,26 @@ public:
         if (model_family_ == ModelFamily::YoloXPpe) {
             ret = post_process_yolox_ppe(&context_, outputs.data(), &preprocessed.letterbox,
                                          confidence, NMS_THRESH, frame.width, frame.height, &raw);
+        } else if (model_family_ == ModelFamily::ConstructelligencePpe) {
+            const auto& output_attr = output_attrs_.front();
+            if (outputs.front().buf == nullptr ||
+                (output_attr.type != RKNN_TENSOR_FLOAT16 &&
+                 output_attr.type != RKNN_TENSOR_FLOAT32) ||
+                outputs.front().want_float != 1) {
+                throw std::runtime_error(
+                    "Constructelligence PPE requires RKNN_FLOAT output conversion for FP16/FP32 model output");
+            }
+            const auto decoded = edge::decode_constructelligence_ppe(
+                static_cast<const float*>(outputs.front().buf), 18, 8400,
+                preprocessed.letterbox, frame.width, frame.height, confidence, NMS_THRESH);
+            result.detections.reserve(decoded.size());
+            for (auto detection : decoded) {
+                detection.label = ppe_class_to_name(detection.class_id);
+                result.detections.push_back(detection);
+            }
+            result.postprocess_ms = milliseconds(Clock::now() - post_start);
+            dump_first_detections(result.detections);
+            return result;
         } else {
             ret = post_process(&context_, outputs.data(), &preprocessed.letterbox,
                                confidence, NMS_THRESH, &raw);
@@ -402,7 +523,7 @@ public:
             const int top = std::clamp(item.box.top, 0, frame.height);
             const int right = std::clamp(item.box.right, left, frame.width);
             const int bottom = std::clamp(item.box.bottom, top, frame.height);
-            const char* label = model_family_ == ModelFamily::YoloXPpe
+            const char* label = is_ppe_model_family(model_family_)
                 ? ppe_class_to_name(item.cls_id)
                 : coco_cls_to_name(item.cls_id);
             result.detections.push_back({item.cls_id, item.prop, left, top, right, bottom, label});
@@ -425,8 +546,11 @@ private:
         const fs::path input_path = root / input_filename;
         std::ofstream input_file(input_path, std::ios::binary);
         const auto input_bytes = model_input.total() * model_input.elemSize();
-        input_file.write(reinterpret_cast<const char*>(model_input.data),
-                         static_cast<std::streamsize>(input_bytes));
+        const auto row_bytes = static_cast<std::streamsize>(
+            static_cast<std::size_t>(model_input.cols) * model_input.elemSize());
+        for (int row = 0; row < model_input.rows; ++row) {
+            input_file.write(reinterpret_cast<const char*>(model_input.ptr(row)), row_bytes);
+        }
         if (!input_file) throw std::runtime_error("failed to write raw RKNN input tensor");
 
         std::ofstream manifest(root / "tensor-manifest.txt");
@@ -503,9 +627,12 @@ private:
     rknn_app_context_t context_{};
     std::vector<rknn_tensor_attr> input_attrs_;
     std::vector<rknn_tensor_attr> output_attrs_;
+    rknn_tensor_attr native_input_attr_{};
+    rknn_tensor_mem* input_memory_ = nullptr;
     std::string model_name_;
     std::string raw_dump_dir_;
     ModelFamily model_family_;
+    bool shared_input_ = false;
     bool raw_dumped_ = false;
     bool detections_dumped_ = false;
 };
@@ -513,9 +640,13 @@ private:
 struct Options {
     std::string model;
     std::string video;
+    std::string camera_config;
     edge::VideoBackend video_backend = edge::VideoBackend::OpenCvFfmpeg;
     edge::PreprocessBackend preprocess_backend = edge::PreprocessBackend::Cpu;
     std::string input_pacing = "media";
+    std::string video_memory_mode = "copy";
+    std::string rknn_input_mode = "api";
+    std::string track_log_path;
     std::string state_dir = "state";
     Roi roi;
     std::size_t queue_capacity = 1;
@@ -551,12 +682,15 @@ Options parse_args(int argc, char** argv) {
         const std::string key = argv[i];
         if (key == "--help" || key == "-h") {
             std::cout << "rk_edge_worker --model MODEL.rknn --video INPUT.mp4 "
+                         "[--camera-config cameras.json] "
                          "[--state-dir state] [--roi x,y,w,h] [--queue-capacity N] "
                          "[--queue-policy latest|fifo] [--loop-video] [--confidence X] "
                          "[--video-backend opencv|gstreamer-mpp] [--preprocess-backend cpu|rga] "
+                         "[--video-memory-mode copy|dmabuf] [--rknn-input-mode api|shared] "
+                         "[--track-log PATH] "
                          "[--input-pacing media|none] "
                          "[--dwell-ms N] [--roi-debounce-frames N] [--dump-first-rknn-output DIR] "
-                         "[--model-family yolov8-coco|yolox-ppe] [--danger-zone x,y,w,h] "
+                         "[--model-family yolov8-coco|yolox-ppe|constructelligence-ppe] [--danger-zone x,y,w,h] "
                          "[--conflict-zone x,y,w,h] [--ppe-confirm-frames N] "
                          "[--ppe-cooldown-ms N] [--conflict-dwell-ms N]\n";
             std::exit(0);
@@ -570,16 +704,39 @@ Options parse_args(int argc, char** argv) {
         }
         args[key] = argv[++i];
     }
-    if (!args.count("--model") || !args.count("--video")) {
-        throw std::invalid_argument("--model and --video are required");
+    if (!args.count("--model")) {
+        throw std::invalid_argument("--model is required");
     }
     options.model = args.at("--model");
-    options.video = args.at("--video");
+    if (args.count("--camera-config")) options.camera_config = args.at("--camera-config");
+    if (args.count("--video")) options.video = args.at("--video");
+    if (options.camera_config.empty() && options.video.empty())
+        throw std::invalid_argument("--video or --camera-config is required");
+    if (!options.camera_config.empty() && !options.video.empty())
+        throw std::invalid_argument("--video and --camera-config are mutually exclusive");
     if (args.count("--video-backend")) options.video_backend = edge::parse_video_backend(args.at("--video-backend"));
     if (args.count("--preprocess-backend")) options.preprocess_backend = edge::parse_preprocess_backend(args.at("--preprocess-backend"));
     if (args.count("--input-pacing")) options.input_pacing = args.at("--input-pacing");
+    if (args.count("--video-memory-mode")) options.video_memory_mode = args.at("--video-memory-mode");
+    if (args.count("--rknn-input-mode")) options.rknn_input_mode = args.at("--rknn-input-mode");
+    if (args.count("--track-log")) options.track_log_path = args.at("--track-log");
     if (options.input_pacing != "media" && options.input_pacing != "none") {
         throw std::invalid_argument("--input-pacing must be media or none");
+    }
+    if (options.video_memory_mode != "copy" && options.video_memory_mode != "dmabuf") {
+        throw std::invalid_argument("--video-memory-mode must be copy or dmabuf");
+    }
+    if (options.rknn_input_mode != "api" && options.rknn_input_mode != "shared") {
+        throw std::invalid_argument("--rknn-input-mode must be api or shared");
+    }
+    if (options.video_memory_mode == "dmabuf" &&
+        (options.video_backend != edge::VideoBackend::GStreamerMpp ||
+         options.preprocess_backend != edge::PreprocessBackend::Rga ||
+         options.rknn_input_mode != "shared")) {
+        throw std::invalid_argument("DMA-BUF video mode requires GStreamer/MPP, RGA, and shared RKNN input");
+    }
+    if (options.rknn_input_mode == "shared" && options.preprocess_backend != edge::PreprocessBackend::Rga) {
+        throw std::invalid_argument("shared RKNN input mode currently requires RGA preprocessing");
     }
     if (args.count("--state-dir")) options.state_dir = args.at("--state-dir");
     if (args.count("--queue-capacity")) options.queue_capacity = std::stoul(args.at("--queue-capacity"));
@@ -616,8 +773,10 @@ Options parse_args(int argc, char** argv) {
         options.roi.y + options.roi.height > 1.0) {
         throw std::invalid_argument("invalid queue, confidence, ROI, dwell, or debounce configuration");
     }
-    if (options.model_family != "yolov8-coco" && options.model_family != "yolox-ppe") {
-        throw std::invalid_argument("--model-family must be yolov8-coco or yolox-ppe");
+    if (options.model_family != "yolov8-coco" && options.model_family != "yolox-ppe" &&
+        options.model_family != "constructelligence-ppe") {
+        throw std::invalid_argument(
+            "--model-family must be yolov8-coco, yolox-ppe, or constructelligence-ppe");
     }
     if (options.ppe_confirmation_frames == 0 || options.ppe_confirmation_frames > 10000 ||
         options.ppe_cooldown.count() < 0 || options.conflict_dwell.count() < 0) {
@@ -630,6 +789,7 @@ struct StageSamples {
     std::deque<double> decode;
     std::deque<double> preprocess;
     std::deque<double> input_set;
+    std::deque<double> input_sync;
     std::deque<double> rknn_run;
     std::deque<double> output_fetch;
     std::deque<double> inference;
@@ -642,12 +802,13 @@ struct StageSamples {
         if (samples.size() > 300) samples.pop_front();
     }
 
-    void add(double decode_ms, double preprocess_ms, double input_set_ms,
+    void add(double decode_ms, double preprocess_ms, double input_set_ms, double input_sync_ms,
              double run_ms, double fetch_ms, double postprocess_ms,
              double queue_wait_ms, double end_to_end_ms) {
         append(decode, decode_ms);
         append(preprocess, preprocess_ms);
         append(input_set, input_set_ms);
+        append(input_sync, input_sync_ms);
         append(rknn_run, run_ms);
         append(output_fetch, fetch_ms);
         append(inference, run_ms + fetch_ms);
@@ -669,9 +830,12 @@ struct RuntimeMetricSnapshot {
     edge::VideoBackend video_backend = edge::VideoBackend::OpenCvFfmpeg;
     edge::PreprocessBackend preprocess_backend = edge::PreprocessBackend::Cpu;
     std::string input_pacing = "media";
+    std::string video_memory_mode = "copy";
+    std::string rknn_input_mode = "api";
     double decode_ms = 0.0;
     double preprocess_ms = 0.0;
     double input_set_ms = 0.0;
+    double input_sync_ms = 0.0;
     double rknn_run_ms = 0.0;
     double output_fetch_ms = 0.0;
     double inference_ms = 0.0;
@@ -725,6 +889,7 @@ void emit_metric(std::uint64_t processed, std::uint64_t detections, std::uint64_
               << ",\"last_decode_ms\":" << runtime.decode_ms
               << ",\"last_preprocess_ms\":" << runtime.preprocess_ms
               << ",\"last_rknn_input_set_ms\":" << runtime.input_set_ms
+              << ",\"last_rknn_input_sync_ms\":" << runtime.input_sync_ms
               << ",\"last_rknn_run_ms\":" << runtime.rknn_run_ms
               << ",\"last_rknn_output_fetch_ms\":" << runtime.output_fetch_ms
               << ",\"last_inference_ms\":" << runtime.inference_ms
@@ -737,6 +902,8 @@ void emit_metric(std::uint64_t processed, std::uint64_t detections, std::uint64_
               << ",\"p95_preprocess_ms\":" << percentile(samples.preprocess, 0.95)
               << ",\"p50_rknn_input_set_ms\":" << percentile(samples.input_set, 0.50)
               << ",\"p95_rknn_input_set_ms\":" << percentile(samples.input_set, 0.95)
+              << ",\"p50_rknn_input_sync_ms\":" << percentile(samples.input_sync, 0.50)
+              << ",\"p95_rknn_input_sync_ms\":" << percentile(samples.input_sync, 0.95)
               << ",\"p50_rknn_run_ms\":" << percentile(samples.rknn_run, 0.50)
               << ",\"p95_rknn_run_ms\":" << percentile(samples.rknn_run, 0.95)
               << ",\"p50_rknn_output_fetch_ms\":" << percentile(samples.output_fetch, 0.50)
@@ -753,6 +920,8 @@ void emit_metric(std::uint64_t processed, std::uint64_t detections, std::uint64_
               << ",\"video_backend\":\"" << edge::video_backend_name(runtime.video_backend) << "\""
               << ",\"preprocess_backend\":\"" << edge::preprocess_backend_name(runtime.preprocess_backend) << "\""
               << ",\"input_pacing\":\"" << runtime.input_pacing << "\""
+              << ",\"video_memory_mode\":\"" << runtime.video_memory_mode << "\""
+              << ",\"rknn_input_mode\":\"" << runtime.rknn_input_mode << "\""
               << ",\"source_copy_bytes_total\":" << runtime.source_copy_bytes_total
               << ",\"last_source_copy_bytes\":" << runtime.source_copy_bytes_last
               << ",\"model_input_bytes\":" << runtime.model_input_bytes_last
@@ -778,7 +947,7 @@ void emit_source_status(const char* source_status, std::uint64_t reconnect_attem
 std::string event_json(const edge::RoiEventTransition& event, std::uint64_t frame_sequence,
                        double pts_ms, const std::string& evidence, const std::string& model,
                        const std::string& event_id, const std::string& timestamp,
-                       const char* source_id) {
+                       const char* source_id, const std::string& camera_id = "camera-0") {
     const auto& d = event.detection;
     std::ostringstream out;
     out << std::fixed << std::setprecision(4)
@@ -788,6 +957,8 @@ std::string event_json(const edge::RoiEventTransition& event, std::uint64_t fram
         << "\",\"transition_reason\":\"" << edge::roi_event_reason(event.type)
         << "\",\"timestamp_utc\":\""
         << json_escape(timestamp) << "\",\"source_id\":\"" << source_id
+        << "\",\"camera_id\":\"" << json_escape(camera_id)
+        << "\",\"algorithm_id\":\"roi"
         << "\",\"frame_sequence\":"
         << frame_sequence << ",\"source_pts_ms\":" << pts_ms
         << ",\"track_id\":" << event.track_id << ",\"class_id\":" << d.class_id
@@ -804,7 +975,7 @@ std::string event_json(const edge::RoiEventTransition& event, std::uint64_t fram
 std::string safety_event_json(const edge::PPEEventTransition& event, std::uint64_t frame_sequence,
                               double pts_ms, const std::string& evidence, const std::string& model,
                               const std::string& event_id, const std::string& timestamp,
-                              const char* source_id) {
+                              const char* source_id, const std::string& camera_id = "camera-0") {
     const auto& d = event.detection;
     std::ostringstream out;
     out << std::fixed << std::setprecision(4)
@@ -813,7 +984,8 @@ std::string safety_event_json(const edge::PPEEventTransition& event, std::uint64
         << "\",\"state\":\"active\",\"transition_reason\":\""
         << json_escape(event.reason) << "\",\"severity\":\"" << json_escape(event.severity)
         << "\",\"timestamp_utc\":\"" << json_escape(timestamp)
-        << "\",\"source_id\":\"" << source_id << "\",\"frame_sequence\":"
+        << "\",\"source_id\":\"" << source_id << "\",\"camera_id\":\""
+        << json_escape(camera_id) << "\",\"algorithm_id\":\"ppe\",\"frame_sequence\":"
         << frame_sequence << ",\"source_pts_ms\":" << pts_ms
         << ",\"track_id\":" << event.track_id << ",\"related_track_id\":";
     if (event.related_track_id.has_value()) out << *event.related_track_id;
@@ -829,29 +1001,708 @@ std::string safety_event_json(const edge::PPEEventTransition& event, std::uint64
     return out.str();
 }
 
+enum class CameraStatus { Connecting, Connected, Reconnecting, Ended, Failed, Stopped };
+
+const char* camera_status_name(CameraStatus status) {
+    switch (status) {
+        case CameraStatus::Connecting: return "connecting";
+        case CameraStatus::Connected: return "connected";
+        case CameraStatus::Reconnecting: return "reconnecting";
+        case CameraStatus::Ended: return "ended";
+        case CameraStatus::Failed: return "failed";
+        case CameraStatus::Stopped: return "stopped";
+    }
+    return "unknown";
+}
+
+struct CameraRuntime {
+    CameraRuntime(edge::MultiCameraConfig camera, const Options& options,
+                  const edge::PPEEventConfig& ppe_config, ModelFamily model_family)
+        : config(std::move(camera)), queue(config.queue_capacity, options.queue_policy),
+          roi_events(options.dwell_threshold, options.roi_debounce_frames,
+                     is_ppe_model_family(model_family) ? 5 : 0),
+          ppe_events(ppe_config), ppe_enabled(is_ppe_model_family(model_family) &&
+              std::find(config.tasks.begin(), config.tasks.end(), "ppe") != config.tasks.end()),
+          roi_enabled(std::find(config.tasks.begin(), config.tasks.end(), "roi") != config.tasks.end()) {
+        runtime.video_backend = options.video_backend;
+        runtime.preprocess_backend = options.preprocess_backend;
+        runtime.input_pacing = is_rtsp_source(config.source) ? "source-clock" : options.input_pacing;
+        runtime.video_memory_mode = options.video_memory_mode;
+        runtime.rknn_input_mode = options.rknn_input_mode;
+    }
+
+    edge::MultiCameraConfig config;
+    edge::BoundedQueue<Frame> queue;
+    std::thread producer;
+    std::atomic<bool> stop_requested{false};
+    std::atomic<bool> producer_done{false};
+    std::atomic<bool> inference_failed{false};
+    std::atomic<bool> source_connected{false};
+    std::atomic<int> source_status{static_cast<int>(CameraStatus::Connecting)};
+    std::atomic<std::uint64_t> decoded{0};
+    std::atomic<std::uint64_t> reconnect_attempts{0};
+    std::atomic<std::uint64_t> stream_epoch{0};
+    std::atomic<std::uint64_t> backend_dropped{0};
+    std::atomic<std::uint64_t> sampled_dropped{0};
+    std::atomic<std::uint64_t> source_copy_bytes{0};
+    std::atomic<double> nominal_fps{0.0};
+    std::string producer_error;
+    edge::IoUTracker tracker;
+    edge::RoiEventMachine roi_events;
+    edge::PPEEventMachine ppe_events;
+    bool ppe_enabled = false;
+    bool roi_enabled = true;
+    edge::PPEStatusCounts ppe_status_counts;
+    StageSamples samples;
+    RuntimeMetricSnapshot runtime;
+    std::uint64_t processed = 0;
+    std::uint64_t detections = 0;
+    std::uint64_t events = 0;
+    std::size_t roi_occupancy = 0;
+    std::uint64_t roi_entries = 0;
+    std::uint64_t processed_epoch = 0;
+    double roi_timeline_ms = -1.0;
+    std::chrono::steady_clock::time_point started = Clock::now();
+    std::ofstream track_log;
+};
+
+void emit_camera_status(const CameraRuntime& camera, CameraStatus status) {
+    std::lock_guard<std::mutex> output_lock(stdout_mutex);
+    std::cout << "{\"type\":\"camera_status\",\"camera_id\":\""
+              << json_escape(camera.config.id) << "\",\"source\":\""
+              << json_escape(edge::redact_source(camera.config.source))
+              << "\",\"source_status\":\"" << camera_status_name(status)
+              << "\",\"reconnect_attempts\":" << camera.reconnect_attempts.load()
+              << ",\"stream_epoch\":" << camera.stream_epoch.load() << "}\n" << std::flush;
+}
+
+void set_camera_status(CameraRuntime& camera, CameraStatus status) {
+    const int previous = camera.source_status.exchange(static_cast<int>(status));
+    camera.source_connected.store(status == CameraStatus::Connected);
+    if (previous != static_cast<int>(status)) emit_camera_status(camera, status);
+}
+
+bool wait_for_camera_retry(CameraRuntime& camera, std::chrono::milliseconds duration) {
+    const auto end = Clock::now() + duration;
+    while (!shutdown_requested && !camera.stop_requested.load() && Clock::now() < end)
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    return !shutdown_requested && !camera.stop_requested.load();
+}
+
+void camera_capture_loop(CameraRuntime& camera, const Options& options,
+                         Clock::time_point system_started) {
+    const bool rtsp = is_rtsp_source(camera.config.source);
+    std::unique_ptr<edge::VideoSource> source;
+    std::uint64_t sequence = 0;
+    std::uint64_t epoch = 0;
+    std::uint64_t accounted_backend_drops = 0;
+    bool ever_decoded = false;
+    bool awaiting_reconnect = false;
+    double source_fps = 0.0;
+    double last_pts_ms = -1.0;
+    double last_sample_ms = -1.0;
+    auto next_frame_at = Clock::now();
+    auto retry_delay = std::chrono::milliseconds(500);
+
+    auto account_backend_drops = [&] {
+        if (!source) return;
+        const auto value = source->dropped_frames();
+        if (value > accounted_backend_drops) {
+            camera.backend_dropped.fetch_add(value - accounted_backend_drops);
+            accounted_backend_drops = value;
+        }
+    };
+    auto close_source = [&] {
+        account_backend_drops();
+        if (source) source->close();
+        source.reset();
+        accounted_backend_drops = 0;
+    };
+    auto open_source = [&](std::string& error) {
+        source = edge::make_video_source(options.video_backend, options.video_memory_mode == "dmabuf");
+        if (!source->open(camera.config.source, options.queue_policy, error)) {
+            source->close();
+            source.reset();
+            return false;
+        }
+        accounted_backend_drops = 0;
+        source_fps = source->nominal_fps();
+        camera.nominal_fps.store(source_fps);
+        return true;
+    };
+
+    try {
+        while (!shutdown_requested && !camera.stop_requested.load()) {
+            if (!source) {
+                std::string open_error;
+                if (!open_source(open_error)) {
+                    if (!rtsp) {
+                        camera.producer_error = "local source could not be opened";
+                        set_camera_status(camera, CameraStatus::Failed);
+                        break;
+                    }
+                    set_camera_status(camera, ever_decoded ? CameraStatus::Reconnecting : CameraStatus::Connecting);
+                    const auto attempt = camera.reconnect_attempts.fetch_add(1) + 1;
+                    std::cerr << "camera " << camera.config.id << " RTSP open failed; attempt="
+                              << attempt << " source=" << edge::redact_source(camera.config.source) << '\n';
+                    if (!wait_for_camera_retry(camera, retry_delay)) break;
+                    retry_delay = std::min(retry_delay * 2, std::chrono::milliseconds(5000));
+                    continue;
+                }
+            }
+
+            edge::DecodedFrame decoded_frame;
+            std::string read_error;
+            edge::FrameReadStatus status = edge::FrameReadStatus::Error;
+            try { status = source->read(decoded_frame, read_error); }
+            catch (const std::exception&) { status = edge::FrameReadStatus::Error; }
+            account_backend_drops();
+            if (status == edge::FrameReadStatus::Timeout) continue;
+            if (status == edge::FrameReadStatus::Error || status == edge::FrameReadStatus::EndOfStream) {
+                if (rtsp) {
+                    awaiting_reconnect = ever_decoded;
+                    close_source();
+                    set_camera_status(camera, CameraStatus::Reconnecting);
+                    camera.reconnect_attempts.fetch_add(1);
+                    if (!wait_for_camera_retry(camera, retry_delay)) break;
+                    retry_delay = std::min(retry_delay * 2, std::chrono::milliseconds(5000));
+                    continue;
+                }
+                if (status == edge::FrameReadStatus::Error) {
+                    camera.producer_error = "local source read failed";
+                    set_camera_status(camera, CameraStatus::Failed);
+                    break;
+                }
+                if (!options.loop_video) {
+                    set_camera_status(camera, CameraStatus::Ended);
+                    break;
+                }
+                close_source();
+                std::string open_error;
+                if (!open_source(open_error)) {
+                    camera.producer_error = "local source could not be reopened";
+                    set_camera_status(camera, CameraStatus::Failed);
+                    break;
+                }
+                ++epoch;
+                camera.stream_epoch.store(epoch);
+                last_pts_ms = -1.0;
+                last_sample_ms = -1.0;
+                next_frame_at = Clock::now();
+                continue;
+            }
+
+            if (!rtsp && source_fps <= 0.0) {
+                source_fps = source->nominal_fps();
+                camera.nominal_fps.store(source_fps);
+            }
+            if (rtsp && awaiting_reconnect) {
+                ++epoch;
+                camera.stream_epoch.store(epoch);
+                awaiting_reconnect = false;
+                retry_delay = std::chrono::milliseconds(500);
+            }
+            set_camera_status(camera, CameraStatus::Connected);
+            ever_decoded = true;
+            ++sequence;
+            camera.decoded.fetch_add(1);
+            double pts_ms = rtsp ? milliseconds(decoded_frame.decoded_at - system_started) : decoded_frame.pts_ms;
+            if (!std::isfinite(pts_ms) || pts_ms < 0.0 || (sequence > 1 && pts_ms <= last_pts_ms))
+                pts_ms = !rtsp && source_fps > 0.0
+                    ? static_cast<double>(sequence - 1) * 1000.0 / source_fps
+                    : milliseconds(decoded_frame.decoded_at - system_started);
+            if (!rtsp && sequence > 1 && pts_ms <= last_pts_ms)
+                pts_ms = last_pts_ms + (source_fps > 0.0 ? 1000.0 / source_fps : 1.0);
+            last_pts_ms = pts_ms;
+
+            const double sampling_ms = rtsp
+                ? milliseconds(decoded_frame.decoded_at - system_started) : pts_ms;
+            if (camera.config.max_fps > 0 && last_sample_ms >= 0 &&
+                sampling_ms - last_sample_ms + 1e-6 < 1000.0 / camera.config.max_fps) {
+                camera.sampled_dropped.fetch_add(1);
+                continue;
+            }
+            last_sample_ms = sampling_ms;
+
+            Frame item;
+            item.camera_id = camera.config.id;
+            item.media = std::move(decoded_frame);
+            item.media.sequence = sequence;
+            item.media.stream_epoch = epoch;
+            item.media.pts_ms = pts_ms;
+            item.sequence = sequence;
+            item.pts_ms = pts_ms;
+            item.stream_epoch = epoch;
+            camera.source_copy_bytes.fetch_add(item.media.source_copy_bytes);
+            if (camera.queue.push(std::move(item)) == edge::QueuePushResult::Closed) break;
+
+            if (!rtsp && options.input_pacing == "media" && source_fps > 0.0) {
+                const auto frame_period = std::chrono::duration_cast<Clock::duration>(
+                    std::chrono::duration<double>(1.0 / source_fps));
+                next_frame_at += frame_period;
+                const auto now = Clock::now();
+                if (next_frame_at > now) std::this_thread::sleep_until(next_frame_at);
+                else next_frame_at = now;
+            }
+        }
+        close_source();
+        if (camera.stop_requested.load() || shutdown_requested)
+            set_camera_status(camera, CameraStatus::Stopped);
+        camera.producer_done.store(true);
+        camera.queue.close();
+    } catch (const std::exception&) {
+        camera.producer_error = "camera capture failed unexpectedly";
+        close_source();
+        set_camera_status(camera, CameraStatus::Failed);
+        camera.producer_done.store(true);
+        camera.queue.close();
+    }
+}
+
+void emit_camera_metric(CameraRuntime& camera, const std::string& model_name,
+                        const char* status) {
+    const double elapsed = std::max(0.001, std::chrono::duration<double>(Clock::now() - camera.started).count());
+    const auto dropped = camera.queue.dropped_count() + camera.sampled_dropped.load() +
+                         camera.backend_dropped.load();
+    const auto pending = camera.queue.size();
+    camera.runtime.backend_dropped_frames = camera.backend_dropped.load();
+    camera.runtime.source_copy_bytes_total = camera.source_copy_bytes.load();
+    const auto cpu = read_process_cpu_usage();
+    std::lock_guard<std::mutex> output_lock(stdout_mutex);
+    std::cout << std::fixed << std::setprecision(3)
+              << "{\"type\":\"camera_metric\",\"camera_id\":\"" << json_escape(camera.config.id)
+              << "\",\"status\":\"" << status << "\",\"source_status\":\""
+              << camera_status_name(static_cast<CameraStatus>(camera.source_status.load()))
+              << "\",\"source\":\"" << json_escape(edge::redact_source(camera.config.source))
+              << "\",\"tasks\":[";
+    for (std::size_t index = 0; index < camera.config.tasks.size(); ++index) {
+        if (index) std::cout << ',';
+        std::cout << '"' << json_escape(camera.config.tasks[index]) << '"';
+    }
+    std::cout << "]"
+              << ",\"processed_frames\":" << camera.processed
+              << ",\"inference_calls\":" << camera.processed
+              << ",\"decoded_frames\":" << camera.decoded.load()
+              << ",\"nominal_input_fps\":" << camera.nominal_fps.load()
+              << ",\"input_fps\":" << camera.decoded.load() / elapsed
+              << ",\"throughput_fps\":" << camera.processed / elapsed
+              << ",\"detections\":" << camera.detections
+              << ",\"dropped_frames\":" << dropped
+              << ",\"drop_rate_percent\":" << (camera.decoded.load() > 0
+                    ? 100.0 * dropped / camera.decoded.load() : 0.0)
+              << ",\"pending_frames\":" << pending
+              << ",\"queue_dropped_frames\":" << camera.queue.dropped_count()
+              << ",\"sampled_dropped_frames\":" << camera.sampled_dropped.load()
+              << ",\"backend_dropped_frames\":" << camera.backend_dropped.load()
+              << ",\"queue_depth\":" << camera.queue.size()
+              << ",\"queue_capacity\":" << camera.queue.capacity()
+              << ",\"queue_policy\":\"" << edge::queue_policy_name(camera.queue.policy()) << "\""
+              << ",\"reconnect_attempts\":" << camera.reconnect_attempts.load()
+              << ",\"stream_epoch\":" << camera.stream_epoch.load()
+              << ",\"source_copy_bytes_total\":" << camera.source_copy_bytes.load()
+              << ",\"last_source_copy_bytes\":" << camera.runtime.source_copy_bytes_last
+              << ",\"model_input_bytes\":" << camera.runtime.model_input_bytes_last
+              << ",\"last_decode_ms\":" << camera.runtime.decode_ms
+              << ",\"last_preprocess_ms\":" << camera.runtime.preprocess_ms
+              << ",\"last_rknn_input_set_ms\":" << camera.runtime.input_set_ms
+              << ",\"last_rknn_input_sync_ms\":" << camera.runtime.input_sync_ms
+              << ",\"last_rknn_run_ms\":" << camera.runtime.rknn_run_ms
+              << ",\"last_rknn_output_fetch_ms\":" << camera.runtime.output_fetch_ms
+              << ",\"last_postprocess_ms\":" << camera.runtime.postprocess_ms
+              << ",\"rknn_run_p50_ms\":" << percentile(camera.samples.rknn_run, 0.50)
+              << ",\"rknn_run_p95_ms\":" << percentile(camera.samples.rknn_run, 0.95)
+              << ",\"queue_wait_p95_ms\":" << percentile(camera.samples.queue_wait, 0.95)
+              << ",\"end_to_end_p50_ms\":" << percentile(camera.samples.end_to_end, 0.50)
+              << ",\"end_to_end_p95_ms\":" << percentile(camera.samples.end_to_end, 0.95)
+              << ",\"process_rss_kb\":" << read_rss_kb()
+              << ",\"process_cpu_core_percent\":" << cpu.core_percent
+              << ",\"process_cpu_system_percent\":" << cpu.system_percent
+              << ",\"npu_utilization\":\"unavailable\",\"model\":\""
+              << json_escape(model_name) << "\"}\n" << std::flush;
+}
+
+std::vector<edge::MultiCameraConfig> normalized_enabled_cameras(
+    const std::string& config_path, ModelFamily model_family) {
+    const auto config = edge::load_multistream_config(config_path);
+    const fs::path config_parent = fs::absolute(config_path).parent_path();
+    std::vector<edge::MultiCameraConfig> enabled;
+    enabled.reserve(config.cameras.size());
+    for (auto camera : config.cameras) {
+        if (!camera.enabled) continue;
+        if (std::find(camera.tasks.begin(), camera.tasks.end(), "ppe") != camera.tasks.end() &&
+            !is_ppe_model_family(model_family))
+            throw std::runtime_error("camera task ppe requires a PPE model family");
+        if (!is_rtsp_source(camera.source)) {
+            fs::path source(camera.source);
+            if (source.is_relative()) camera.source = (config_parent / source).lexically_normal().string();
+        }
+        enabled.push_back(std::move(camera));
+    }
+    if (enabled.empty()) throw std::runtime_error("camera config has no enabled cameras");
+    return enabled;
+}
+
+bool camera_requires_restart(const edge::MultiCameraConfig& left,
+                             const edge::MultiCameraConfig& right) {
+    return left.source != right.source || left.max_fps != right.max_fps ||
+           left.queue_capacity != right.queue_capacity || left.tasks != right.tasks ||
+           left.roi_x != right.roi_x || left.roi_y != right.roi_y ||
+           left.roi_width != right.roi_width || left.roi_height != right.roi_height;
+}
+
+void stop_camera_runtime(CameraRuntime& camera, const std::string& model_name) {
+    camera.stop_requested.store(true);
+    camera.queue.close();
+    if (camera.producer.joinable()) camera.producer.join();
+    set_camera_status(camera, CameraStatus::Stopped);
+    emit_camera_metric(camera, model_name, "stopped");
+}
+
+int run_multistream(const Options& options, ModelFamily model_family,
+                    Clock::time_point system_started, std::int64_t run_started_ms) {
+    if (!fs::exists(options.model)) throw std::runtime_error("model file does not exist: " + options.model);
+    auto enabled = normalized_enabled_cameras(options.camera_config, model_family);
+    fs::create_directories(fs::path(options.state_dir) / "evidence");
+
+    edge::PPEEventConfig ppe_config;
+    ppe_config.danger_zone = options.danger_zone;
+    ppe_config.conflict_zone = options.conflict_zone;
+    ppe_config.confirmation_frames = options.ppe_confirmation_frames;
+    ppe_config.cooldown = options.ppe_cooldown;
+    ppe_config.conflict_dwell = options.conflict_dwell;
+
+    std::vector<std::unique_ptr<CameraRuntime>> cameras;
+    cameras.reserve(enabled.size());
+    for (auto& camera : enabled) {
+        cameras.push_back(std::make_unique<CameraRuntime>(
+            std::move(camera), options, ppe_config, model_family));
+    }
+
+    if (model_family == ModelFamily::YoloV8Coco && init_post_process() != 0)
+        throw std::runtime_error("failed to load COCO labels from ./model/coco_80_labels_list.txt");
+    int exit_code = 0;
+    {
+        RknnYoloEngine engine(options.model, options.raw_dump_dir, model_family,
+                              options.rknn_input_mode == "shared");
+        const std::string model_name = basename(options.model);
+        std::unique_ptr<edge::WeightedFairScheduler> scheduler;
+        auto make_scheduler = [&] {
+            std::vector<unsigned int> current_weights;
+            current_weights.reserve(cameras.size());
+            for (const auto& camera : cameras) current_weights.push_back(camera->config.weight);
+            scheduler = std::make_unique<edge::WeightedFairScheduler>(std::move(current_weights));
+        };
+        auto start_camera = [&](std::unique_ptr<CameraRuntime> camera) {
+            camera->started = Clock::now();
+            if (!options.track_log_path.empty()) {
+                fs::create_directories(fs::path(options.track_log_path));
+                const fs::path log_path = fs::path(options.track_log_path) /
+                                          (camera->config.id + ".jsonl");
+                camera->track_log.open(log_path, std::ios::out | std::ios::trunc);
+                if (!camera->track_log)
+                    throw std::runtime_error("could not open multistream track log: " + log_path.string());
+            }
+            emit_camera_status(*camera, CameraStatus::Connecting);
+            camera->producer = std::thread(camera_capture_loop, std::ref(*camera),
+                                           std::cref(options), system_started);
+            cameras.push_back(std::move(camera));
+        };
+        for (auto& camera : cameras) {
+            camera->started = Clock::now();
+            if (!options.track_log_path.empty()) {
+                fs::create_directories(fs::path(options.track_log_path));
+                const fs::path log_path = fs::path(options.track_log_path) /
+                                          (camera->config.id + ".jsonl");
+                camera->track_log.open(log_path, std::ios::out | std::ios::trunc);
+                if (!camera->track_log)
+                    throw std::runtime_error("could not open multistream track log: " + log_path.string());
+            }
+            emit_camera_status(*camera, CameraStatus::Connecting);
+            camera->producer = std::thread(camera_capture_loop, std::ref(*camera),
+                                           std::cref(options), system_started);
+        }
+        make_scheduler();
+        std::size_t no_ready_spins = 0;
+        std::uint64_t processed_total = 0;
+        while (!shutdown_requested) {
+            if (camera_reload_requested) {
+                camera_reload_requested = 0;
+                try {
+                    auto reloaded = normalized_enabled_cameras(
+                        options.camera_config, model_family);
+                    for (std::size_t index = 0; index < cameras.size();) {
+                        const auto replacement = std::find_if(reloaded.begin(), reloaded.end(),
+                            [&](const auto& item) { return item.id == cameras[index]->config.id; });
+                        if (replacement == reloaded.end() ||
+                            camera_requires_restart(cameras[index]->config, *replacement)) {
+                            const auto id = cameras[index]->config.id;
+                            stop_camera_runtime(*cameras[index], model_name);
+                            cameras.erase(cameras.begin() + static_cast<std::ptrdiff_t>(index));
+                            std::cerr << "camera configuration removed or restarted id=" << id << '\n';
+                            continue;
+                        }
+                        cameras[index]->config.weight = replacement->weight;
+                        ++index;
+                    }
+                    for (auto& config : reloaded) {
+                        const auto existing = std::find_if(cameras.begin(), cameras.end(),
+                            [&](const auto& item) { return item->config.id == config.id; });
+                        if (existing == cameras.end()) {
+                            start_camera(std::make_unique<CameraRuntime>(
+                                std::move(config), options, ppe_config, model_family));
+                        }
+                    }
+                    make_scheduler();
+                    std::cerr << "camera configuration reloaded count=" << cameras.size() << '\n';
+                } catch (const std::exception& error) {
+                    std::cerr << "camera configuration reload rejected: " << error.what() << '\n';
+                    if (cameras.empty()) {
+                        shutdown_requested = 1;
+                    } else {
+                        make_scheduler();
+                    }
+                }
+            }
+            std::vector<bool> ready;
+            ready.reserve(cameras.size());
+            bool all_done = true;
+            for (const auto& camera : cameras) {
+                ready.push_back(camera->queue.size() > 0 && !camera->inference_failed.load());
+                if (!camera->producer_done.load() || camera->queue.size() > 0) all_done = false;
+            }
+            const int selected = scheduler->select(ready);
+            if (selected < 0) {
+                if (all_done) break;
+                if (++no_ready_spins >= 2) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+                    no_ready_spins = 0;
+                }
+                continue;
+            }
+            no_ready_spins = 0;
+            auto& camera = *cameras[static_cast<std::size_t>(selected)];
+            Frame frame;
+            if (!camera.queue.try_pop(frame)) continue;
+            if (frame.stream_epoch < camera.stream_epoch.load()) continue;
+            if (frame.stream_epoch != camera.processed_epoch) {
+                camera.tracker.reset();
+                camera.roi_events.reset_stream();
+                camera.ppe_events.reset_stream();
+                camera.roi_occupancy = 0;
+                camera.processed_epoch = frame.stream_epoch;
+            }
+            const auto process_start = Clock::now();
+            camera.runtime.queue_wait_ms = milliseconds(process_start - frame.media.decoded_at);
+            try {
+                auto result = engine.infer(frame.media, options.confidence, options.preprocess_backend);
+                camera.runtime.decode_ms = frame.media.decode_ms;
+                camera.runtime.preprocess_ms = result.preprocess_ms;
+                camera.runtime.input_set_ms = result.input_set_ms;
+                camera.runtime.input_sync_ms = result.input_sync_ms;
+                camera.runtime.rknn_run_ms = result.rknn_run_ms;
+                camera.runtime.output_fetch_ms = result.output_fetch_ms;
+                camera.runtime.inference_ms = result.inference_ms;
+                camera.runtime.postprocess_ms = result.postprocess_ms;
+                camera.runtime.source_copy_bytes_last = frame.media.source_copy_bytes;
+                camera.runtime.model_input_bytes_last = result.model_input_bytes;
+                camera.detections += result.detections.size();
+                const auto tracked = camera.tracker.update(result.detections);
+                if (camera.track_log.is_open()) {
+                    camera.track_log << std::fixed << std::setprecision(4)
+                        << "{\"camera_id\":\"" << json_escape(camera.config.id)
+                        << "\",\"frame_sequence\":" << frame.sequence
+                        << ",\"stream_epoch\":" << frame.stream_epoch
+                        << ",\"source_pts_ms\":" << frame.pts_ms << ",\"detections\":[";
+                    for (std::size_t index = 0; index < tracked.size(); ++index) {
+                        if (index) camera.track_log << ',';
+                        const auto& item = tracked[index];
+                        const auto& d = item.detection;
+                        camera.track_log << "{\"track_id\":" << item.track_id
+                            << ",\"class_id\":" << d.class_id << ",\"confidence\":" << d.confidence
+                            << ",\"box\":[" << d.left << ',' << d.top << ',' << d.right << ',' << d.bottom
+                            << "],\"new_track\":" << (item.created ? "true" : "false") << '}';
+                    }
+                    camera.track_log << "]}\n";
+                    if (!camera.track_log) throw std::runtime_error("failed writing camera track log");
+                }
+                std::vector<edge::RoiObservation> observations;
+                observations.reserve(tracked.size());
+                for (const auto& item : tracked) {
+                    const auto& d = item.detection;
+                    const double center_x = (d.left + d.right) * 0.5 / frame.media.width;
+                    const double center_y = (d.top + d.bottom) * 0.5 / frame.media.height;
+                    const bool inside = center_x >= camera.config.roi_x &&
+                        center_x <= camera.config.roi_x + camera.config.roi_width &&
+                        center_y >= camera.config.roi_y &&
+                        center_y <= camera.config.roi_y + camera.config.roi_height;
+                    observations.push_back({item.track_id, d, inside});
+                }
+                const auto active = camera.tracker.active_ids();
+                double event_time_ms = frame.pts_ms;
+                if (!std::isfinite(event_time_ms) || event_time_ms < 0.0 ||
+                    event_time_ms <= camera.roi_timeline_ms)
+                    event_time_ms = milliseconds(frame.media.decoded_at - system_started);
+                event_time_ms = std::max(event_time_ms, camera.roi_timeline_ms);
+                camera.roi_timeline_ms = event_time_ms;
+                const auto event_time = Clock::time_point{} +
+                    std::chrono::duration_cast<Clock::duration>(
+                        std::chrono::duration<double, std::milli>(event_time_ms));
+                std::vector<edge::RoiEventTransition> roi_transitions;
+                if (camera.roi_enabled)
+                    roi_transitions = camera.roi_events.update(observations, active, event_time);
+                std::vector<edge::PPEEventTransition> ppe_transitions;
+                if (camera.ppe_enabled)
+                    ppe_transitions = camera.ppe_events.update(
+                        tracked, active, frame.media.width, frame.media.height, event_time);
+                camera.ppe_status_counts = camera.ppe_events.person_status_counts();
+                camera.roi_occupancy = camera.roi_events.occupancy_count();
+                camera.roi_entries = camera.roi_events.cumulative_entries();
+
+                std::vector<std::pair<edge::RoiEventTransition, std::string>> pending_roi;
+                for (const auto& event : roi_transitions) {
+                    const auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::system_clock::now().time_since_epoch()).count();
+                    pending_roi.emplace_back(event, "evt-" + camera.config.id + "-" +
+                        std::to_string(now_ms) + "-" + std::to_string(frame.sequence) + "-" +
+                        std::to_string(event.track_id) + "-" + edge::roi_event_type_name(event.type));
+                }
+                std::vector<std::pair<edge::PPEEventTransition, std::string>> pending_ppe;
+                for (const auto& event : ppe_transitions) {
+                    const auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::system_clock::now().time_since_epoch()).count();
+                    const std::string related = event.related_track_id
+                        ? std::to_string(*event.related_track_id) : "unknown";
+                    pending_ppe.emplace_back(event, "evt-" + camera.config.id + "-" +
+                        std::to_string(now_ms) + "-" + std::to_string(frame.sequence) + "-" +
+                        std::to_string(event.track_id) + "-" + related + "-" + event.event_type);
+                }
+                if (!pending_roi.empty() || !pending_ppe.empty()) {
+                    cv::Mat annotated = edge::frame_to_bgr(frame.media).clone();
+                    for (const auto& item : tracked) {
+                        const auto& d = item.detection;
+                        cv::rectangle(annotated, cv::Point(d.left, d.top), cv::Point(d.right, d.bottom),
+                                      cv::Scalar(40, 220, 40), 2);
+                    }
+                    const std::string filename = camera.config.id + "-frame-" +
+                        std::to_string(run_started_ms) + "-" + std::to_string(frame.sequence) + ".jpg";
+                    const fs::path path = fs::path(options.state_dir) / "evidence" / filename;
+                    if (!cv::imwrite(path.string(), annotated))
+                        throw std::runtime_error("failed to write camera event evidence image");
+                    const std::string evidence = (fs::path("evidence") / filename).generic_string();
+                    const char* source_type = is_rtsp_source(camera.config.source) ? "rtsp" : "local-file";
+                    for (const auto& pending : pending_roi) {
+                        const auto timestamp = utc_timestamp(std::chrono::system_clock::now());
+                        {
+                            std::lock_guard<std::mutex> output_lock(stdout_mutex);
+                            std::cout << event_json(pending.first, frame.sequence, frame.pts_ms, evidence,
+                                model_name, pending.second, timestamp, source_type, camera.config.id)
+                                      << '\n' << std::flush;
+                        }
+                        ++camera.events;
+                    }
+                    for (const auto& pending : pending_ppe) {
+                        const auto timestamp = utc_timestamp(std::chrono::system_clock::now());
+                        {
+                            std::lock_guard<std::mutex> output_lock(stdout_mutex);
+                            std::cout << safety_event_json(pending.first, frame.sequence, frame.pts_ms,
+                                evidence, model_name, pending.second, timestamp, source_type,
+                                camera.config.id) << '\n' << std::flush;
+                        }
+                        ++camera.events;
+                    }
+                }
+
+                ++camera.processed;
+                ++processed_total;
+                camera.runtime.end_to_end_ms = milliseconds(Clock::now() - frame.media.decoded_at);
+                camera.samples.add(camera.runtime.decode_ms, camera.runtime.preprocess_ms,
+                    camera.runtime.input_set_ms, camera.runtime.input_sync_ms,
+                    camera.runtime.rknn_run_ms, camera.runtime.output_fetch_ms,
+                    camera.runtime.postprocess_ms, camera.runtime.queue_wait_ms,
+                    camera.runtime.end_to_end_ms);
+                if (camera.processed == 1 || camera.processed % 15 == 0)
+                    emit_camera_metric(camera, model_name, "running");
+            } catch (const std::exception& error) {
+                camera.inference_failed.store(true);
+                camera.stop_requested.store(true);
+                camera.queue.close();
+                set_camera_status(camera, CameraStatus::Failed);
+                std::cerr << "camera " << camera.config.id
+                          << " frame processing disabled after an inference failure: "
+                          << error.what() << '\n';
+            }
+        }
+
+        for (auto& camera : cameras) {
+            camera->stop_requested.store(true);
+            camera->queue.close();
+        }
+        for (auto& camera : cameras) if (camera->producer.joinable()) camera->producer.join();
+        bool any_decoded = false;
+        for (auto& camera : cameras) {
+            any_decoded = any_decoded || camera->decoded.load() > 0;
+            emit_camera_metric(*camera, model_name,
+                camera->inference_failed.load() || !camera->producer_error.empty() ? "error" : "completed");
+            std::cerr << "camera completed id=" << camera->config.id
+                      << " decoded=" << camera->decoded.load()
+                      << " processed=" << camera->processed
+                      << " dropped=" << camera->queue.dropped_count() + camera->sampled_dropped.load() +
+                                            camera->backend_dropped.load()
+                      << " events=" << camera->events << '\n';
+        }
+        if (!any_decoded && !shutdown_requested) exit_code = 2;
+        std::cerr << "multistream worker completed cameras=" << cameras.size()
+                  << " processed=" << processed_total << '\n';
+    }
+    deinit_post_process();
+    return exit_code;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
     try {
         std::signal(SIGINT, request_shutdown);
         std::signal(SIGTERM, request_shutdown);
+        std::signal(SIGUSR1, request_camera_reload);
         const Options options = parse_args(argc, argv);
+        const auto process_started = Clock::now();
+        const auto run_started_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        if (!options.camera_config.empty()) {
+            const ModelFamily family = options.model_family == "yolox-ppe"
+                ? ModelFamily::YoloXPpe
+                : options.model_family == "constructelligence-ppe"
+                    ? ModelFamily::ConstructelligencePpe
+                    : ModelFamily::YoloV8Coco;
+            return run_multistream(options, family, process_started, run_started_ms);
+        }
         const bool rtsp_source = is_rtsp_source(options.video);
         if (!fs::exists(options.model)) throw std::runtime_error("model file does not exist: " + options.model);
         if (!rtsp_source && !fs::exists(options.video)) {
             throw std::runtime_error("video file does not exist: " + options.video);
         }
         fs::create_directories(fs::path(options.state_dir) / "evidence");
+        std::ofstream track_log;
+        if (!options.track_log_path.empty()) {
+            const fs::path track_path(options.track_log_path);
+            if (!track_path.parent_path().empty()) fs::create_directories(track_path.parent_path());
+            track_log.open(track_path, std::ios::out | std::ios::trunc);
+            if (!track_log) throw std::runtime_error("could not open track log: " + options.track_log_path);
+        }
 
         const ModelFamily model_family = options.model_family == "yolox-ppe"
             ? ModelFamily::YoloXPpe
-            : ModelFamily::YoloV8Coco;
+            : options.model_family == "constructelligence-ppe"
+                ? ModelFamily::ConstructelligencePpe
+                : ModelFamily::YoloV8Coco;
         if (model_family == ModelFamily::YoloV8Coco && init_post_process() != 0) {
             throw std::runtime_error("failed to load COCO labels from ./model/coco_80_labels_list.txt");
         }
         int exit_code = 0;
         {
-            RknnYoloEngine engine(options.model, options.raw_dump_dir, model_family);
+            RknnYoloEngine engine(options.model, options.raw_dump_dir, model_family,
+                                  options.rknn_input_mode == "shared");
             edge::BoundedQueue<Frame> queue(options.queue_capacity, options.queue_policy);
             edge::PPEEventConfig ppe_event_config;
             ppe_event_config.danger_zone = options.danger_zone;
@@ -901,7 +1752,8 @@ int main(int argc, char** argv) {
                         accounted_backend_drops = 0;
                     };
                     auto open_source = [&](std::string& error) {
-                        source = edge::make_video_source(options.video_backend);
+                        source = edge::make_video_source(
+                            options.video_backend, options.video_memory_mode == "dmabuf");
                         if (!source->open(options.video, options.queue_policy, error)) {
                             source->close();
                             source.reset();
@@ -1056,7 +1908,8 @@ int main(int argc, char** argv) {
 
             edge::IoUTracker tracker;
             edge::RoiEventMachine roi_event_machine(options.dwell_threshold,
-                                                    options.roi_debounce_frames);
+                                                    options.roi_debounce_frames,
+                                  is_ppe_model_family(model_family) ? 5 : 0);
             edge::PPEEventMachine ppe_event_machine(ppe_event_config);
             edge::PPEStatusCounts ppe_status_counts;
             std::uint64_t processed_stream_epoch = 0;
@@ -1065,6 +1918,8 @@ int main(int argc, char** argv) {
             runtime.video_backend = options.video_backend;
             runtime.preprocess_backend = options.preprocess_backend;
             runtime.input_pacing = rtsp_source ? "source-clock" : options.input_pacing;
+            runtime.video_memory_mode = options.video_memory_mode;
+            runtime.rknn_input_mode = options.rknn_input_mode;
             std::uint64_t processed = 0;
             std::uint64_t detection_total = 0;
             std::uint64_t event_total = 0;
@@ -1110,6 +1965,7 @@ int main(int argc, char** argv) {
                     runtime.decode_ms = frame.media.decode_ms;
                     runtime.preprocess_ms = result.preprocess_ms;
                     runtime.input_set_ms = result.input_set_ms;
+                    runtime.input_sync_ms = result.input_sync_ms;
                     runtime.rknn_run_ms = result.rknn_run_ms;
                     runtime.output_fetch_ms = result.output_fetch_ms;
                     runtime.inference_ms = result.inference_ms;
@@ -1118,6 +1974,26 @@ int main(int argc, char** argv) {
                     runtime.model_input_bytes_last = result.model_input_bytes;
                     detection_total += result.detections.size();
                     const auto tracked = tracker.update(result.detections);
+                    if (track_log.is_open()) {
+                        track_log << std::fixed << std::setprecision(4)
+                                  << "{\"frame_sequence\":" << frame.sequence
+                                  << ",\"source_pts_ms\":" << frame.pts_ms
+                                  << ",\"detections\":[";
+                        for (std::size_t index = 0; index < tracked.size(); ++index) {
+                            if (index != 0) track_log << ',';
+                            const auto& item = tracked[index];
+                            const auto& d = item.detection;
+                            track_log << "{\"track_id\":" << item.track_id
+                                      << ",\"class_id\":" << d.class_id
+                                      << ",\"confidence\":" << d.confidence
+                                      << ",\"box\":[" << d.left << ',' << d.top << ','
+                                      << d.right << ',' << d.bottom << ']'
+                                      << ",\"new_track\":" << (item.created ? "true" : "false")
+                                      << '}';
+                        }
+                        track_log << "]}\n";
+                        if (!track_log) throw std::runtime_error("failed writing track log");
+                    }
                     std::vector<edge::RoiObservation> observations;
                     observations.reserve(tracked.size());
 
@@ -1139,7 +2015,7 @@ int main(int argc, char** argv) {
                             std::chrono::duration<double, std::milli>(event_time_ms));
                     auto transitions = roi_event_machine.update(observations, active, event_time);
                     std::vector<edge::PPEEventTransition> safety_transitions;
-                    if (model_family == ModelFamily::YoloXPpe) {
+                    if (is_ppe_model_family(model_family)) {
                         safety_transitions = ppe_event_machine.update(
                             tracked, active, frame.media.width, frame.media.height, event_time);
                     }
@@ -1175,9 +2051,7 @@ int main(int argc, char** argv) {
                     }
 
                     if (!pending_events.empty() || !pending_safety_events.empty()) {
-                        cv::Mat source_bgr = frame.media.bgr.empty()
-                            ? edge::nv12_to_bgr(frame.media.nv12, frame.media.width, frame.media.height)
-                            : frame.media.bgr;
+                        cv::Mat source_bgr = edge::frame_to_bgr(frame.media);
                         cv::Mat annotated = source_bgr.clone();
                         for (const auto& item : tracked) {
                             const auto& d = item.detection;
@@ -1227,6 +2101,7 @@ int main(int argc, char** argv) {
                     ++processed;
                     runtime.end_to_end_ms = milliseconds(Clock::now() - frame.media.decoded_at);
                     stage_samples.add(runtime.decode_ms, runtime.preprocess_ms, runtime.input_set_ms,
+                                      runtime.input_sync_ms,
                                       runtime.rknn_run_ms, runtime.output_fetch_ms,
                                       runtime.postprocess_ms, runtime.queue_wait_ms,
                                       runtime.end_to_end_ms);

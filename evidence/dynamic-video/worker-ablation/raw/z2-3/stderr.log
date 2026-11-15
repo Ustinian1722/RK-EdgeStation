@@ -1,0 +1,3 @@
+RKNN model=yolox-s-ppe-int8.rknn input=640x640 channels=3 input_type=INT8 input_format=NHWC input_quantization=AFFINE input_scale=1 input_zero_point=-128 outputs=3 quantized=true family=yolox-ppe input_mode=shared-mem input_mem_fd=7 input_mem_size=1228800
+video source_type=local-file backend=gstreamer-mpp source_fps=15 pacing=media-rate looping=disabled
+worker completed: decoded=120 processed=65 detections=958 events=0 dropped=55

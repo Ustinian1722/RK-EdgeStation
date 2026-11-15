@@ -1,0 +1,4 @@
+mode,video_memory_mode,rknn_input_mode,repeats,throughput_fps,p95_end_to_end_ms,process_cpu_core_percent,process_rss_kb,p50_preprocess_ms,p50_rknn_input_set_ms,p50_rknn_input_sync_ms,p50_rknn_run_ms,p50_output_fetch_ms,p50_queue_wait_ms,p95_queue_wait_ms,processed_frames_median,decoded_frames_median,dropped_frames_median,source_copy_bytes_total_median,detections_median
+z0,copy,api,1,8.006,187.331,56.167,110112.0,3.789,0.996,0.0,116.468,0.345,34.721,62.459,273.0,510.0,237.0,705024000.0,3036.0
+z1,copy,shared,1,8.087,184.778,55.797,108544.0,3.737,0.0,0.133,115.813,0.329,33.787,62.122,276.0,510.0,234.0,705024000.0,3054.0
+z2,dmabuf,shared,1,8.138,187.511,52.172,102900.0,2.648,0.0,0.133,115.959,0.332,34.599,64.053,278.0,510.0,232.0,0.0,3067.0

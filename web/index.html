@@ -20,9 +20,11 @@
   <h1>RK-EdgeStation</h1>
   <div id="summary" class="muted">Connecting to the local board service…</div>
   <section id="metrics" class="grid"></section>
+  <h2>Cameras</h2>
+  <section id="cameras" class="grid"><div class="card muted">Waiting for camera status</div></section>
   <h2>Recent events</h2>
-  <div class="card"><table><thead><tr><th>Time (UTC)</th><th>Object / type</th><th>State</th><th>Severity</th><th>Track / related</th><th>Association</th><th>Confidence</th><th>ROI occupancy</th><th>Evidence</th><th>Acknowledgement</th></tr></thead>
-    <tbody id="events"><tr><td colspan="10">Waiting for events</td></tr></tbody></table></div>
+  <div class="card"><table><thead><tr><th>Time (UTC)</th><th>Camera</th><th>Object / type</th><th>State</th><th>Severity</th><th>Track / related</th><th>Association</th><th>Confidence</th><th>ROI occupancy</th><th>Evidence</th><th>Acknowledgement</th></tr></thead>
+    <tbody id="events"><tr><td colspan="11">Waiting for events</td></tr></tbody></table></div>
   <p class="muted">A person is marked compliant only when both helmet and vest detections are present; otherwise the PPE status remains unknown unless a violation is detected. PPE alerts require persistent detections. Danger and forklift/person zones are opt-in normalized rectangles. Co-occurrence only means both detections occupy the configured rectangle; it does not estimate physical distance. This service binds to loopback.</p>
   <script>
     const metricKeys = [
@@ -42,12 +44,15 @@
     ];
     async function refresh() {
       try {
-        const [health, metrics, eventResponse] = await Promise.all([
+        const [health, metrics, cameraResponse, algorithmResponse, eventResponse] = await Promise.all([
           fetch('/api/health', {cache:'no-store'}).then(r => r.json()),
           fetch('/api/metrics', {cache:'no-store'}).then(r => r.json()),
+          fetch('/api/cameras', {cache:'no-store'}).then(r => r.json()),
+          fetch('/api/algorithms', {cache:'no-store'}).then(r => r.json()),
           fetch('/api/events?limit=30', {cache:'no-store'})
         ]);
         const eventData = await eventResponse.json();
+        const cameraData = await cameraResponse.json();
         const summary = document.getElementById('summary');
         const storageLabel = health.storage_status || 'unknown';
         const storageDetail = health.storage_last_error
@@ -62,13 +67,50 @@
           const caption = document.createElement('div'); caption.className = 'label'; caption.textContent = label;
           card.append(value, caption); return card;
         }));
+        const cameras = document.getElementById('cameras');
+        const configuredCameras = Array.isArray(cameraData.cameras) ? cameraData.cameras : [];
+        if (!configuredCameras.length) {
+          const empty = document.createElement('div'); empty.className = 'card muted';
+          empty.textContent = 'No camera streams configured'; cameras.replaceChildren(empty);
+        } else {
+          cameras.replaceChildren(...configuredCameras.map(camera => {
+            const card = document.createElement('div'); card.className = 'card';
+            const title = document.createElement('div'); title.className = 'value';
+            title.textContent = `${camera.camera_id} · ${camera.source_status || camera.status || 'starting'}`;
+            const detail = document.createElement('div'); detail.className = 'label';
+            detail.textContent = `${camera.source || 'source hidden'} · ${camera.throughput_fps ?? 0} FPS · ${camera.dropped_frames ?? 0} drops · P95 ${camera.end_to_end_p95_ms ?? '—'} ms · epoch ${camera.stream_epoch ?? 0}`;
+            card.append(title, detail);
+            if (health.camera_config) {
+              const toggle = document.createElement('button');
+              toggle.textContent = camera.enabled ? 'Stop camera' : 'Start camera';
+              toggle.onclick = async () => {
+                toggle.disabled = true;
+                try {
+                  const response = await fetch(`/api/cameras/${encodeURIComponent(camera.camera_id)}/enabled`, {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({enabled: !camera.enabled})
+                  });
+                  if (!response.ok) throw new Error(`camera update failed: ${response.status}`);
+                  refresh();
+                } catch (error) { toggle.disabled = false; toggle.textContent = 'Retry'; }
+              };
+              card.append(toggle);
+            }
+            return card;
+          }));
+        }
+        const readyAlgorithms = (algorithmResponse.algorithms || []).filter(item => item.status === 'ready')
+          .map(item => item.algorithm_id).join(', ');
+        const notReadyAlgorithms = (algorithmResponse.algorithms || []).filter(item => item.status !== 'ready')
+          .map(item => item.algorithm_id).join(', ');
+        document.getElementById('summary').textContent += ` · Ready algorithms: ${readyAlgorithms || 'none'} · Not ready: ${notReadyAlgorithms || 'none'}`;
         const body = document.getElementById('events'); body.replaceChildren();
         const events = Array.isArray(eventData.events) ? eventData.events : [];
-        if (!eventResponse.ok) { const row = body.insertRow(); const cell = row.insertCell(); cell.colSpan = 10; cell.textContent = `Event history unavailable: ${eventData.detail || eventData.error || eventResponse.status}`; }
-        else if (!events.length) { const row = body.insertRow(); const cell = row.insertCell(); cell.colSpan = 10; cell.textContent = 'No events yet'; }
+        if (!eventResponse.ok) { const row = body.insertRow(); const cell = row.insertCell(); cell.colSpan = 11; cell.textContent = `Event history unavailable: ${eventData.detail || eventData.error || eventResponse.status}`; }
+        else if (!events.length) { const row = body.insertRow(); const cell = row.insertCell(); cell.colSpan = 11; cell.textContent = 'No events yet'; }
         for (const event of events) {
           const row = body.insertRow();
-          for (const value of [event.timestamp_utc, `${event.label} · ${event.event_type}`, event.state ?? '—', event.severity ?? '—',
+          for (const value of [event.timestamp_utc, event.camera_id ?? 'camera-0', `${event.label} · ${event.event_type}`, event.state ?? '—', event.severity ?? '—',
             event.related_track_id == null ? event.track_id : `${event.track_id} / ${event.related_track_id}`,
             event.person_association ?? '—', Number(event.confidence).toFixed(3), event.roi_occupancy_count ?? '—']) {
             row.insertCell().textContent = value;

@@ -1,0 +1,16 @@
+{
+  "scope":"isolated-rknn-offline-no-pacing",
+  "model":"/home/kickpi/projects/RK-EdgeStation/.work/model-selection-20261107/constructelligence-v0.3-fp-rk3576.rknn",
+  "video":"/home/kickpi/projects/RK-EdgeStation/.work/model-selection-20261107/men-at-work-ppe-640x1138-15fps.mp4",
+  "frames":79,
+  "nominal_fps":15.0000,
+  "model_input":{"dims":"[1,640,640,3]","format":1,"type":1,"size":2457600,"width":640,"height":640,"color_order":"RGB","input_pixels":"uint8 0..255; Toolkit2 mean=0 std=255"},
+  "outputs":[{"index":0,"dims":"[1,18,8400]","format":3,"type":1,"elements":151200}],
+  "timing_ms":{"preprocess_p50":11.6221,"preprocess_p95":45.5105,"input_set_p50":42.7019,"input_set_p95":49.1683,"run_p50":181.6658,"run_p95":215.2197,"fetch_p50":1.1857,"fetch_p95":3.0835},
+  "wall_seconds":20.0513,
+  "throughput_fps":3.9399,
+  "process_cpu_core_percent":62.6623,
+  "process_cpu_system_percent":7.8328,
+  "process_cpu_seconds":12.5646,
+  "peak_rss_kb":185064
+}

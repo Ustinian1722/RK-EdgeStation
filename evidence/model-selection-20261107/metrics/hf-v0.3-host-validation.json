@@ -1,0 +1,198 @@
+{
+  "AP50": 0.26818761680451586,
+  "AP50_95": 0.15072499848716844,
+  "annotation_sha256": "0bbbef1bc3f5febbc224b12b3f37fde62d8a4835aac0edc7b887fd0ae8dab6e1",
+  "confidence_threshold_for_operating_recall": 0.25,
+  "dataset_split": "development validation; the FP epoch selection split, not an independent test set",
+  "image_count": 200,
+  "iou_thresholds": [
+    0.5,
+    0.55,
+    0.6,
+    0.65,
+    0.7,
+    0.75,
+    0.8,
+    0.85,
+    0.9,
+    0.95
+  ],
+  "metric_definition": "101-point interpolated AP per class, averaged over classes with GT; AP50:95 averages IoU 0.50 to 0.95 in 0.05 steps",
+  "operating_point_iou_0_50": {
+    "Person": {
+      "false_negatives_at_iou_0_50": 80,
+      "false_positives_at_iou_0_50": 13,
+      "ground_truth": 481,
+      "predictions_at_confidence_threshold": 414,
+      "recall_at_confidence_threshold": 0.8336798336798337,
+      "true_positives_at_iou_0_50": 401
+    },
+    "boots": {
+      "false_negatives_at_iou_0_50": 479,
+      "false_positives_at_iou_0_50": 0,
+      "ground_truth": 481,
+      "predictions_at_confidence_threshold": 2,
+      "recall_at_confidence_threshold": 0.004158004158004158,
+      "true_positives_at_iou_0_50": 2
+    },
+    "forklift": {
+      "false_negatives_at_iou_0_50": 73,
+      "false_positives_at_iou_0_50": 0,
+      "ground_truth": 73,
+      "predictions_at_confidence_threshold": 0,
+      "recall_at_confidence_threshold": 0.0,
+      "true_positives_at_iou_0_50": 0
+    },
+    "gloves": {
+      "false_negatives_at_iou_0_50": 380,
+      "false_positives_at_iou_0_50": 0,
+      "ground_truth": 381,
+      "predictions_at_confidence_threshold": 1,
+      "recall_at_confidence_threshold": 0.0026246719160104987,
+      "true_positives_at_iou_0_50": 1
+    },
+    "goggles": {
+      "false_negatives_at_iou_0_50": 139,
+      "false_positives_at_iou_0_50": 0,
+      "ground_truth": 139,
+      "predictions_at_confidence_threshold": 0,
+      "recall_at_confidence_threshold": 0.0,
+      "true_positives_at_iou_0_50": 0
+    },
+    "helmet": {
+      "false_negatives_at_iou_0_50": 113,
+      "false_positives_at_iou_0_50": 35,
+      "ground_truth": 294,
+      "predictions_at_confidence_threshold": 216,
+      "recall_at_confidence_threshold": 0.6156462585034014,
+      "true_positives_at_iou_0_50": 181
+    },
+    "no_boots": {
+      "false_negatives_at_iou_0_50": 178,
+      "false_positives_at_iou_0_50": 0,
+      "ground_truth": 178,
+      "predictions_at_confidence_threshold": 0,
+      "recall_at_confidence_threshold": 0.0,
+      "true_positives_at_iou_0_50": 0
+    },
+    "no_gloves": {
+      "false_negatives_at_iou_0_50": 203,
+      "false_positives_at_iou_0_50": 1,
+      "ground_truth": 203,
+      "predictions_at_confidence_threshold": 1,
+      "recall_at_confidence_threshold": 0.0,
+      "true_positives_at_iou_0_50": 0
+    },
+    "no_goggle": {
+      "false_negatives_at_iou_0_50": 81,
+      "false_positives_at_iou_0_50": 2,
+      "ground_truth": 82,
+      "predictions_at_confidence_threshold": 3,
+      "recall_at_confidence_threshold": 0.012195121951219513,
+      "true_positives_at_iou_0_50": 1
+    },
+    "no_helmet": {
+      "false_negatives_at_iou_0_50": 154,
+      "false_positives_at_iou_0_50": 23,
+      "ground_truth": 179,
+      "predictions_at_confidence_threshold": 48,
+      "recall_at_confidence_threshold": 0.13966480446927373,
+      "true_positives_at_iou_0_50": 25
+    },
+    "no_vest": {
+      "false_negatives_at_iou_0_50": 71,
+      "false_positives_at_iou_0_50": 6,
+      "ground_truth": 130,
+      "predictions_at_confidence_threshold": 65,
+      "recall_at_confidence_threshold": 0.45384615384615384,
+      "true_positives_at_iou_0_50": 59
+    },
+    "vest": {
+      "false_negatives_at_iou_0_50": 146,
+      "false_positives_at_iou_0_50": 3,
+      "ground_truth": 340,
+      "predictions_at_confidence_threshold": 197,
+      "recall_at_confidence_threshold": 0.5705882352941176,
+      "true_positives_at_iou_0_50": 194
+    }
+  },
+  "per_class": {
+    "Person": {
+      "AP50": 0.8716500220425686,
+      "AP50_95": 0.541875793166626,
+      "ground_truth": 481,
+      "predictions_at_low_score_threshold": 1590
+    },
+    "boots": {
+      "AP50": 0.08065609774734299,
+      "AP50_95": 0.025379701903436754,
+      "ground_truth": 481,
+      "predictions_at_low_score_threshold": 133
+    },
+    "forklift": {
+      "AP50": 0.0,
+      "AP50_95": 0.0,
+      "ground_truth": 73,
+      "predictions_at_low_score_threshold": 0
+    },
+    "gloves": {
+      "AP50": 0.0917454828647165,
+      "AP50_95": 0.03859386660076169,
+      "ground_truth": 381,
+      "predictions_at_low_score_threshold": 75
+    },
+    "goggles": {
+      "AP50": 0.048090523338048086,
+      "AP50_95": 0.019193776520509194,
+      "ground_truth": 139,
+      "predictions_at_low_score_threshold": 7
+    },
+    "helmet": {
+      "AP50": 0.6424427292993165,
+      "AP50_95": 0.3362356858832435,
+      "ground_truth": 294,
+      "predictions_at_low_score_threshold": 544
+    },
+    "no_boots": {
+      "AP50": 0.0,
+      "AP50_95": 0.0,
+      "ground_truth": 178,
+      "predictions_at_low_score_threshold": 0
+    },
+    "no_gloves": {
+      "AP50": 0.01079816719536031,
+      "AP50_95": 0.002721839789946316,
+      "ground_truth": 203,
+      "predictions_at_low_score_threshold": 105
+    },
+    "no_goggle": {
+      "AP50": 0.035910733930535906,
+      "AP50_95": 0.01898475561841898,
+      "ground_truth": 82,
+      "predictions_at_low_score_threshold": 40
+    },
+    "no_helmet": {
+      "AP50": 0.20698112901143118,
+      "AP50_95": 0.08055149793854041,
+      "ground_truth": 179,
+      "predictions_at_low_score_threshold": 148
+    },
+    "no_vest": {
+      "AP50": 0.5455815513871363,
+      "AP50_95": 0.2695861776756404,
+      "ground_truth": 130,
+      "predictions_at_low_score_threshold": 208
+    },
+    "vest": {
+      "AP50": 0.684394964837734,
+      "AP50_95": 0.475576886748898,
+      "ground_truth": 340,
+      "predictions_at_low_score_threshold": 301
+    }
+  },
+  "predictions_sha256": "914d8a8e71283c02a334f49d120421824a9e3f56640b6a04c283bd4064072d42",
+  "required_violation_class_recall": {
+    "no_helmet": 0.13966480446927373,
+    "no_vest": 0.45384615384615384
+  }
+}

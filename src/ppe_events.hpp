@@ -83,7 +83,8 @@ private:
         std::size_t last_seen_update = 0;
     };
 
-    void observe(const std::string& key, const PPEEventTransition& candidate,
+    void observe(const std::string& key, std::uint64_t identity_track_id,
+                 const PPEEventTransition& candidate,
                  std::chrono::milliseconds dwell, Clock::time_point now,
                  std::vector<PPEEventTransition>& events);
 

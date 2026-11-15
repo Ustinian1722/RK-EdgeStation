@@ -1,0 +1,12 @@
+{"kind":"lifecycle_start","open_fds":3}
+{"kind":"lifecycle_cycle","cycle":1,"fd":23,"source_copy_bytes":0,"frame_memory_size":2121728,"frame_stride_y":1472,"valid_before_close":true,"valid_while_frame_retained":true,"fd_released_with_frame":true,"open_fds_after_cycle":8}
+{"kind":"lifecycle_cycle","cycle":2,"fd":22,"source_copy_bytes":0,"frame_memory_size":2121728,"frame_stride_y":1472,"valid_before_close":true,"valid_while_frame_retained":true,"fd_released_with_frame":true,"open_fds_after_cycle":8}
+{"kind":"lifecycle_cycle","cycle":3,"fd":24,"source_copy_bytes":0,"frame_memory_size":2121728,"frame_stride_y":1472,"valid_before_close":true,"valid_while_frame_retained":true,"fd_released_with_frame":true,"open_fds_after_cycle":8}
+{"kind":"lifecycle_cycle","cycle":4,"fd":24,"source_copy_bytes":0,"frame_memory_size":2121728,"frame_stride_y":1472,"valid_before_close":true,"valid_while_frame_retained":true,"fd_released_with_frame":true,"open_fds_after_cycle":8}
+{"kind":"lifecycle_cycle","cycle":5,"fd":24,"source_copy_bytes":0,"frame_memory_size":2121728,"frame_stride_y":1472,"valid_before_close":true,"valid_while_frame_retained":true,"fd_released_with_frame":true,"open_fds_after_cycle":8}
+{"kind":"lifecycle_cycle","cycle":6,"fd":24,"source_copy_bytes":0,"frame_memory_size":2121728,"frame_stride_y":1472,"valid_before_close":true,"valid_while_frame_retained":true,"fd_released_with_frame":true,"open_fds_after_cycle":8}
+{"kind":"lifecycle_cycle","cycle":7,"fd":24,"source_copy_bytes":0,"frame_memory_size":2121728,"frame_stride_y":1472,"valid_before_close":true,"valid_while_frame_retained":true,"fd_released_with_frame":true,"open_fds_after_cycle":8}
+{"kind":"lifecycle_cycle","cycle":8,"fd":24,"source_copy_bytes":0,"frame_memory_size":2121728,"frame_stride_y":1472,"valid_before_close":true,"valid_while_frame_retained":true,"fd_released_with_frame":true,"open_fds_after_cycle":8}
+{"kind":"lifecycle_cycle","cycle":9,"fd":24,"source_copy_bytes":0,"frame_memory_size":2121728,"frame_stride_y":1472,"valid_before_close":true,"valid_while_frame_retained":true,"fd_released_with_frame":true,"open_fds_after_cycle":8}
+{"kind":"lifecycle_cycle","cycle":10,"fd":24,"source_copy_bytes":0,"frame_memory_size":2121728,"frame_stride_y":1472,"valid_before_close":true,"valid_while_frame_retained":true,"fd_released_with_frame":true,"open_fds_after_cycle":8}
+{"kind":"lifecycle_summary","cycles":10,"initial_open_fds":3,"final_open_fds":8}

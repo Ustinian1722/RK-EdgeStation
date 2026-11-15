@@ -1,0 +1,19 @@
+{
+  "scope":"isolated-rknn-offline-no-pacing",
+  "model":"/home/kickpi/projects/RK-EdgeStation/.work/model-selection-20261107/constructelligence-v0.3-fp-rk3576.rknn",
+  "input":"/home/kickpi/projects/RK-EdgeStation/.work/model-selection-20261107/roboflow-v1/board-test-manifest.txt",
+  "mode":"image-manifest",
+  "confidence_floor":0.001,
+  "nms_iou":0.7000,
+  "frames":34,
+  "nominal_fps":0.0000,
+  "model_input":{"dims":"[1,640,640,3]","format":1,"type":1,"qnt_type":2,"scale":1.0000,"zero_point":0,"size":2457600,"width":640,"height":640,"color_order":"RGB","input_pixels":"uint8 0..255; Toolkit2 mean=0 std=255"},
+  "outputs":[{"index":0,"dims":"[1,18,8400]","format":3,"type":1,"qnt_type":2,"scale":1.0000,"zero_point":0,"elements":151200}],
+  "timing_ms":{"preprocess_p50":7.6459,"preprocess_p95":33.6221,"input_set_p50":37.8045,"input_set_p95":45.2476,"run_p50":184.6272,"run_p95":215.7985,"fetch_p50":1.2779,"fetch_p95":3.2804},
+  "wall_seconds":8.7616,
+  "throughput_fps":3.8806,
+  "process_cpu_core_percent":52.1608,
+  "process_cpu_system_percent":6.5201,
+  "process_cpu_seconds":4.5701,
+  "peak_rss_kb":157908
+}

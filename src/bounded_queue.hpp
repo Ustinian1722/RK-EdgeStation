@@ -63,6 +63,19 @@ public:
         return true;
     }
 
+    bool try_pop(T& value) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (items_.empty()) return false;
+        value = std::move(items_.front());
+        items_.pop_front();
+        return true;
+    }
+
+    bool closed() const {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return closed_;
+    }
+
     void close() {
         std::lock_guard<std::mutex> lock(mutex_);
         closed_ = true;
