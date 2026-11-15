@@ -31,12 +31,12 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Create experimental release if absent
+      - name: Create release or refresh its notes
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view v0.1.0 >/dev/null 2>&1; then
-            echo "Release already exists; not modifying it."
+            gh release edit v0.1.0 --notes-file RELEASE_NOTES.md
           else
             gh release create v0.1.0 --target "$GITHUB_SHA" --title "RK-EdgeStation v0.1.0 — Experimental" --notes-file RELEASE_NOTES.md --prerelease
           fi

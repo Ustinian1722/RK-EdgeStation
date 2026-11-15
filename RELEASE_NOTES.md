@@ -1,10 +1,13 @@
 # RK-EdgeStation v0.1.0
 
-Experimental source release for the KICKPI K7 / Rockchip RK3576.
+Initial source release of a hardware-accelerated industrial edge vision platform on Rockchip RK3576.
 
-- C++17 MPP/RGA/RKNN media and inference pipeline with OpenCV reference backends.
-- Optional partial DMA-BUF/shared-input optimization and FP/INT8 benchmarking.
-- Single-stream and multistream bounded scheduling, PPE/ROI event logic, local REST/Web and SQLite.
-- Bilingual documentation, architecture diagram, quick start, benchmark index and host CI.
+- C++17 heterogeneous media pipeline: GStreamer/MPP, RGA and RKNN.
+- DMA-BUF FD import, shared RKNN input memory and explicit cache synchronization.
+- FP/INT8 model optimization, tensor parity checks and stage-level profiling.
+- Bounded queue scheduling, object tracking, PPE/ROI event rules, REST/Web and SQLite.
+- Bilingual documentation, architecture diagram, benchmark records and automated host tests.
 
-Historical board results are reported with their exact scope. 32 synthetic RTSP sources connected successfully, but the shared FP model processed about 4 aggregate FPS (not 32-camera real-time PPE). DMA-BUF is partial low-copy, not a full zero-copy guarantee. Independent dynamic PPE accuracy and production safety certification are not established. New board acceptance and demonstrations are optional. See the README and third-party notices. External model weights and original media/datasets are not bundled.
+Selected historical board measurements: PPE throughput 4.59 → 7.98 FPS after INT8 conversion; explicit NV12 ingress copy 1.38 MB → 0 B/frame in the optional DMA-BUF path. See the repository benchmark index for complete protocols and results.
+
+Apache-2.0 project source; external models and runtime components have separate terms.
